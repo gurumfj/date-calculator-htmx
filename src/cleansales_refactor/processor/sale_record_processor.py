@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import asdict
 from datetime import datetime
 
 import pandas as pd
@@ -132,7 +133,7 @@ class SaleRecordProcessor:
 
         result = []
         for i, record in enumerate(records):
-            new_record = SaleRecord(**vars(record))
+            new_record = SaleRecord(**asdict(record))
             if i == 0:
                 new_record._date_diff = 0
             else:
@@ -156,7 +157,7 @@ class SaleRecordProcessor:
         group_id = 0
 
         for i, record in enumerate(records):
-            new_record = SaleRecord(**vars(record))
+            new_record = SaleRecord(**asdict(record))
             if i > 0 and record._date_diff > threshold_days:
                 group_id += 1
             new_record._group_id = group_id

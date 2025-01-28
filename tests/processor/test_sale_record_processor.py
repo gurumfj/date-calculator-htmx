@@ -1,4 +1,5 @@
 from datetime import datetime
+from dataclasses import asdict
 
 import pandas as pd
 import pytest
@@ -50,7 +51,7 @@ def sample_sale_records() -> list[SaleRecord]:
 @pytest.fixture
 def sample_dataframe(sample_sale_records) -> pd.DataFrame:
     """建立測試用的 DataFrame"""
-    records_dict = [vars(record) for record in sample_sale_records]
+    records_dict = [asdict(record) for record in sample_sale_records]
     return pd.DataFrame(records_dict)
 
 

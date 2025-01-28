@@ -1,5 +1,5 @@
 import pandas as pd
-
+from dataclasses import asdict
 from cleansales_refactor.models.sale_record import ProcessingResult
 
 
@@ -19,7 +19,7 @@ class ExcelExporter:
         for group in result.grouped_data:
             records_df = pd.DataFrame(
                 [
-                    {**vars(record), "location": group.location}
+                    {**asdict(record), "location": group.location}
                     for record in group.sale_records
                 ]
             )
