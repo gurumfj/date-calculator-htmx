@@ -1,7 +1,7 @@
 import pandas as pd
 
 from cleansales_refactor.exporters import ExcelExporter
-from sales_records_importer import SaleRecordRawDataImporter
+from cleansales_refactor.services import SaleRecordRawDataImporter
 
 
 def main() -> None:

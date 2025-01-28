@@ -1,3 +1,3 @@
-from cleansales_refactor.services.sale_record_processor import SaleRecordProcessor
+from .sales_records_importer import SaleRecordRawDataImporter
 
-__all__ = ["SaleRecordProcessor"]
+__all__ = ["SaleRecordRawDataImporter"]
