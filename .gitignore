@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Keep the lock file
+# uv.lock  # 不要忽略這個文件
+
+# Ignore the file
+.DS_Store
+*.xlsx

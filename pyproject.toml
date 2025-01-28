@@ -8,12 +8,12 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "mypy>=1.14.1",
     "pandas>=2.2.3",
     "pydantic>=2.10.6",
+    "pandas-stubs>=2.2.0.230",
+    "openpyxl>=3.1.5",
 ]
-
-[project.scripts]
-cleansales-refactor = "cleansales_refactor:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,7 +38,7 @@ namespace_packages = true
 warn_return_any = true
 warn_unused_configs = true
 mypy_path = ["src"]
-packages = ["domain", "infrastructure", "shared"]
+# packages = ["domain", "infrastructure", "shared"]
 
 [[tool.mypy.overrides]]
 module = "numpy.*"
@@ -48,17 +48,56 @@ ignore_missing_imports = true
 module = "modules.*"
 ignore_missing_imports = false
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/modules"]
+# [tool.hatch.build.targets.wheel]
+# packages = ["src/modules"]
 
-[tool.ruff]
-# Enable auto-fix
-fix = true
+# [tool.ruff]
+# # Enable auto-fix
+# fix = true
 
-# Rules to fix
-select = [
-    "F401",  # Unused imports
-    "F402", # Module level import not at top of file
-    "F841",  # Unused variables
-    "F541",  # f-strings without placeholders
-]
+# # Exclude a variety of commonly ignored directories.
+# exclude = [
+#     ".bzr",
+#     ".direnv",
+#     ".eggs",
+#     ".git",
+#     ".git-rewrite",
+#     ".hg",
+#     ".mypy_cache",
+#     ".nox",
+#     ".pants.d",
+#     ".pytype",
+#     ".ruff_cache",
+#     ".svn",
+#     ".tox",
+#     ".venv",
+#     "__pypackages__",
+#     "_build",
+#     "buck-out",
+#     "build",
+#     "dist",
+#     "node_modules",
+#     "venv",
+# ]
+
+# # Same as Black.
+# line-length = 88
+# indent-width = 4
+
+# # Assume Python 3.12
+# target-version = "py312"
+
+# [tool.ruff.lint]
+# # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)
+# select = [
+#     "E",  # pycodestyle errors
+#     "F",  # Pyflakes
+#     "I",  # isort
+#     "N",  # pep8-naming
+# ]
+
+# # Allow fix for all enabled rules (when `--fix`) is provided.
+# fixable = ["ALL"]
+
+# # Allow unused variables when underscore-prefixed.
+# dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"

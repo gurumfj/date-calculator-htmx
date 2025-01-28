@@ -1,0 +1,85 @@
+{
+    "python.languageServer": "Default",
+    "python.testing.pytestEnabled": true,
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/tests"
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/tests"
+    ],
+    // "windsurfPyright.extraPaths": [
+    //     "${workspaceFolder}",
+    //     "${workspaceFolder}/src",
+    //     "${workspaceFolder}/tests"
+    // ],
+    // "windsurfPyright.analysis.include": [
+    //     "${workspaceFolder}",
+    //     "${workspaceFolder}/src",
+    //     "${workspaceFolder}/tests"
+    // ],
+    // "windsurfPyright.analysis.extraPaths": [
+    //     "${workspaceFolder}",
+    //     "${workspaceFolder}/src",
+    //     "${workspaceFolder}/tests"
+    // ],
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.autoImportCompletions": true,
+    // "python.linting.mypyEnabled": true,
+    // "python.linting.enabled": true,
+    "mypy-type-checker.importStrategy": "fromEnvironment",
+    "mypy-type-checker.preferDaemon": false,
+    // "pyright.disableLanguageServices": false,
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUnusedImport": "none",
+        "reportMissingImports": "warning",
+        "reportUnknownMemberType": "none",
+        "reportUnknownVariableType": "none"
+    },
+    "python.analysis.include": [
+        "src/**/*.py",
+        "tests/**/*.py"
+    ],
+    "python.analysis.exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        ".git",
+        ".venv",
+        "venv",
+        "env",
+        "build",
+        "dist"
+    ],
+    // "windsurfPyright.disableLanguageServices": true,
+    "mypy-type-checker.reportingScope": "workspace",
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "notebook.defaultFormatter": "charliermarsh.ruff",
+    "terminal.explorerKind": "external",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    // "python.terminal.shellIntegration.enabled": true,
+    "[toml]": {
+        "editor.defaultFormatter": "tamasfe.even-better-toml"
+    },
+    "ruff.configuration": "./pyproject.toml",
+    "ruff.importStrategy": "fromEnvironment",
+
+    
+    "[python]": {
+        "editor.formatOnSave": true,  // 存檔時自動格式化
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        }
+    },
+    "ruff.enable": true,
+    // "windsurfPyright.analysis.diagnosticMode": "workspace",
+    // "windsurfPyright.analysis.typeCheckingMode": "standard",
+    "mypy-type-checker.args": [
+        "--config-file=./pyproject.toml"
+    ]
+}
+    
