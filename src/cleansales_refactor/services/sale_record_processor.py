@@ -4,13 +4,13 @@ from datetime import datetime
 import pandas as pd
 from pydantic import ValidationError
 
-from cleansales_refactor.models.sale_record import (
+from cleansales_refactor.models import (
     ProcessingResult,
     SaleRecord,
     SaleRecordsGroupByLocation,
     ErrorMessage,
+    SaleRecordValidatorSchema,
 )
-from cleansales_refactor.validator_schema.sales_schema import SaleRecordValidatorSchema
 
 
 class SaleRecordProcessor:
