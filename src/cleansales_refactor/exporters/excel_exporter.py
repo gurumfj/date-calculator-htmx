@@ -1,0 +1,32 @@
+import pandas as pd
+
+from cleansales_refactor.models.sale_record import ProcessingResult
+
+
+class ExcelExporter:
+    """Excel 匯出服務"""
+
+    def __init__(self, export_file_path: str, errors_file_path: str) -> None:
+        self._export_file_path = export_file_path
+        self._errors_file_path = errors_file_path
+
+    def export_data(self, result: ProcessingResult) -> None:
+        """將處理結果匯出為 Excel"""
+        if not result.grouped_data:
+            raise ValueError("No grouped data to export")
+
+        df = pd.DataFrame()
+        for group in result.grouped_data:
+            records_df = pd.DataFrame(
+                [
+                    {**vars(record), "location": group.location}
+                    for record in group.sale_records
+                ]
+            )
+            df = pd.concat([df, records_df])
+        df.to_excel(self._export_file_path, index=False)
+
+    def export_errors(self, result: ProcessingResult) -> None:
+        """將錯誤資料匯出為 Excel"""
+        df = pd.DataFrame([error for error in result.errors])
+        df.to_excel(self._errors_file_path, index=False)
