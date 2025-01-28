@@ -1,6 +1,8 @@
-from sales_records_importer import SaleRecordRawDataImporter
-from cleansales_refactor.exporters import ExcelExporter
 import pandas as pd
+
+from cleansales_refactor.exporters import ExcelExporter
+from sales_records_importer import SaleRecordRawDataImporter
+
 
 def main() -> None:
     input_file = "sales_sample.xlsx"
@@ -11,6 +13,7 @@ def main() -> None:
     importer.execute(pd.read_excel(input_file, sheet_name="工作表1"))
     importer.export_data()
     importer.export_errors()
+
 
 if __name__ == "__main__":
     main()
