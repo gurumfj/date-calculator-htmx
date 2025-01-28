@@ -1,0 +1,64 @@
+[project]
+name = "cleansales-refactor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Pierre Wu", email = "gurumfj@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2.3",
+    "pydantic>=2.10.6",
+]
+
+[project.scripts]
+cleansales-refactor = "cleansales_refactor:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
+    "src",
+]
+testpaths = [
+    "tests",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+exclude = "^.*_.*\\.py$"
+explicit_package_bases = true
+namespace_packages = true
+warn_return_any = true
+warn_unused_configs = true
+mypy_path = ["src"]
+packages = ["domain", "infrastructure", "shared"]
+
+[[tool.mypy.overrides]]
+module = "numpy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "modules.*"
+ignore_missing_imports = false
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/modules"]
+
+[tool.ruff]
+# Enable auto-fix
+fix = true
+
+# Rules to fix
+select = [
+    "F401",  # Unused imports
+    "F402", # Module level import not at top of file
+    "F841",  # Unused variables
+    "F541",  # f-strings without placeholders
+]
