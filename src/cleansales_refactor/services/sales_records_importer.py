@@ -8,12 +8,12 @@ from ..processor import SalesProcessor
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
 
-
-class IExporter(Protocol):
+class IExporter(Protocol, Generic[T]):
     """定義資料匯出介面"""
 
-    def export_data(self, result: ProcessingResult) -> None:
+    def export_data(self, result: ProcessingResult[T]) -> None:
         """匯出處理後的資料
 
         Args:
@@ -21,7 +21,7 @@ class IExporter(Protocol):
         """
         ...
 
-    def export_errors(self, result: ProcessingResult) -> None:
+    def export_errors(self, result: ProcessingResult[T]) -> None:
         """匯出錯誤資料
 
         Args:
@@ -40,7 +40,7 @@ class SaleRecordRawDataImporter:
         _exporter: 實作 IExporter 介面的匯出器實例
     """
 
-    def __init__(self, exporter: IExporter) -> None:
+    def __init__(self, exporter: IExporter[SaleRecord]) -> None:
         self._processing_result: ProcessingResult[SaleRecord] = ProcessingResult(
             processed_data=[], errors=[]
         )

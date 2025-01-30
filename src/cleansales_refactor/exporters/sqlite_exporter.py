@@ -1,13 +1,16 @@
 from dataclasses import asdict
 from datetime import date
-from typing import Generic, List, TypeVar
+from typing import List
 
 from sqlmodel import Field, Session, SQLModel, create_engine
 
 from cleansales_refactor.models.sale_record import ProcessingResult
 
+from ..models import SaleRecord
+from ..services import IExporter
 
-class SaleRecord(SQLModel, table=True):
+
+class SaleRecordORM(SQLModel, table=True):
     """銷售記錄資料表模型"""
 
     id: int | None = Field(default=None, primary_key=True)
@@ -35,10 +38,11 @@ class ErrorRecord(SQLModel, table=True):
     timestamp: str
 
 
-class SQLiteExporter:
+class SQLiteExporter(IExporter[SaleRecord]):
     """SQLite 匯出服務 (使用 SQLModel)"""
 
     def __init__(self, db_path: str) -> None:
+        self.db_path = db_path
         self._engine = create_engine(f"sqlite:///{db_path}", echo=False)
         self._init_database()
 
@@ -53,9 +57,7 @@ class SQLiteExporter:
 
         with Session(self._engine) as session:
             for record in result.processed_data:
-                sale_records: List[SaleRecord] = [
-                    SaleRecord(**asdict(record))
-                ]
+                sale_records: List[SaleRecordORM] = [SaleRecordORM(**asdict(record))]
                 session.add_all(sale_records)
             session.commit()
 

@@ -1,3 +1,3 @@
-from .sales_records_importer import SaleRecordRawDataImporter
+from .sales_records_importer import SaleRecordRawDataImporter, IExporter
 
-__all__ = ["SaleRecordRawDataImporter"]
+__all__ = ["SaleRecordRawDataImporter", "IExporter"]
