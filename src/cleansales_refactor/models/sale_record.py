@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, TypeAlias
+from typing import Any, Generic, TypeAlias, TypeVar
 
 Location: TypeAlias = str
 
@@ -21,18 +21,9 @@ class SaleRecord:
     male_price: float | None
     female_price: float | None
     unpaid: str | None
-    _date_diff: float = field(default=0)
-    _group_id: int = field(default=0)
 
 
-@dataclass
-class SaleRecordsGroupByLocation:
-    """按位置分組的銷售記錄"""
-
-    location: str
-    sale_records: list[SaleRecord]
-
-@dataclass
+@dataclass(frozen=True)
 class ErrorMessage:
     message: str
     data: dict[str, Any]
@@ -42,9 +33,12 @@ class ErrorMessage:
     )
 
 
-@dataclass
-class ProcessingResult:
+T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class ProcessingResult(Generic[T]):
     """處理結果的不可變資料類別"""
 
-    grouped_data: list[SaleRecordsGroupByLocation]
+    processed_data: list[T]
     errors: list[ErrorMessage]

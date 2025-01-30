@@ -15,3 +15,4 @@ wheels/
 # Ignore the file
 .DS_Store
 *.xlsx
+*.db

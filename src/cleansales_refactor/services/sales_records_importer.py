@@ -1,12 +1,13 @@
 import logging
-from typing import Protocol
+from typing import Generic, Protocol, TypeVar
 
 import pandas as pd
 
-from ..models import ProcessingResult
+from ..models import ProcessingResult, SaleRecord
 from ..processor import SalesProcessor
 
 logger = logging.getLogger(__name__)
+
 
 
 class IExporter(Protocol):
@@ -40,7 +41,9 @@ class SaleRecordRawDataImporter:
     """
 
     def __init__(self, exporter: IExporter) -> None:
-        self._processing_result: ProcessingResult = ProcessingResult([], [])
+        self._processing_result: ProcessingResult[SaleRecord] = ProcessingResult(
+            processed_data=[], errors=[]
+        )
         self._exporter = exporter
 
     def execute(self, data: pd.DataFrame) -> None:

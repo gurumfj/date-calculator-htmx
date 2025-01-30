@@ -1,7 +1,8 @@
 from collections import defaultdict
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Callable, TypeAlias
+
 import pandas as pd
 from pydantic import ValidationError
 
@@ -9,26 +10,38 @@ from cleansales_refactor.models import (
     ErrorMessage,
     ProcessingResult,
     SaleRecord,
-    SaleRecordsGroupByLocation,
+    # SaleRecordWithMeta,
     SaleRecordValidatorSchema,
 )
 
+
+@dataclass
+class SaleRecordWithMeta(SaleRecord):
+    date_diff: float = field(default=0)
+    group_id: int = field(default=0)
+
+
 GroupKey: TypeAlias = str
-SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecord]]
+SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecordWithMeta]]
 
 
 class SalesProcessor:
     """銷售記錄處理服務"""
 
     @staticmethod
-    def process_data(data: pd.DataFrame) -> ProcessingResult:
+    def process_data(data: pd.DataFrame) -> ProcessingResult[SaleRecord]:
         """處理資料並返回結果"""
         data.sort_values(by="日期", inplace=True)
-        cleaned_records_result = SalesProcessor._validate_and_clean_records(data)
-        cleaned_records, errors = cleaned_records_result
 
+        # 驗證和清理銷售記錄
+        cleaned_records, errors = SalesProcessor._validate_and_clean_records(data)
+
+        # 如果沒有清理的記錄，返回錯誤
         if not cleaned_records:
-            return ProcessingResult([], errors)
+            return ProcessingResult(
+                processed_data=[],
+                errors=errors,
+            )
 
         location_groups = SalesDtoProcessor.group_by_location(cleaned_records)
         processed_groups = SaleUtil.with_dict_copy(
@@ -44,9 +57,9 @@ class SalesProcessor:
     @staticmethod
     def _validate_and_clean_records(
         data: pd.DataFrame,
-    ) -> tuple[list[SaleRecord], list[ErrorMessage]]:
+    ) -> tuple[list[SaleRecordWithMeta], list[ErrorMessage]]:
         """驗證和清理記錄"""
-        cleaned_records: list[SaleRecord] = []
+        cleaned_records: list[SaleRecordWithMeta] = []
         errors: list[ErrorMessage] = []
 
         for idx, row in data.iterrows():
@@ -69,22 +82,23 @@ class SalesProcessor:
     @staticmethod
     def _process_groups(groups: SalesGroups) -> SalesGroups:
         """處理分組"""
-        def __process_group(records: list[SaleRecord]) -> list[SaleRecord]:
+
+        def __process_group(
+            records: list[SaleRecordWithMeta],
+        ) -> list[SaleRecordWithMeta]:
             result = SalesProcessor._calculate_date_diff_and_assign_group_id(records)
             result = SalesProcessor._assign_group_key_to_location(result)
             return result
 
         for key, records in groups.items():
-            processed_records = SaleUtil.with_list_copy(
-                records, __process_group
-            )
+            processed_records = SaleUtil.with_list_copy(records, __process_group)
             groups[key] = processed_records
         return groups
 
     @staticmethod
     def _calculate_date_diff_and_assign_group_id(
-        records: list[SaleRecord],
-    ) -> list[SaleRecord]:
+        records: list[SaleRecordWithMeta],
+    ) -> list[SaleRecordWithMeta]:
         """計算銷售記錄列表中相鄰日期的差異"""
         if not records:
             return []
@@ -93,19 +107,21 @@ class SalesProcessor:
         threshold_days = 45
         group_id = 0
         for i, record in enumerate(records):
-            new_record = SaleRecord(**asdict(record))
-            new_record._date_diff = SaleUtil.assign_date_diff(
+            new_record = SaleRecordWithMeta(**asdict(record))
+            new_record.date_diff = SaleUtil.assign_date_diff(
                 i, record.date, records[i - 1].date
             )
-            new_record._group_id = SaleUtil.assign_group_id(
-                i, new_record._date_diff, threshold_days, group_id
+            new_record.group_id = SaleUtil.assign_group_id(
+                i, new_record.date_diff, threshold_days, group_id
             )
             result.append(new_record)
-            group_id = new_record._group_id
+            group_id = new_record.group_id
         return result
 
     @staticmethod
-    def _assign_group_key_to_location(group: list[SaleRecord]) -> list[SaleRecord]:
+    def _assign_group_key_to_location(
+        group: list[SaleRecordWithMeta],
+    ) -> list[SaleRecordWithMeta]:
         """創建群組鍵"""
         min_date_record = group[0]
         max_date_record = group[-1]
@@ -121,26 +137,46 @@ class SalesProcessor:
 
 class SalesDtoProcessor:
     @staticmethod
-    def validator_schema_to_dataclass(data: SaleRecordValidatorSchema) -> SaleRecord:
+    def validator_schema_to_dataclass(
+        data: SaleRecordValidatorSchema,
+    ) -> SaleRecordWithMeta:
         """Schema 轉換為 Dataclass"""
-        new_data = data.model_copy()
-        return SaleRecord(
-            closed=new_data.closed,
-            handler=new_data.handler,
-            date=new_data.date,
-            location=new_data.location,
-            customer=new_data.customer,
-            male_count=new_data.male_count,
-            female_count=new_data.female_count,
-            total_weight=new_data.total_weight,
-            total_price=new_data.total_price,
-            male_price=new_data.male_price,
-            female_price=new_data.female_price,
-            unpaid=new_data.unpaid,
+        # new_data = data.model_copy()
+        return SaleRecordWithMeta(
+            closed=data.closed,
+            handler=data.handler,
+            date=data.date,
+            location=data.location,
+            customer=data.customer,
+            male_count=data.male_count,
+            female_count=data.female_count,
+            total_weight=data.total_weight,
+            total_price=data.total_price,
+            male_price=data.male_price,
+            female_price=data.female_price,
+            unpaid=data.unpaid,
         )
 
     @staticmethod
-    def group_by_location(records: list[SaleRecord]) -> SalesGroups:
+    def metarecord_to_datarecord(record: SaleRecordWithMeta) -> SaleRecord:
+        """MetaRecord 轉換為 Dataclass"""
+        return SaleRecord(
+            closed=record.closed,
+            handler=record.handler,
+            date=record.date,
+            location=record.location,
+            customer=record.customer,
+            male_count=record.male_count,
+            female_count=record.female_count,
+            total_weight=record.total_weight,
+            total_price=record.total_price,
+            male_price=record.male_price,
+            female_price=record.female_price,
+            unpaid=record.unpaid,
+        )
+
+    @staticmethod
+    def group_by_location(records: list[SaleRecordWithMeta]) -> SalesGroups:
         """按位置分組"""
         new_records = records.copy()
         return SalesDtoProcessor._group_by_field(
@@ -149,32 +185,32 @@ class SalesDtoProcessor:
 
     @staticmethod
     def group_by_location_and_group_id(
-        records: list[SaleRecord],
+        records: list[SaleRecordWithMeta],
     ) -> SalesGroups:
         """按位置和群組ID分組"""
         new_records = records.copy()
         return SalesDtoProcessor._group_by_field(
-            new_records, lambda record: f"{record.location}_{record._group_id}"
+            new_records, lambda record: f"{record.location}_{record.group_id}"
         )
 
     @staticmethod
     def salesgroups_to_processingresult(
         groups: SalesGroups, errors: list[ErrorMessage]
-    ) -> ProcessingResult:
+    ) -> ProcessingResult[SaleRecord]:
         """SalesGroups 轉換為 ProcessingResult"""
-        final_groups: list[SaleRecordsGroupByLocation] = []
-        for key, records in groups.items():
-            final_groups.append(
-                SaleRecordsGroupByLocation(location=key, sale_records=records)
+        all_records: list[SaleRecord] = []
+        for records in groups.values():
+            all_records.extend(
+                [SalesDtoProcessor.metarecord_to_datarecord(record) for record in records]
             )
-        return ProcessingResult(
-            grouped_data=final_groups,
+        return ProcessingResult[SaleRecord](
+            processed_data=all_records,
             errors=errors,
         )
 
     @staticmethod
     def _group_by_field(
-        records: list[SaleRecord], field: Callable[[SaleRecord], str]
+        records: list[SaleRecordWithMeta], field: Callable[[SaleRecordWithMeta], str]
     ) -> SalesGroups:
         groups: SalesGroups = defaultdict(list)
         for record in records:

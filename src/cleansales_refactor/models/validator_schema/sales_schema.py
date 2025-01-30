@@ -4,8 +4,7 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from pydantic import ConfigDict, Field, field_validator, BaseModel
-
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -30,26 +29,37 @@ class SaleRecordValidatorSchema(BaseModel):
 
     @field_validator("date", mode="before")
     @classmethod
-    def parse_date(cls, v: str | datetime) -> datetime:
-        if isinstance(v, str):
-            try:
-                return datetime.strptime(v.strip(), "%Y-%m-%d")
-            except ValueError:
-                raise ValueError("日期格式不正確")
+    def parse_date(cls, v: Any) -> datetime:
+        if pd.isna(v) or v is None:
+            raise ValueError("日期為空")
+        if isinstance(v, datetime):
+            return v
+        raise ValueError("日期格式不正確")
+
+    @field_validator("location", mode="before")
+    @classmethod
+    def parse_primary_key_columns(cls, v: Any) -> str:
+        if pd.isna(v):
+            raise ValueError("場別為空")
+        if not isinstance(v, str):
+            raise ValueError("場別為空")
+        # 使用正規表達式進行多重替換
+        v = re.sub(r"--", "-", v)  # 將 "--" 替換為 "-"
+        v = re.sub(r"\s+", "", v)  # 去除所有空格
+        v = re.sub(r"-N", "", v)  # 移除 "-N"
+
+        if v.strip() == "" or not isinstance(v, str):
+            raise ValueError("場別為空")
         return v
 
     @field_validator("customer", mode="before")
     @classmethod
     def clean_customer_name(cls, v: str) -> str:
-        try:
-            if pd.isna(v):
-                raise ValueError("客戶名稱為空")
-            if v.strip() == "":
-                raise ValueError("客戶名稱為空")
-            return v.strip()
-        except Exception as e:
-            logger.error("轉換客戶名稱錯誤: %s", str(e))
-            raise ValueError("客戶名稱包含非法字符")
+        if pd.isna(v):
+            raise ValueError("客戶名稱為空")
+        if v.strip() == "":
+            raise ValueError("客戶名稱為空")
+        return v.strip()
 
     @field_validator("male_count", "female_count", mode="before")
     @classmethod
@@ -61,7 +71,9 @@ class SaleRecordValidatorSchema(BaseModel):
                 return 0
         return int(v)
 
-    @field_validator("total_weight", "male_price", "female_price", "total_price", mode="before")
+    @field_validator(
+        "total_weight", "male_price", "female_price", "total_price", mode="before"
+    )
     @classmethod
     def validate_and_convert_columns(cls, v: str | float | None) -> float | None:
         if isinstance(v, str):
@@ -78,17 +90,5 @@ class SaleRecordValidatorSchema(BaseModel):
             return None
         stripped_value = str(v).replace(" ", "")
         return None if stripped_value == "" else stripped_value
-
-    @field_validator("location", mode="before")
-    @classmethod
-    def parse_primary_key_columns(cls, v: str) -> str:
-        # 使用正規表達式進行多重替換
-        v = re.sub(r"--", "-", v)  # 將 "--" 替換為 "-"
-        v = re.sub(r"\s+", "", v)  # 去除所有空格
-        v = re.sub(r"-N", "", v)  # 移除 "-N"
-
-        if v.strip() == "":
-            raise ValueError("場別為空")
-        return v
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)

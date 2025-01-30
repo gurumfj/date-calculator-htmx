@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from datetime import date
-from typing import List
+from typing import Generic, List, TypeVar
 
 from sqlmodel import Field, Session, SQLModel, create_engine
 
@@ -34,6 +34,7 @@ class ErrorRecord(SQLModel, table=True):
     extra: str
     timestamp: str
 
+
 class SQLiteExporter:
     """SQLite 匯出服務 (使用 SQLModel)"""
 
@@ -45,26 +46,28 @@ class SQLiteExporter:
         """初始化資料庫表格"""
         SQLModel.metadata.create_all(self._engine)
 
-    def export_data(self, result: ProcessingResult) -> None:
+    def export_data(self, result: ProcessingResult[SaleRecord]) -> None:
         """將處理結果匯出至 SQLite 資料庫"""
-        if not result.grouped_data:
+        if not result.processed_data:
             raise ValueError("No grouped data to export")
 
         with Session(self._engine) as session:
-            for group in result.grouped_data:
+            for record in result.processed_data:
                 sale_records: List[SaleRecord] = [
-                    SaleRecord(**asdict(record)) for record in group.sale_records
+                    SaleRecord(**asdict(record))
                 ]
                 session.add_all(sale_records)
             session.commit()
 
-    def export_errors(self, result: ProcessingResult) -> None:
+    def export_errors(self, result: ProcessingResult[SaleRecord]) -> None:
         """將錯誤資料匯出至 SQLite 資料庫"""
         with Session(self._engine) as session:
             error_records = [
                 ErrorRecord(
-                    error_message=error.message,
-                    row_data=str(error.data),
+                    message=error.message,
+                    data=str(error.data),
+                    extra=str(error.extra),
+                    timestamp=error.timestamp,
                 )
                 for error in result.errors
             ]
