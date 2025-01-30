@@ -1,3 +1,4 @@
-from .sale_record_processor import SaleRecordProcessor
+from .sale_record_processor import SalesProcessor
 
-__all__ = ["SaleRecordProcessor"]
+__all__ = ["SalesProcessor"]
+

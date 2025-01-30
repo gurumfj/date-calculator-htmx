@@ -4,7 +4,7 @@ from typing import Protocol
 import pandas as pd
 
 from ..models import ProcessingResult
-from ..processor import SaleRecordProcessor
+from ..processor import SalesProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class SaleRecordRawDataImporter:
 
     def execute(self, data: pd.DataFrame) -> None:
         """執行資料處理，修改內部狀態"""
-        self._processing_result = SaleRecordProcessor.process_data(data)
+        self._processing_result = SalesProcessor.process_data(data)
 
     def export_data(self) -> None:
         """將處理後的資料匯出為 excel"""

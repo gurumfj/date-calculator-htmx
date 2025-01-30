@@ -1,38 +1,45 @@
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import datetime
-
+from typing import Any, Callable, TypeAlias
 import pandas as pd
 from pydantic import ValidationError
 
 from cleansales_refactor.models import (
+    ErrorMessage,
     ProcessingResult,
     SaleRecord,
     SaleRecordsGroupByLocation,
-    ErrorMessage,
     SaleRecordValidatorSchema,
 )
 
+GroupKey: TypeAlias = str
+SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecord]]
 
-class SaleRecordProcessor:
+
+class SalesProcessor:
     """銷售記錄處理服務"""
 
     @staticmethod
     def process_data(data: pd.DataFrame) -> ProcessingResult:
         """處理資料並返回結果"""
-        cleaned_records_result = SaleRecordProcessor._validate_and_clean_records(
-            data
-        )
+        data.sort_values(by="日期", inplace=True)
+        cleaned_records_result = SalesProcessor._validate_and_clean_records(data)
         cleaned_records, errors = cleaned_records_result
 
         if not cleaned_records:
             return ProcessingResult([], errors)
 
-        location_groups = SaleRecordProcessor._group_by_location(cleaned_records)
-        processed_records = SaleRecordProcessor._process_groups(location_groups)
-        final_groups = SaleRecordProcessor._create_final_groups(processed_records)
+        location_groups = SalesDtoProcessor.group_by_location(cleaned_records)
+        processed_groups = SaleUtil.with_dict_copy(
+            location_groups, SalesProcessor._process_groups
+        )
 
-        return ProcessingResult(final_groups, errors)
+        result = SalesDtoProcessor.salesgroups_to_processingresult(
+            processed_groups, errors
+        )
+
+        return result
 
     @staticmethod
     def _validate_and_clean_records(
@@ -45,7 +52,7 @@ class SaleRecordProcessor:
         for idx, row in data.iterrows():
             try:
                 validated_model = SaleRecordValidatorSchema.model_validate(row)
-                record = SaleRecordProcessor._validator_schema_to_dataclass(
+                record = SalesDtoProcessor.validator_schema_to_dataclass(
                     validated_model
                 )
                 cleaned_records.append(record)
@@ -60,54 +67,61 @@ class SaleRecordProcessor:
         return cleaned_records, errors
 
     @staticmethod
-    def _group_by_location(records: list[SaleRecord]) -> dict[str, list[SaleRecord]]:
-        """按位置分組"""
-        groups: dict[str, list[SaleRecord]] = defaultdict(list)
-        for record in records:
-            groups[record.location].append(record)
+    def _process_groups(groups: SalesGroups) -> SalesGroups:
+        """處理分組"""
+        def __process_group(records: list[SaleRecord]) -> list[SaleRecord]:
+            result = SalesProcessor._calculate_date_diff_and_assign_group_id(records)
+            result = SalesProcessor._assign_group_key_to_location(result)
+            return result
+
+        for key, records in groups.items():
+            processed_records = SaleUtil.with_list_copy(
+                records, __process_group
+            )
+            groups[key] = processed_records
         return groups
 
     @staticmethod
-    def _process_groups(groups: dict[str, list[SaleRecord]]) -> list[SaleRecord]:
-        """處理分組"""
-        processed_records: list[SaleRecord] = []
-        for records in groups.values():
-            # 預先排序記錄，避免重複排序
-            sorted_records = sorted(records, key=lambda x: x.date)
-            processed = SaleRecordProcessor._calculate_date_diff(sorted_records)
-            processed = SaleRecordProcessor._assign_group_ids(processed)
-            processed_records.extend(processed)
-        return processed_records
-
-    @staticmethod
-    def _create_final_groups(
+    def _calculate_date_diff_and_assign_group_id(
         records: list[SaleRecord],
-    ) -> list[SaleRecordsGroupByLocation]:
-        """創建最終分組"""
-        temp_groups = defaultdict(list)
-        for record in records:
-            key = f"{record.location}_{record._group_id}"
-            temp_groups[key].append(record)
+    ) -> list[SaleRecord]:
+        """計算銷售記錄列表中相鄰日期的差異"""
+        if not records:
+            return []
 
-        final_groups: list[SaleRecordsGroupByLocation] = []
-        for group in temp_groups.values():
-            if not group:
-                continue
-            min_date_record = group[0]
-            max_date_record = group[-1]
-            median_date = SaleRecordProcessor._calculate_date_median(
-                max_date_record.date, min_date_record.date
+        result = []
+        threshold_days = 45
+        group_id = 0
+        for i, record in enumerate(records):
+            new_record = SaleRecord(**asdict(record))
+            new_record._date_diff = SaleUtil.assign_date_diff(
+                i, record.date, records[i - 1].date
             )
-            key = SaleRecordProcessor._compose_location_string(
-                max_date_record.location, median_date
+            new_record._group_id = SaleUtil.assign_group_id(
+                i, new_record._date_diff, threshold_days, group_id
             )
-            final_groups.append(
-                SaleRecordsGroupByLocation(location=key, sale_records=group)
-            )
-        return final_groups
+            result.append(new_record)
+            group_id = new_record._group_id
+        return result
 
     @staticmethod
-    def _validator_schema_to_dataclass(data: SaleRecordValidatorSchema) -> SaleRecord:
+    def _assign_group_key_to_location(group: list[SaleRecord]) -> list[SaleRecord]:
+        """創建群組鍵"""
+        min_date_record = group[0]
+        max_date_record = group[-1]
+        median_date = SaleUtil.calculate_date_median(
+            max_date_record.date, min_date_record.date
+        )
+        for record in group:
+            key = f"{record.location}{median_date.strftime('%y%m')}"
+            if "'" not in record.location:
+                record.location = key
+        return group
+
+
+class SalesDtoProcessor:
+    @staticmethod
+    def validator_schema_to_dataclass(data: SaleRecordValidatorSchema) -> SaleRecord:
         """Schema 轉換為 Dataclass"""
         new_data = data.model_copy()
         return SaleRecord(
@@ -126,55 +140,86 @@ class SaleRecordProcessor:
         )
 
     @staticmethod
-    def _calculate_date_diff(records: list[SaleRecord]) -> list[SaleRecord]:
-        """計算銷售記錄列表中相鄰日期的差異"""
-        if not records:
-            return []
-
-        result = []
-        for i, record in enumerate(records):
-            new_record = SaleRecord(**asdict(record))
-            if i == 0:
-                new_record._date_diff = 0
-            else:
-                diff_days = (record.date - records[i - 1].date).total_seconds() / (
-                    24 * 3600
-                )
-                new_record._date_diff = diff_days
-            result.append(new_record)
-
-        return result
+    def group_by_location(records: list[SaleRecord]) -> SalesGroups:
+        """按位置分組"""
+        new_records = records.copy()
+        return SalesDtoProcessor._group_by_field(
+            new_records, lambda record: record.location
+        )
 
     @staticmethod
-    def _assign_group_ids(
-        records: list[SaleRecord], threshold_days: float = 45
-    ) -> list[SaleRecord]:
-        """為銷售記錄列表中的每個記錄分配組ID"""
-        if not records:
-            return []
-
-        result = []
-        group_id = 0
-
-        for i, record in enumerate(records):
-            new_record = SaleRecord(**asdict(record))
-            if i > 0 and record._date_diff > threshold_days:
-                group_id += 1
-            new_record._group_id = group_id
-            result.append(new_record)
-
-        return result
+    def group_by_location_and_group_id(
+        records: list[SaleRecord],
+    ) -> SalesGroups:
+        """按位置和群組ID分組"""
+        new_records = records.copy()
+        return SalesDtoProcessor._group_by_field(
+            new_records, lambda record: f"{record.location}_{record._group_id}"
+        )
 
     @staticmethod
-    def _calculate_date_median(min_date: datetime, max_date: datetime) -> datetime:
+    def salesgroups_to_processingresult(
+        groups: SalesGroups, errors: list[ErrorMessage]
+    ) -> ProcessingResult:
+        """SalesGroups 轉換為 ProcessingResult"""
+        final_groups: list[SaleRecordsGroupByLocation] = []
+        for key, records in groups.items():
+            final_groups.append(
+                SaleRecordsGroupByLocation(location=key, sale_records=records)
+            )
+        return ProcessingResult(
+            grouped_data=final_groups,
+            errors=errors,
+        )
+
+    @staticmethod
+    def _group_by_field(
+        records: list[SaleRecord], field: Callable[[SaleRecord], str]
+    ) -> SalesGroups:
+        groups: SalesGroups = defaultdict(list)
+        for record in records:
+            groups[field(record)].append(record)
+        return groups
+
+
+class SaleUtil:
+    @staticmethod
+    def with_dict_copy(
+        data: dict[str, Any], callback: Callable[[dict[str, Any]], dict[str, Any]]
+    ) -> dict[str, Any]:
+        new_data = data.copy()
+        return callback(new_data)
+
+    @staticmethod
+    def with_list_copy(
+        data: list[Any], callback: Callable[[list[Any]], list[Any]]
+    ) -> list[Any]:
+        new_data = data.copy()
+        return callback(new_data)
+
+    @staticmethod
+    def assign_date_diff(
+        idx: int, current_record_date: datetime, last_record_date: datetime
+    ) -> float:
+        if idx == 0:
+            return 0
+        else:
+            return (current_record_date - last_record_date).total_seconds() / (
+                24 * 3600
+            )
+
+    @staticmethod
+    def assign_group_id(
+        idx: int, date_diff: float, threshold_days: float, group_id: int
+    ) -> int:
+        if idx == 0:
+            return 0
+        elif date_diff > threshold_days:
+            return group_id + 1
+        else:
+            return group_id
+
+    @staticmethod
+    def calculate_date_median(min_date: datetime, max_date: datetime) -> datetime:
         """計算日期中間值"""
         return min_date + (max_date - min_date) / 2
-
-    @staticmethod
-    def _compose_location_string(location: str, median_date: datetime) -> str:
-        """組合場別和月份字串"""
-        return (
-            f"{location}{median_date.strftime('%y%m')}"
-            if "'" not in location
-            else location
-        )

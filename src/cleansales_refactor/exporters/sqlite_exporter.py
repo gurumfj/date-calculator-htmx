@@ -53,8 +53,7 @@ class SQLiteExporter:
         with Session(self._engine) as session:
             for group in result.grouped_data:
                 sale_records: List[SaleRecord] = [
-                    SaleRecord(**{**asdict(record), "location": group.location})
-                    for record in group.sale_records
+                    SaleRecord(**asdict(record)) for record in group.sale_records
                 ]
                 session.add_all(sale_records)
             session.commit()
