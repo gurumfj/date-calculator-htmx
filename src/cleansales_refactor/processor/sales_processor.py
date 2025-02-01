@@ -6,18 +6,18 @@ from typing import Any, Callable, Hashable, TypeAlias, TypeVar
 
 import pandas as pd
 
-from ..services import IProcessor
-
 from ..models import (
     ErrorMessage,
     ProcessingResult,
     SaleRecord,
     SaleRecordValidatorSchema,
 )
+from .processor_interface import IProcessor
 
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
 
 @dataclass(frozen=True)
 class SaleRecordUpdate(SaleRecord):

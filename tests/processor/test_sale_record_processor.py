@@ -10,7 +10,7 @@ from cleansales_refactor.models import (
     SaleRecord,
     SaleRecordsGroupByLocation,
 )
-from cleansales_refactor.processor.sale_record_processor import SaleRecordProcessor
+from cleansales_refactor.processor.sales_processor import SaleRecordProcessor
 
 
 @pytest.fixture

@@ -4,10 +4,8 @@ from datetime import date, datetime
 
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
-from cleansales_refactor.models.sale_record import ProcessingResult
-
-from ..models import SaleRecord
-from ..services import IExporter
+from cleansales_refactor.models import ProcessingResult, SaleRecord
+from cleansales_refactor.exporters import IExporter
 
 
 class SaleRecordORM(SQLModel, table=True):

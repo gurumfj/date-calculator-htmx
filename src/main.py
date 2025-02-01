@@ -1,32 +1,33 @@
 import logging
 import time
 from pathlib import Path
-from typing import Any, Callable, TypeAlias
+from typing import Any, Callable, TypeAlias, TypeVar
 
 import pandas as pd
 
+from cleansales_refactor.exporters import IExporter
 from cleansales_refactor.exporters.sqlite_exporter import SQLiteExporter
-from cleansales_refactor.models import ProcessingResult, SaleRecord
-from cleansales_refactor.processor.sale_record_processor import SalesProcessor
-from cleansales_refactor.services import IExporter, IProcessor
+from cleansales_refactor.models import ProcessingResult
+from cleansales_refactor.processor import BreedsProcessor, IProcessor, SalesProcessor
+
+# 設定根 logger
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
-# 添加控制台處理器
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
+# 確保其他模組的 logger 也設定為 DEBUG 級別
+logging.getLogger("cleansales_refactor").setLevel(logging.DEBUG)
 
-# 設置日誌格式
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-console_handler.setFormatter(formatter)
-
-# 添加處理器到 logger
-logger.addHandler(console_handler)
+T = TypeVar("T")
+# R = TypeVar("R")
 
 DataReader: TypeAlias = Callable[[], pd.DataFrame]
-DataProcessor: TypeAlias = Callable[[pd.DataFrame], ProcessingResult[SaleRecord]]
-DataExporter: TypeAlias = Callable[[ProcessingResult[SaleRecord]], None]
+DataProcessor: TypeAlias = Callable[[pd.DataFrame], ProcessingResult[T]]
+DataExporter: TypeAlias = Callable[[ProcessingResult[T]], None]
 
 
 def time_it(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -50,23 +51,24 @@ def create_excel_reader(
     def read_data() -> pd.DataFrame:
         df = pd.read_excel(file_path, sheet_name=sheet_name)
         return df
+
     return time_it(read_data)
 
 
-def create_data_processor(processor: IProcessor[SaleRecord]) -> DataProcessor:
+def create_data_processor(processor: IProcessor[T]) -> DataProcessor[T]:
     """建立資料處理函數"""
 
-    def process_data(df: pd.DataFrame) -> ProcessingResult[SaleRecord]:
+    def process_data(df: pd.DataFrame) -> ProcessingResult[T]:
         result = processor.process_data(df)
         return result
 
     return time_it(process_data)
 
 
-def create_data_exporter(exporter: IExporter[SaleRecord]) -> DataExporter:
+def create_data_exporter(exporter: IExporter[T]) -> DataExporter[T]:
     """建立資料匯出函數"""
 
-    def export_data(result: ProcessingResult[SaleRecord]) -> None:
+    def export_data(result: ProcessingResult[T]) -> None:
         exporter.export_data(result)
         exporter.export_errors(result)
 
@@ -100,6 +102,20 @@ def create_sales_data_pipeline(
     return pipeline
 
 
+def create_breeds_data_pipeline(
+    input_file: str | Path, db_path: str | Path, sheet_name: str = "工作表1"
+) -> Callable[[], None]:
+    """建立入雛資料處理管道"""
+    reader = create_excel_reader(input_file, sheet_name)
+    processor = create_data_processor(BreedsProcessor)
+    exporter = create_data_exporter(SQLiteExporter(str(db_path)))
+
+    def pipeline() -> None:
+        processor(reader())
+
+    return pipeline
+
+
 def sales_data_service() -> None:
     """銷售資料服務"""
     input_file = "sales_sample.xlsx"
@@ -109,5 +125,15 @@ def sales_data_service() -> None:
     pipeline()
 
 
+def breeds_data_service() -> None:
+    """入雛資料服務"""
+    input_file = "breeds_sample.xlsx"
+    db_path = "breeds_data.db"
+
+    pipeline = create_breeds_data_pipeline(input_file, db_path)
+    pipeline()
+
+
 if __name__ == "__main__":
-    sales_data_service()
+    # sales_data_service()
+    breeds_data_service()

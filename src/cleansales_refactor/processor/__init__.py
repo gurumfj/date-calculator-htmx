@@ -1,4 +1,5 @@
-from .sale_record_processor import SalesProcessor
+from .breeds_processor import BreedsProcessor
+from .processor_interface import IProcessor
+from .sales_processor import SalesProcessor
 
-__all__ = ["SalesProcessor"]
-
+__all__ = ["IProcessor", "BreedsProcessor", "SalesProcessor"]
