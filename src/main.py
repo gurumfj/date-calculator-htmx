@@ -3,7 +3,10 @@ import pandas as pd
 # from cleansales_refactor.exporters import ExcelExporter
 from cleansales_refactor.exporters.sqlite_exporter import SQLiteExporter
 from cleansales_refactor.services import SaleRecordRawDataImporter
+import logging
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def main() -> None:
     input_file = "sales_sample.xlsx"

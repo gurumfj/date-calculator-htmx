@@ -1,25 +1,131 @@
-from collections import defaultdict
+import logging
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import reduce
 from typing import Any, Callable, Hashable, TypeAlias, TypeVar
 
 import pandas as pd
 
-from cleansales_refactor.models import (
+from ..models import (
     ErrorMessage,
     ProcessingResult,
     SaleRecord,
     SaleRecordValidatorSchema,
 )
 
-# GroupKey: TypeAlias = str
-# SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecord]]
-# T = TypeVar("T")
-# R = TypeVar("R")
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# 添加控制台處理器
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+
+# 設置日誌格式
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(formatter)
+
+# 添加處理器到 logger
+logger.addHandler(console_handler)
+
+
+@dataclass(frozen=True)
+class SaleRecordUpdate(SaleRecord):
+    """不可變的銷售記錄更新，負責所有數據轉換"""
+
+    @classmethod
+    def create_from(
+        cls, data: dict[str, Any] | SaleRecord | SaleRecordValidatorSchema
+    ) -> "SaleRecordUpdate":
+        """從各種來源創建更新物件"""
+        if isinstance(data, SaleRecordValidatorSchema):
+            return cls(**data.model_dump())
+        if isinstance(data, SaleRecord):
+            return cls(**data.__dict__)
+        return cls(**{k: v for k, v in data.items() if k in cls.__annotations__})
+
+    def with_updates(self, **updates: Any) -> "SaleRecordUpdate":
+        """通用的更新方法"""
+        return replace(self, **updates)
+
+
+# Type Aliases
 GroupID: TypeAlias = int
-PreRecords: TypeAlias = list[SaleRecord]
-GroupedRecords: TypeAlias = list[SaleRecord]
-ProcessedRecords: TypeAlias = list[SaleRecord]
+PreRecords: TypeAlias = tuple[SaleRecordUpdate, ...]
+GroupedRecords: TypeAlias = tuple[SaleRecordUpdate, ...]
+ProcessedRecords: TypeAlias = tuple[SaleRecordUpdate, ...]
+# SeriesRow: TypeAlias = pd.Series  # type: ignore
+
+T = TypeVar("T")
+R = TypeVar("R")
+
+
+@dataclass(frozen=True)
+class ProcessingState:
+    """不可變的處理狀態"""
+
+    processed_records: ProcessedRecords = field(default_factory=tuple)
+    grouped_records: GroupedRecords = field(default_factory=tuple)
+    group_id: GroupID = 0
+    cleaned_records: PreRecords = field(default_factory=tuple)
+
+    def add_to_group(self, record: SaleRecordUpdate) -> "ProcessingState":
+        """將記錄加入群組"""
+        return replace(
+            self,
+            grouped_records=(*self.grouped_records, record),
+        )
+
+    def process_current_group(
+        self, processed_group: ProcessedRecords
+    ) -> "ProcessingState":
+        """處理當前群組"""
+        return replace(
+            self,
+            processed_records=(*self.processed_records, *processed_group),
+            grouped_records=(),
+            group_id=self.group_id + 1,
+        )
+
+
+class SaleUtil:
+    """不可變的工具類"""
+
+    @staticmethod
+    def map_tuple(
+        data: tuple[T, ...],
+        func: Callable[[T], R],
+    ) -> tuple[R, ...]:
+        """映射元組的每個元素"""
+        return tuple(func(item) for item in data)
+
+    @staticmethod
+    def filter_tuple(
+        data: tuple[T, ...],
+        predicate: Callable[[T], bool],
+    ) -> tuple[T, ...]:
+        """過濾元組的元素"""
+        return tuple(item for item in data if predicate(item))
+
+    @staticmethod
+    def reduce_tuple(
+        data: tuple[T, ...],
+        func: Callable[[R, T], R],
+        initial: R,
+    ) -> R:
+        """歸納元組的元素"""
+        return reduce(func, data, initial)
+
+    @staticmethod
+    def catch_error(
+        callback: Callable[[], T],
+        error_callback: Callable[[Exception], T],
+    ) -> T:
+        """安全的錯誤處理"""
+        try:
+            return callback()
+        except Exception as e:
+            return error_callback(e)
 
 
 class SalesProcessor:
@@ -32,29 +138,25 @@ class SalesProcessor:
         # 驗證和清理銷售記錄
         cleaned_records, errors = SalesProcessor._validate_and_clean_records(data)
 
-        # 初始狀態包含：處理完的記錄列表、分組字典、群組ID、原始記錄列表
-        initial_state: tuple[ProcessedRecords, GroupedRecords, GroupID, PreRecords] = (
-            [],
-            [],
-            0,
-            cleaned_records,
-        )
+        # 初始化不可變狀態
+        initial_state = ProcessingState(cleaned_records=tuple(cleaned_records))
 
-        # 一次 reduce 完成所有處理
-        new_records, _, _, _ = reduce(
+        # 使用 reduce 處理所有記錄
+        final_state = reduce(
             SalesProcessor._process_group_and_assign_keys,
             enumerate(cleaned_records),
             initial_state,
         )
-        print(f"count of new_records: {len(new_records)}")
+
+        logger.info(f"處理完成，共產生 {len(final_state.processed_records)} 筆記錄")
         return ProcessingResult(
-            processed_data=new_records,
+            processed_data=list(final_state.processed_records),  # 轉回 list
             errors=errors,
         )
 
     @staticmethod
     def _should_create_new_group(
-        current: SaleRecord | None, next_record: SaleRecord | None
+        current: SaleRecordUpdate | None, next_record: SaleRecordUpdate | None
     ) -> bool:
         def over_threshold(date: datetime, next_date: datetime) -> bool:
             return abs((next_date - date).days) > 45
@@ -62,97 +164,93 @@ class SalesProcessor:
         if current is None or next_record is None:
             return False
         if current.location != next_record.location:
-            # print(f"change location: {next_record.location} - {next_record.date}")
+            logger.debug(f"位置改變: {current.location} -> {next_record.location}")
             return True
         if over_threshold(next_record.date, current.date):
-            # print(f"over threshold: {next_record.date} - {current.date}")
+            logger.debug(f"日期差異超過閾值: {current.date} -> {next_record.date}")
             return True
         return False
 
     @staticmethod
     def _process_group_and_assign_keys(
-        acc: tuple[ProcessedRecords, GroupedRecords, GroupID, PreRecords],
-        record_with_idx: tuple[int, SaleRecord | None],
-    ) -> tuple[ProcessedRecords, GroupedRecords, GroupID, PreRecords]:
-        
-        processed_records, grouped_records, group_id, cleaned_records = acc
+        state: ProcessingState,
+        record_with_idx: tuple[int, SaleRecordUpdate | None],
+    ) -> ProcessingState:
         idx, record = record_with_idx
 
         if record is None:
-            return acc
+            return state
 
         # 將記錄加入當前群組
-        grouped_records.append(record)
+        new_state = state.add_to_group(record)
 
         # 檢查是否需要處理並清空當前群組
         should_process_group = (
-            idx == len(cleaned_records) - 1  # 最後一筆
+            idx == len(state.cleaned_records) - 1  # 最後一筆
             or (
-                idx < len(cleaned_records) - 1
+                idx < len(state.cleaned_records) - 1
                 and SalesProcessor._should_create_new_group(
-                    record, cleaned_records[idx + 1]
+                    record, state.cleaned_records[idx + 1]
                 )
             )
         )
 
         if should_process_group:
-            # 處理當前群組並加入結果
-            processed_group = SalesProcessor._assign_group_key_to_location(
-                grouped_records,
+            # 處理當前群組
+            processed_group = tuple(
+                SalesProcessor._assign_group_key_to_location(
+                    new_state.grouped_records,
+                )
             )
-            processed_records.extend(processed_group)
-            # 清空當前群組
-            grouped_records = []
-            return (processed_records, grouped_records, group_id + 1, cleaned_records)
+            return new_state.process_current_group(processed_group)
 
-        return (processed_records, grouped_records, group_id, cleaned_records)
+        return new_state
 
     @staticmethod
     def _validate_and_clean_records(
         data: pd.DataFrame,
-    ) -> tuple[list[SaleRecord], list[ErrorMessage]]:
-        # 創建排序後的副本，而不是修改原始資料
+    ) -> tuple[PreRecords, list[ErrorMessage]]:
         sorted_data = data.sort_values(by=["場別", "日期"])
 
         def process_row(
-            idx: Hashable,
-            row: pd.Series,  # type: ignore
-        ) -> tuple[list[SaleRecord], list[ErrorMessage]]:
+            acc: tuple[PreRecords, list[ErrorMessage]],
+            row_with_idx: tuple[Hashable, pd.Series],  # type: ignore
+        ) -> tuple[PreRecords, list[ErrorMessage]]:
+            records, errors = acc
+            idx, row = row_with_idx
+
             try:
-                record = SalesProcessor._validator_schema_to_dataclass(
-                    SaleRecordValidatorSchema.model_validate(row)
-                )
-                return [record], []
+                model = SaleRecordValidatorSchema.model_validate(row)
+                record = SaleRecordUpdate.create_from(model)
+                return (*records, record), errors
             except Exception as e:
                 error = ErrorMessage(
                     message=str(e),
                     data=row.to_dict(),
                     extra={"row_index": idx},
                 )
-                return [], [error]
+                logger.warning(f"資料驗證失敗: {error}")
+                return records, [*errors, error]
 
-        # 直接使用 reduce 處理每一行的結果
-        initial_result: tuple[list[SaleRecord], list[ErrorMessage]] = ([], [])
+        initial_result: tuple[PreRecords, list[ErrorMessage]] = ((), [])
         cleaned_records, errors = reduce(
-            lambda acc, row_with_idx: (
-                acc[0] + process_row(row_with_idx[0], row_with_idx[1])[0],
-                acc[1] + process_row(row_with_idx[0], row_with_idx[1])[1],
-            ),
+            process_row,
             sorted_data.iterrows(),
             initial_result,
         )
 
-        print(f"count of cleaned_records: {len(cleaned_records)}")
-        print(f"errors: {errors}")
+        logger.info(f"資料清理完成，共 {len(cleaned_records)} 筆有效記錄")
+        if errors:
+            logger.warning(f"發現 {len(errors)} 筆錯誤記錄")
         return cleaned_records, errors
 
     @staticmethod
     def _assign_group_key_to_location(
-        group: GroupedRecords,
-    ) -> ProcessedRecords:
+        group: tuple[SaleRecordUpdate, ...],
+    ) -> tuple[SaleRecordUpdate, ...]:
         """創建群組鍵值"""
         if not group:
-            return []
+            return ()
 
         min_date_record = group[0]
         max_date_record = group[-1]
@@ -160,86 +258,17 @@ class SalesProcessor:
             max_date_record.date, min_date_record.date
         )
 
-        def replace_location_with_key_and_return_datarecord(
-            record: SaleRecord,
-        ) -> SaleRecord:
+        def update_location(record: SaleRecordUpdate) -> SaleRecordUpdate:
+            if "'" in record.location:
+                return record
+
             key = f"{record.location}{median_date.strftime('%y%m')}"
-            # print(f"key: {key}")
-            # print(f"count of group: {len(group)}")
-            if "'" not in record.location:
-                data_dict = record.__dict__.copy()
-                data_dict.pop("location")
-                return SaleRecord(
-                    location=key,
-                    **data_dict,
-                )
-            return record
+            logger.debug(f"生成位置鍵值: {key} (群組大小: {len(group)})")
+            return record.with_updates(location=key)
 
-        return SaleUtil.with_list_copy(
-            group,
-            lambda records: SaleUtil.for_each_list(
-                records,
-                replace_location_with_key_and_return_datarecord,
-            ),
-        )
-
-    @staticmethod
-    def _validator_schema_to_dataclass(
-        data: SaleRecordValidatorSchema,
-    ) -> SaleRecord:
-        """Schema 轉換為 Dataclass"""
-        return SaleRecord(
-            closed=data.closed,
-            handler=data.handler,
-            date=data.date,
-            location=data.location,
-            customer=data.customer,
-            male_count=data.male_count,
-            female_count=data.female_count,
-            total_weight=data.total_weight,
-            total_price=data.total_price,
-            male_price=data.male_price,
-            female_price=data.female_price,
-            unpaid=data.unpaid,
-        )
+        return SaleUtil.map_tuple(group, update_location)
 
     @staticmethod
     def _calculate_date_median(min_date: datetime, max_date: datetime) -> datetime:
         """計算日期中間值"""
         return min_date + (max_date - min_date) / 2
-
-
-class SaleUtil:
-    # @staticmethod
-    # def with_dict_copy(
-    #     data: dict[str, Any], callback: Callable[[dict[str, Any]], dict[str, Any]]
-    # ) -> dict[str, Any]:
-    #     new_data = data.copy()
-    #     return callback(new_data)
-
-    @staticmethod
-    def with_list_copy(
-        data: list[Any], callback: Callable[[list[Any]], list[Any]]
-    ) -> list[Any]:
-        new_data = data.copy()
-        return callback(new_data)
-
-    @staticmethod
-    def for_each_list(
-        records: list[Any],
-        callback: Callable[[Any], Any],
-    ) -> list[Any]:
-        result = []
-        for record in records:
-            result.append(callback(record))
-        return result
-
-    @staticmethod
-    def catch_error(
-        callback: Callable[[], Any],
-        error_callback: Callable[[Exception], Any],
-    ) -> Any:
-        try:
-            return callback()
-        except Exception as e:
-            return error_callback(e)
