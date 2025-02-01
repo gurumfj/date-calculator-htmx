@@ -19,7 +19,7 @@ logger.setLevel(logging.DEBUG)
 
 # 添加控制台處理器
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 
 # 設置日誌格式
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
