@@ -23,11 +23,11 @@ def test_processor_process_data2() -> None:
     data = pd.read_excel(input_file, sheet_name="工作表1")
     start_time = time.time()
     result = SalesProcessor.process_data(data)
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
     exporter = SQLiteExporter("sales_data.db")
     exporter.export_data(result)
     exporter.export_errors(result)
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
 if __name__ == "__main__":
     test_processor_process_data2()
     # main()

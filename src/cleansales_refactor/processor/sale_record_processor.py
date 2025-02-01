@@ -12,10 +12,14 @@ from cleansales_refactor.models import (
     SaleRecordValidatorSchema,
 )
 
-GroupKey: TypeAlias = str
-SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecord]]
-T = TypeVar("T")
-R = TypeVar("R")
+# GroupKey: TypeAlias = str
+# SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecord]]
+# T = TypeVar("T")
+# R = TypeVar("R")
+GroupID: TypeAlias = int
+PreRecords: TypeAlias = list[SaleRecord]
+GroupedRecords: TypeAlias = list[SaleRecord]
+ProcessedRecords: TypeAlias = list[SaleRecord]
 
 
 class SalesProcessor:
@@ -28,47 +32,80 @@ class SalesProcessor:
         # 驗證和清理銷售記錄
         cleaned_records, errors = SalesProcessor._validate_and_clean_records(data)
 
-        def over_threshold(date: datetime, next_date: datetime) -> bool:
-            return abs((next_date - date).days) > 45
-
-        sale_groups: SalesGroups = defaultdict(list)
-        group_id = 0
-
-        # 處理所有記錄，包含最後一筆
-        for idx, record in enumerate(cleaned_records):
-            if record is None:
-                continue
-
-            sale_groups[f"{group_id}"].append(record)
-
-            # 如果不是最後一筆，檢查是否需要更新 group_id
-            if idx < len(cleaned_records) - 1:
-                next_record = cleaned_records[idx + 1]
-                if next_record is None:
-                    continue
-
-                if next_record.location != record.location:
-                    print(
-                        f"change location: {next_record.location} - {next_record.date}"
-                    )
-                    group_id += 1
-                    continue
-
-                if over_threshold(next_record.date, record.date):
-                    print(f"over threshold: {next_record.date} - {record.date}")
-                    group_id += 1
-
-        new_records: list[SaleRecord] = reduce(
-            lambda acc, group: acc
-            + SalesProcessor._assign_group_key_to_location(group),
-            sale_groups.values(),
+        # 初始狀態包含：處理完的記錄列表、分組字典、群組ID、原始記錄列表
+        initial_state: tuple[ProcessedRecords, GroupedRecords, GroupID, PreRecords] = (
             [],
+            [],
+            0,
+            cleaned_records,
+        )
+
+        # 一次 reduce 完成所有處理
+        new_records, _, _, _ = reduce(
+            SalesProcessor._process_group_and_assign_keys,
+            enumerate(cleaned_records),
+            initial_state,
         )
         print(f"count of new_records: {len(new_records)}")
         return ProcessingResult(
             processed_data=new_records,
             errors=errors,
         )
+
+    @staticmethod
+    def _should_create_new_group(
+        current: SaleRecord | None, next_record: SaleRecord | None
+    ) -> bool:
+        def over_threshold(date: datetime, next_date: datetime) -> bool:
+            return abs((next_date - date).days) > 45
+
+        if current is None or next_record is None:
+            return False
+        if current.location != next_record.location:
+            # print(f"change location: {next_record.location} - {next_record.date}")
+            return True
+        if over_threshold(next_record.date, current.date):
+            # print(f"over threshold: {next_record.date} - {current.date}")
+            return True
+        return False
+
+    @staticmethod
+    def _process_group_and_assign_keys(
+        acc: tuple[ProcessedRecords, GroupedRecords, GroupID, PreRecords],
+        record_with_idx: tuple[int, SaleRecord | None],
+    ) -> tuple[ProcessedRecords, GroupedRecords, GroupID, PreRecords]:
+        
+        processed_records, grouped_records, group_id, cleaned_records = acc
+        idx, record = record_with_idx
+
+        if record is None:
+            return acc
+
+        # 將記錄加入當前群組
+        grouped_records.append(record)
+
+        # 檢查是否需要處理並清空當前群組
+        should_process_group = (
+            idx == len(cleaned_records) - 1  # 最後一筆
+            or (
+                idx < len(cleaned_records) - 1
+                and SalesProcessor._should_create_new_group(
+                    record, cleaned_records[idx + 1]
+                )
+            )
+        )
+
+        if should_process_group:
+            # 處理當前群組並加入結果
+            processed_group = SalesProcessor._assign_group_key_to_location(
+                grouped_records,
+            )
+            processed_records.extend(processed_group)
+            # 清空當前群組
+            grouped_records = []
+            return (processed_records, grouped_records, group_id + 1, cleaned_records)
+
+        return (processed_records, grouped_records, group_id, cleaned_records)
 
     @staticmethod
     def _validate_and_clean_records(
@@ -79,7 +116,7 @@ class SalesProcessor:
 
         def process_row(
             idx: Hashable,
-            row: pd.Series[Any],
+            row: pd.Series,  # type: ignore
         ) -> tuple[list[SaleRecord], list[ErrorMessage]]:
             try:
                 record = SalesProcessor._validator_schema_to_dataclass(
@@ -111,9 +148,12 @@ class SalesProcessor:
 
     @staticmethod
     def _assign_group_key_to_location(
-        group: list[SaleRecord],
-    ) -> list[SaleRecord]:
-        """創建群組鍵"""
+        group: GroupedRecords,
+    ) -> ProcessedRecords:
+        """創建群組鍵值"""
+        if not group:
+            return []
+
         min_date_record = group[0]
         max_date_record = group[-1]
         median_date = SalesProcessor._calculate_date_median(
@@ -124,6 +164,8 @@ class SalesProcessor:
             record: SaleRecord,
         ) -> SaleRecord:
             key = f"{record.location}{median_date.strftime('%y%m')}"
+            # print(f"key: {key}")
+            # print(f"count of group: {len(group)}")
             if "'" not in record.location:
                 data_dict = record.__dict__.copy()
                 data_dict.pop("location")
