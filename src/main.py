@@ -16,6 +16,18 @@ def main() -> None:
     importer.export_data()
     importer.export_errors()
 
-
+def test_processor_process_data2() -> None:
+    import time
+    from cleansales_refactor.processor.sale_record_processor import SalesProcessor
+    input_file = "sales_sample.xlsx"
+    data = pd.read_excel(input_file, sheet_name="工作表1")
+    start_time = time.time()
+    result = SalesProcessor.process_data(data)
+    exporter = SQLiteExporter("sales_data.db")
+    exporter.export_data(result)
+    exporter.export_errors(result)
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
 if __name__ == "__main__":
-    main()
+    test_processor_process_data2()
+    # main()

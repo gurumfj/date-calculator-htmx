@@ -5,7 +5,7 @@ from typing import Any, Generic, TypeAlias, TypeVar
 Location: TypeAlias = str
 
 
-@dataclass
+@dataclass(frozen=True)
 class SaleRecord:
     """銷售記錄資料模型"""
 
