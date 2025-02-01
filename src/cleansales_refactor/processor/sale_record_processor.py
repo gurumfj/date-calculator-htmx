@@ -6,6 +6,8 @@ from typing import Any, Callable, Hashable, TypeAlias, TypeVar
 
 import pandas as pd
 
+from ..services import IProcessor
+
 from ..models import (
     ErrorMessage,
     ProcessingResult,
@@ -16,18 +18,6 @@ from ..models import (
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-# 添加控制台處理器
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-# 設置日誌格式
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-console_handler.setFormatter(formatter)
-
-# 添加處理器到 logger
-logger.addHandler(console_handler)
-
 
 @dataclass(frozen=True)
 class SaleRecordUpdate(SaleRecord):
@@ -128,7 +118,7 @@ class SaleUtil:
             return error_callback(e)
 
 
-class SalesProcessor:
+class SalesProcessor(IProcessor[SaleRecord]):
     """銷售記錄處理服務"""
 
     @staticmethod
