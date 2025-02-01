@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 from functools import reduce
-from typing import Any, Callable, TypeAlias
+from typing import Any, Callable, Hashable, TypeAlias, TypeVar
 
 import pandas as pd
 
@@ -14,6 +14,8 @@ from cleansales_refactor.models import (
 
 GroupKey: TypeAlias = str
 SalesGroups: TypeAlias = dict[GroupKey, list[SaleRecord]]
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 class SalesProcessor:
@@ -72,25 +74,37 @@ class SalesProcessor:
     def _validate_and_clean_records(
         data: pd.DataFrame,
     ) -> tuple[list[SaleRecord], list[ErrorMessage]]:
-        cleaned_records: list[SaleRecord] = []
-        errors: list[ErrorMessage] = []
         # 創建排序後的副本，而不是修改原始資料
-        sorted_data = data.sort_values(by=["場別", "日期"])  # !排序影響分組結果
-        for idx, row in sorted_data.iterrows():
-            cleaned_records.append(
-                SaleUtil.catch_error(
-                    lambda: SalesProcessor._validator_schema_to_dataclass(
-                        SaleRecordValidatorSchema.model_validate(row)
-                    ),
-                    lambda e: errors.append(
-                        ErrorMessage(
-                            message=str(e),
-                            data=row.to_dict(),
-                            extra={"row_index": idx},
-                        )
-                    ),
+        sorted_data = data.sort_values(by=["場別", "日期"])
+
+        def process_row(
+            idx: Hashable,
+            row: pd.Series[Any],
+        ) -> tuple[list[SaleRecord], list[ErrorMessage]]:
+            try:
+                record = SalesProcessor._validator_schema_to_dataclass(
+                    SaleRecordValidatorSchema.model_validate(row)
                 )
-            )
+                return [record], []
+            except Exception as e:
+                error = ErrorMessage(
+                    message=str(e),
+                    data=row.to_dict(),
+                    extra={"row_index": idx},
+                )
+                return [], [error]
+
+        # 直接使用 reduce 處理每一行的結果
+        initial_result: tuple[list[SaleRecord], list[ErrorMessage]] = ([], [])
+        cleaned_records, errors = reduce(
+            lambda acc, row_with_idx: (
+                acc[0] + process_row(row_with_idx[0], row_with_idx[1])[0],
+                acc[1] + process_row(row_with_idx[0], row_with_idx[1])[1],
+            ),
+            sorted_data.iterrows(),
+            initial_result,
+        )
+
         print(f"count of cleaned_records: {len(cleaned_records)}")
         print(f"errors: {errors}")
         return cleaned_records, errors
