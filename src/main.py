@@ -5,8 +5,7 @@ from typing import Any, Callable, TypeAlias, TypeVar
 
 import pandas as pd
 
-from cleansales_refactor.exporters import IExporter, BreedSQLiteExporter
-from cleansales_refactor.exporters.sqlite_exporter import SQLiteExporter
+from cleansales_refactor.exporters import IExporter, BreedSQLiteExporter, SaleSQLiteExporter
 from cleansales_refactor.models import ProcessingResult
 from cleansales_refactor.processor import BreedsProcessor, IProcessor, SalesProcessor
 
@@ -90,7 +89,7 @@ def create_sales_data_pipeline(
     """
     reader = create_excel_reader(input_file, sheet_name)
     processor = create_data_processor(SalesProcessor)
-    exporter = create_data_exporter(SQLiteExporter(str(db_path)))
+    exporter = create_data_exporter(SaleSQLiteExporter(str(db_path)))
 
     def pipeline() -> None:
         try:
@@ -119,7 +118,7 @@ def create_breeds_data_pipeline(
 def sales_data_service() -> None:
     """銷售資料服務"""
     input_file = "sales_sample.xlsx"
-    db_path = "sales_data.db"
+    db_path = "data.db"
 
     pipeline = create_sales_data_pipeline(input_file, db_path)
     pipeline()
@@ -128,12 +127,12 @@ def sales_data_service() -> None:
 def breeds_data_service() -> None:
     """入雛資料服務"""
     input_file = "breeds_sample.xlsx"
-    db_path = "breeds_data.db"
+    db_path = "data.db"
 
     pipeline = create_breeds_data_pipeline(input_file, db_path)
     pipeline()
 
 
 if __name__ == "__main__":
-    # sales_data_service()
+    sales_data_service()
     breeds_data_service()

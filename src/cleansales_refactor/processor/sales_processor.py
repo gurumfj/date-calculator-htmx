@@ -253,7 +253,7 @@ class SalesProcessor(IProcessor[SaleRecord]):
                 return record
 
             key = f"{record.location}{median_date.strftime('%y%m')}"
-            logger.debug(f"生成位置鍵值: {key} (群組大小: {len(group)})")
+            # logger.debug(f"生成位置鍵值: {key} (群組大小: {len(group)})")
             return record.with_updates(location=key)
 
         return SaleUtil.map_tuple(group, update_location)
