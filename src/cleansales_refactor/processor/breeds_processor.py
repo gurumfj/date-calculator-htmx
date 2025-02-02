@@ -38,59 +38,44 @@ class BreedsProcessor(IProcessor[BreedRecord]):
     def process_data(data: pd.DataFrame) -> ProcessingResult[BreedRecord]:
         """處理資料並返回結果"""
 
-        def process_pipeline(
-            state: ProcessState,
-            row_with_idx: tuple[Hashable, pd.Series],  # type: ignore
-        ) -> ProcessState:
-            # idx, row = row_with_idx
+        result = reduce(
+            lambda x, y: x + y,
+            (BreedsProcessor._validate_and_transform_records(row) for row in data.iterrows()),
+            ProcessState(records=(), errors=()),
+        )
 
-            validated_record, error = BreedsProcessor._validate_and_clean_records(
-                row_with_idx
-            )
-            new_record = (
-                BreedsProcessor._transform_records(validated_record)
-                if validated_record
-                else None
-            )
-
-            return state + ProcessState(
-                records=(new_record,) if new_record else (),
-                errors=(error,) if error else (),
-            )
-
-        initial_state = ProcessState(records=(), errors=())
-        final_state = reduce(process_pipeline, data.iterrows(), initial_state)
-
-        logger.debug("處理結果: %s", len(final_state.records))
-        logger.debug("處理錯誤: %s", final_state.errors)
+        logger.debug("處理結果: %s", len(result.records))
+        logger.debug("處理錯誤: %s", len(result.errors))
 
         return ProcessingResult(
-            processed_data=list(final_state.records), errors=list(final_state.errors)
+            processed_data=list(result.records), errors=list(result.errors)
         )
 
     @staticmethod
-    def _validate_and_clean_records(
+    def _validate_and_transform_records(
         row_with_idx: tuple[Hashable, pd.Series],  # type: ignore
-    ) -> tuple[BreedRecordValidatorSchema | None, ErrorMessage | None]:
+    ) -> ProcessState:
         idx, row = row_with_idx
         try:
-            validated_record = BreedRecordValidatorSchema.model_validate(row)
-            return (validated_record, None)
+            validated_record = BreedsProcessor.__transform_records(
+                BreedRecordValidatorSchema.model_validate(row)
+            )
+            return ProcessState(
+                records=(validated_record,),
+                errors=(),
+            )
         except Exception as e:
-            return (
-                None,
-                ErrorMessage(
-                    message=str(e),
-                    data=row.to_dict(),
-                    extra={
-                        "row_index": idx,
-                        "type of error": type(e),
-                    },
+            return ProcessState(
+                records=(),
+                errors=(
+                    ErrorMessage(
+                        message=str(e), data=row.to_dict(), extra={"row_index": idx}
+                    ),
                 ),
             )
 
     @staticmethod
-    def _transform_records(model: BreedRecordValidatorSchema) -> BreedRecord:
+    def __transform_records(model: BreedRecordValidatorSchema) -> BreedRecord:
         return BreedRecord(
             **{
                 k: v

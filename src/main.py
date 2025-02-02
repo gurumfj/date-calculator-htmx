@@ -5,7 +5,7 @@ from typing import Any, Callable, TypeAlias, TypeVar
 
 import pandas as pd
 
-from cleansales_refactor.exporters import IExporter
+from cleansales_refactor.exporters import IExporter, BreedSQLiteExporter
 from cleansales_refactor.exporters.sqlite_exporter import SQLiteExporter
 from cleansales_refactor.models import ProcessingResult
 from cleansales_refactor.processor import BreedsProcessor, IProcessor, SalesProcessor
@@ -108,10 +108,10 @@ def create_breeds_data_pipeline(
     """建立入雛資料處理管道"""
     reader = create_excel_reader(input_file, sheet_name)
     processor = create_data_processor(BreedsProcessor)
-    exporter = create_data_exporter(SQLiteExporter(str(db_path)))
+    exporter = create_data_exporter(BreedSQLiteExporter(str(db_path)))
 
     def pipeline() -> None:
-        processor(reader())
+        exporter(processor(reader()))
 
     return pipeline
 

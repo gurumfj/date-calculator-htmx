@@ -54,9 +54,12 @@ ignore_missing_imports = false
 # [tool.hatch.build.targets.wheel]
 # packages = ["src/modules"]
 
-# [tool.ruff]
-# # Enable auto-fix
-# fix = true
+[tool.ruff]
+# Enable auto-fix
+fix = true
+# exclude 731 in ruff
+[tool.ruff.lint]  # https://docs.astral.sh/ruff/settings/#lint
+ignore = ["E731"]
 
 # # Exclude a variety of commonly ignored directories.
 # exclude = [

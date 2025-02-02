@@ -1,3 +1,4 @@
+import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -25,3 +26,10 @@ class BreedRecord:
     supplier: str | None
     sub_location: str | None
     is_completed: str | None
+
+    @property
+    def unique_id(self) -> str:
+        """唯一識別碼"""
+        values = [str(value) for value in self.__dict__.values() if value is not None]
+        key = "".join(values)
+        return hashlib.sha256(key.encode()).hexdigest()[:10]
