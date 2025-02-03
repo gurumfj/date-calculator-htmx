@@ -16,6 +16,9 @@ dependencies = [
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
     "sqlmodel>=0.0.22",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "python-multipart>=0.0.9",
 ]
 
 [build-system]
