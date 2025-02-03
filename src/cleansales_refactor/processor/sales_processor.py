@@ -200,7 +200,11 @@ class SalesProcessor(IProcessor[SaleRecord]):
     def _validate_and_clean_records(
         data: pd.DataFrame,
     ) -> tuple[PreRecords, list[ErrorMessage]]:
-        sorted_data = data.sort_values(by=["場別", "日期"])
+        try:
+            sorted_data = data.sort_values(by=["場別", "日期"])
+        except Exception as e:
+            logger.error(f"排序資料時發生錯誤: {str(e)}")
+            raise ValueError("排序資料時發生錯誤")
 
         def process_row(
             acc: tuple[PreRecords, list[ErrorMessage]],

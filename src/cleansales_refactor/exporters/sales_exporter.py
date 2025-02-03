@@ -1,17 +1,20 @@
 import hashlib
 from dataclasses import asdict
-from datetime import date, datetime
+from datetime import date
+from typing import List, Optional
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship
 
 from cleansales_refactor.exporters import BaseSQLiteExporter
 from cleansales_refactor.models import SaleRecord
+from cleansales_refactor.models.orm_models import BaseEventSource, ORMModel
 
 
-class SaleRecordORM(SQLModel, table=True):
+class SaleRecordORM(ORMModel, table=True):
     """銷售記錄資料表模型"""
 
-    unique_id: str = Field(default=None, primary_key=True, index=True, unique=True)
+    __tablename__ = "sale_record"
+
     closed: str | None
     handler: str | None
     date: date
@@ -24,20 +27,20 @@ class SaleRecordORM(SQLModel, table=True):
     male_price: float | None
     female_price: float | None
     unpaid: str | None
-    created_at: datetime = Field(default_factory=datetime.now)
+    event_source_id: int = Field(foreign_key="sales_event_source.id")
+    event_source: Optional["SalesEventSource"] = Relationship(back_populates="records")
 
 
-# class ErrorRecord(SQLModel, table=True):
-#     """錯誤記錄資料表模型"""
+class SalesEventSource(BaseEventSource[SaleRecordORM], table=True):
+    """銷售事件來源資料表模型"""
 
-#     id: int | None = Field(default=None, primary_key=True)
-#     message: str
-#     data: str
-#     extra: str
-#     timestamp: str
+    __tablename__ = "sales_event_source"
+    records: List[SaleRecordORM] = Relationship(back_populates="event_source")
 
 
-class SaleSQLiteExporter(BaseSQLiteExporter[SaleRecord, SaleRecordORM]):
+class SaleSQLiteExporter(
+    BaseSQLiteExporter[SaleRecord, SaleRecordORM, SalesEventSource]
+):
     """銷售記錄匯出服務 (使用 SQLite)"""
 
     def get_unique_key(self, record: SaleRecord) -> str:
@@ -48,6 +51,21 @@ class SaleSQLiteExporter(BaseSQLiteExporter[SaleRecord, SaleRecordORM]):
         key = "".join(values)
         return hashlib.sha256(key.encode()).hexdigest()[:10]
 
+    # def _save_data_and_event_source(
+    #     self, records: list[SaleRecord]
+    # ) -> SalesEventSource:
+    #     event_source = SalesEventSource(
+    #         source_name="sales",
+    #         source_md5=hashlib.sha256(str(records).encode()).hexdigest()[:10],
+    #         event=Event.ADD,
+    #     )
+    #     records_orm = [self._record_to_orm(record) for record in records]
+    #     event_source.records = records_orm
+    #     return event_source
+
+    # def _delete_data_and_event_source(self, records: list[SaleRecord]) -> SalesEventSource:
+    #     pass
+
     def _record_to_orm(self, record: SaleRecord) -> SaleRecordORM:
         """將銷售記錄轉換為資料表模型"""
         record_orm = SaleRecordORM(**asdict(record))
@@ -57,6 +75,10 @@ class SaleSQLiteExporter(BaseSQLiteExporter[SaleRecord, SaleRecordORM]):
     def _get_orm_class(self) -> type[SaleRecordORM]:
         """取得 ORM 類別"""
         return SaleRecordORM
+
+    def _get_event_source_class(self) -> type[SalesEventSource]:
+        """取得事件來源類別"""
+        return SalesEventSource
 
     def _get_primary_key_field(self) -> str:
         """取得主鍵欄位名稱"""

@@ -1,12 +1,13 @@
-import io
 import logging
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from cleansales_refactor.exporters.sales_exporter import SaleSQLiteExporter
+from cleansales_refactor.models.shared import ProcessingResult, SourceData
 from cleansales_refactor.processor import SalesProcessor
 
 # 設定 logger
@@ -59,37 +60,31 @@ async def root() -> Dict[str, str]:
     }
 
 
-def process_excel_file(file_content: bytes) -> Dict[str, Any]:
-    """處理 Excel 檔案內容並返回處理結果"""
-    try:
-        # 讀取 Excel 檔案到 DataFrame
-        df = pd.read_excel(io.BytesIO(file_content))
+# def process_excel_file(file_content: bytes) -> Dict[str, Any]:
+#     """處理 Excel 檔案內容並返回處理結果"""
+#     try:
+#         reader = create_bytes_reader(file_content)
+#         processor = create_data_processor(SalesProcessor())
+#         exporter = create_data_exporter(SaleSQLiteExporter("api_test.db"))
+#         # 處理數據
 
-        # 初始化 SalesProcessor
-        processor = SalesProcessor()
+#         result = exporter(processor(reader()))
 
-        # 處理數據
-        result = processor.process_data(df)
+#         # 將結果轉換為簡單的統計數據
+#         # serializable_result = result.to_dict()
 
-        # 將結果轉換為簡單的統計數據
-        serializable_result = {
-            "success": True,
-            "processed_count": len(result.processed_data),
-            "error_count": len(result.errors) if result.errors else 0,
-        }
-
-        return serializable_result
-    except Exception as e:
-        logger.error(f"處理檔案時發生錯誤: {str(e)}")
-        return {"success": False, "error": str(e)}
+#         return result
+#     except Exception as e:
+#         logger.error(f"處理檔案時發生錯誤: {str(e)}")
+#         return {"success": False, "error": str(e)}
 
 
 @app.post("/process-sales")
-async def process_sales_file(file: UploadFile) -> JSONResponse:
+async def process_sales_file(file_upload: UploadFile) -> JSONResponse:
     """處理上傳的銷售資料檔案
 
     Args:
-        file: 上傳的 Excel 檔案
+        file_upload: 包含上傳的 Excel 檔案的 Pydantic 模型
 
     Returns:
         包含處理結果的 JSON 回應
@@ -97,18 +92,34 @@ async def process_sales_file(file: UploadFile) -> JSONResponse:
     Raises:
         HTTPException: 當檔案格式不正確或處理過程發生錯誤時
     """
-    if file.filename is None:
-        raise HTTPException(status_code=400, detail="未提供檔案名稱")
-    if not file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="只接受 Excel 檔案 (.xlsx, .xls)")
-
     try:
         # 讀取檔案內容
-        file_content = await file.read()
+        if file_upload.filename is None:
+            raise ValueError("未提供檔案名稱")
+        if not file_upload.filename.endswith((".xlsx", ".xls")):
+            raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
         # 處理檔案
-        result = process_excel_file(file_content)
+
+        df = pd.read_excel(file_upload.file)
+
+        source_data = SourceData(file_name=file_upload.filename, dataframe=df)
+        processor: Callable[[pd.DataFrame], ProcessingResult[Any]] = (
+            lambda df: SalesProcessor.process_data(df)
+        )
+        exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
+            lambda result: SaleSQLiteExporter("src/api_test.db").export_data(
+                source_data, result
+            )
+        )
+        process_pipeline: Callable[[], dict[str, Any]] = lambda: exporter(
+            processor(source_data.dataframe)
+        )
+
+        result = process_pipeline()
 
         return JSONResponse(content=result)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"處理檔案時發生錯誤: {e}")
         raise HTTPException(status_code=500, detail=str(e))

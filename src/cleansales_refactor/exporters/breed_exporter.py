@@ -1,19 +1,21 @@
 import hashlib
 from dataclasses import asdict
 from datetime import datetime
-from typing import TypeVar
+from typing import Optional, TypeVar
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship
 
 from ..models import BreedRecord
+from ..models.orm_models import BaseEventSource, ORMModel
 from .base_sqlite_exporter import BaseSQLiteExporter
 
 T = TypeVar("T")
 
 
-class BreedRecordORM(SQLModel, table=True):
+class BreedRecordORM(ORMModel, table=True):
     """入雛記錄資料表模型"""
 
+    __tablename__ = "breed_record"
     unique_id: str = Field(default=None, primary_key=True, index=True, unique=True)
 
     # 基本資料
@@ -35,10 +37,20 @@ class BreedRecordORM(SQLModel, table=True):
     supplier: str | None
     sub_location: str | None
     is_completed: str | None
-    created_at: datetime = Field(default_factory=datetime.now)
+    event_source_id: int = Field(foreign_key="breed_event_source.id")
+    event_source: Optional["BreedEventSource"] = Relationship(back_populates="records")
 
 
-class BreedSQLiteExporter(BaseSQLiteExporter[BreedRecord, BreedRecordORM]):
+class BreedEventSource(BaseEventSource[BreedRecordORM], table=True):
+    """入雛事件來源資料表模型"""
+
+    __tablename__ = "breed_event_source"
+    records: list[BreedRecordORM] = Relationship(back_populates="event_source")
+
+
+class BreedSQLiteExporter(
+    BaseSQLiteExporter[BreedRecord, BreedRecordORM, BreedEventSource]
+):
     """入雛記錄匯出服務 (使用 SQLite)"""
 
     def get_unique_key(self, record: BreedRecord) -> str:

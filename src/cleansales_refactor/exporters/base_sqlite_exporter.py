@@ -1,29 +1,21 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, select
 
-from ..models import ProcessingResult
+from ..models import ProcessingResult, SourceData
+from ..models.orm_models import BaseEventSource, ErrorRecord, ORMModel, ProcessingEvent
 from .exporter_interface import IExporter
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
-M = TypeVar("M", bound=SQLModel)
+M = TypeVar("M", bound=ORMModel)
+ES = TypeVar("ES", bound=BaseEventSource[Any])
 
 
-class ErrorRecord(SQLModel, table=True):
-    """基礎錯誤記錄資料表模型"""
-
-    id: int | None = Field(default=None, primary_key=True)
-    message: str
-    data: str
-    extra: str
-    timestamp: str
-
-
-class BaseSQLiteExporter(Generic[T, M], IExporter[T], ABC):
+class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
     """基礎 SQLite 匯出服務"""
 
     def __init__(self, db_path: str) -> None:
@@ -35,38 +27,63 @@ class BaseSQLiteExporter(Generic[T, M], IExporter[T], ABC):
         """初始化資料庫表格"""
         SQLModel.metadata.create_all(self._engine)
 
-    def export_data(self, data: ProcessingResult[T]) -> None:
+    def _get_session(self) -> Session:
+        """取得 Session"""
+        return Session(self._engine)
+
+    def export_data(
+        self, source_data: SourceData, data: ProcessingResult[T]
+    ) -> dict[str, Any]:
         """匯出資料至 SQLite (實作 IExporter 介面)"""
         if not data.processed_data:
-            raise ValueError("No data to export")
+            return {
+                "status": "error",
+                "msg": "No data to export",
+            }
 
-        with Session(self._engine) as session:
-            try:
-                all_existing_keys: set[str] = self._get_all_existing_keys(session)
-                all_records_keys: set[str] = set(
-                    self.get_unique_key(record) for record in data.processed_data
+        session = self._get_session()
+        try:
+            all_existing_keys: set[str] = self._get_all_existing_keys(session)
+            all_records_dict = {
+                self.get_unique_key(record): record for record in data.processed_data
+            }
+            all_records_keys = set(all_records_dict.keys())
+            keys_to_save = all_records_keys - all_existing_keys
+            keys_to_delete = all_existing_keys - all_records_keys
+
+            # 處理新增記錄
+            if keys_to_save:
+                save_event_source = self._handle_save_event(
+                    keys_to_save,
+                    lambda key: self._record_to_orm(all_records_dict[key]),
+                    ProcessingEvent.ADDED,
+                    source_data,
                 )
-                all_records_dict = {
-                    self.get_unique_key(record): record
-                    for record in data.processed_data
-                }
+                if save_event_source:
+                    session.merge(save_event_source)
 
-                # 儲存新記錄
-                keys_to_save = all_records_keys - all_existing_keys
-                for key in keys_to_save:
-                    self._save_data(session, all_records_dict[key])
+            # 處理刪除記錄
+            if keys_to_delete:
+                delete_event_source = self._handle_save_event(
+                    keys_to_delete,
+                    lambda key: session.get(self._get_orm_class(), key),
+                    ProcessingEvent.DELETED,
+                    source_data,
+                )
+                if delete_event_source:
+                    session.merge(delete_event_source)
 
-                # 刪除不存在的記錄
-                keys_to_delete = all_existing_keys - all_records_keys
-                for key in keys_to_delete:
-                    self._delete_data_by_key(session, key)
+            session.commit()
 
-                session.commit()
-                logger.info("資料匯出成功")
-            except Exception as e:
-                logger.error(f"匯出資料時發生錯誤: {e}")
-                session.rollback()
-                raise
+            logger.info("資料匯出成功")
+            return {
+                "success": True,
+                "msg": f"儲存 {len(keys_to_save)} 筆資料，刪除 {len(keys_to_delete)} 筆資料",
+            }
+        except Exception as e:
+            logger.error(f"匯出資料時發生錯誤: {e}")
+            session.rollback()
+            raise
 
     def export_errors(self, data: ProcessingResult[T]) -> None:
         """匯出錯誤記錄 (實作 IExporter 介面)"""
@@ -83,26 +100,35 @@ class BaseSQLiteExporter(Generic[T, M], IExporter[T], ABC):
             session.add_all(error_records)
             session.commit()
 
-    def _save_data(self, session: Session, record: T) -> None:
-        """儲存資料"""
-        # print(f"儲存資料: {record}")
-        logger.debug(f"儲存資料: {record}")
-        orm_model = self._record_to_orm(record)
-        session.add(orm_model)
-
-    def _delete_data_by_key(self, session: Session, key: str) -> None:
-        """刪除資料"""
-        # print(f"刪除唯一識別碼: {key}")
-        logger.debug(f"刪除唯一識別碼: {key}")
-        model_to_delete = session.get(self._get_orm_class(), key)
-        if model_to_delete:
-            session.delete(model_to_delete)
+    def _handle_save_event(
+        self,
+        keys: set[str],
+        get_data_func: Callable[[str], ORMModel | None],
+        event_value: ProcessingEvent,
+        source_data: SourceData,
+    ) -> ES:
+        models_to_process: list[ORMModel] = []
+        for key in keys:
+            model_to_process = get_data_func(key)
+            if model_to_process is None:
+                continue
+            model_to_process.event = event_value
+            models_to_process.append(model_to_process)
+        event_source = self._get_event_source_class()(
+            source_name=source_data.file_name,
+            source_md5=source_data.md5,
+            event=event_value,
+        )
+        event_source.records = models_to_process
+        return event_source
 
     def _get_all_existing_keys(self, session: Session) -> set[str]:
         """取得所有已存在的唯一識別碼"""
         orm_class = self._get_orm_class()
         primary_key = self._get_primary_key_field()
-        return set(session.exec(select(getattr(orm_class, primary_key))).all())
+        stmt = select(orm_class).where(orm_class.event == ProcessingEvent.ADDED)
+        models = session.exec(stmt).all()
+        return set(getattr(model, primary_key) for model in models)
 
     @abstractmethod
     def get_unique_key(self, record: T) -> str:
@@ -117,6 +143,11 @@ class BaseSQLiteExporter(Generic[T, M], IExporter[T], ABC):
     @abstractmethod
     def _get_orm_class(self) -> type[M]:
         """取得 ORM 類別"""
+        pass
+
+    @abstractmethod
+    def _get_event_source_class(self) -> type[ES]:
+        """取得事件來源類別"""
         pass
 
     @abstractmethod

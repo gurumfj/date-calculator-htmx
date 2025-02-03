@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+import hashlib
+import io
 import logging
 import time
 from pathlib import Path
@@ -5,7 +8,11 @@ from typing import Any, Callable, TypeAlias, TypeVar
 
 import pandas as pd
 
-from cleansales_refactor.exporters import IExporter, BreedSQLiteExporter, SaleSQLiteExporter
+from cleansales_refactor.exporters import (
+    BreedSQLiteExporter,
+    IExporter,
+    SaleSQLiteExporter,
+)
 from cleansales_refactor.models import ProcessingResult
 from cleansales_refactor.processor import BreedsProcessor, IProcessor, SalesProcessor
 
@@ -22,11 +29,16 @@ logger = logging.getLogger(__name__)
 logging.getLogger("cleansales_refactor").setLevel(logging.DEBUG)
 
 T = TypeVar("T")
-# R = TypeVar("R")
 
 DataReader: TypeAlias = Callable[[], pd.DataFrame]
+DataValidator: TypeAlias = Callable[[pd.DataFrame], pd.DataFrame]
 DataProcessor: TypeAlias = Callable[[pd.DataFrame], ProcessingResult[T]]
 DataExporter: TypeAlias = Callable[[ProcessingResult[T]], None]
+
+
+
+def dataframe_md5(dataframe: pd.DataFrame) -> str:
+    return hashlib.md5(dataframe.to_csv(index=False).encode()).hexdigest()
 
 
 def time_it(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -40,6 +52,33 @@ def time_it(func: Callable[..., Any]) -> Callable[..., Any]:
         return result
 
     return wrapper
+
+
+def create_bytes_reader(file_content: bytes) -> DataReader:
+    def wrapper() -> pd.DataFrame:
+        try:
+            return pd.read_excel(io.BytesIO(file_content))
+        except Exception as e:
+            logger.error(f"讀取 Excel 檔案時發生錯誤: {str(e)}")
+            raise ValueError("讀取 Excel 檔案時發生錯誤")
+
+    return time_it(wrapper)
+
+
+def create_dataframe_validator(dataframe: pd.DataFrame) -> DataValidator:
+    """建立資料驗證函數"""
+    md5s: set[str] = get_all_md5s()
+
+    def wrapper() -> pd.DataFrame:
+        if dataframe.empty:
+            raise ValueError("資料為空")
+
+        if dataframe_md5(dataframe) in md5s:
+            raise ValueError("資料已經處理過")
+        
+        return dataframe
+
+    return time_it(wrapper)
 
 
 def create_excel_reader(
@@ -113,6 +152,22 @@ def create_breeds_data_pipeline(
         exporter(processor(reader()))
 
     return pipeline
+
+from cleansales_refactor.models.shared import SourceData, ProcessorPipelineData
+def create_sales_pipeline(source_data: SourceData) -> ProcessorPipelineData[T]:
+    db_path = "data.db"
+    reader = source_data.dataframe
+    processor = lambda df: SalesProcessor.process_data(df)
+    exporter = lambda source_data, processed_result: SaleSQLiteExporter(str(db_path)).export_data(source_data, processed_result)
+
+    return ProcessorPipelineData(
+            source_data=source_data,
+            process_result=processor(reader),
+            exporter_result=exporter(source_data, processor(reader)))
+
+
+
+
 
 
 def sales_data_service() -> None:
