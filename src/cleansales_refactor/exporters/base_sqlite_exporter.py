@@ -1,8 +1,9 @@
 import logging
+from datetime import datetime
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, TypeVar
 
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, desc, select
 
 from ..models import ProcessingResult, SourceData
 from ..models.orm_models import BaseEventSource, ErrorRecord, ORMModel, ProcessingEvent
@@ -18,22 +19,12 @@ ES = TypeVar("ES", bound=BaseEventSource[Any])
 class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
     """基礎 SQLite 匯出服務"""
 
-    def __init__(self, db_path: str) -> None:
-        self.db_path = db_path
-        self._engine = create_engine(f"sqlite:///{db_path}", echo=False)
-        self._init_database()
-
-    def _init_database(self) -> None:
-        """初始化資料庫表格"""
-        SQLModel.metadata.create_all(self._engine)
-
-    def _get_session(self) -> Session:
-        """取得 Session"""
-        return Session(self._engine)
+    def __init__(self, session: Session) -> None:
+        self._session = session
 
     def export_data(
         self, source_data: SourceData, data: ProcessingResult[T]
-    ) -> dict[str, Any]:
+    ) -> dict[str, str]:
         """匯出資料至 SQLite (實作 IExporter 介面)"""
         if not data.processed_data:
             return {
@@ -41,9 +32,8 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
                 "msg": "No data to export",
             }
 
-        session = self._get_session()
         try:
-            all_existing_keys: set[str] = self._get_all_existing_keys(session)
+            all_existing_keys: set[str] = self._get_all_existing_keys(self._session)
             all_records_dict = {
                 self.get_unique_key(record): record for record in data.processed_data
             }
@@ -60,45 +50,57 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
                     source_data,
                 )
                 if save_event_source:
-                    session.merge(save_event_source)
+                    self._session.merge(save_event_source)
 
             # 處理刪除記錄
             if keys_to_delete:
                 delete_event_source = self._handle_save_event(
                     keys_to_delete,
-                    lambda key: session.get(self._get_orm_class(), key),
+                    lambda key: self._session.get(self._get_orm_class(), key),
                     ProcessingEvent.DELETED,
                     source_data,
                 )
                 if delete_event_source:
-                    session.merge(delete_event_source)
+                    self._session.merge(delete_event_source)
 
-            session.commit()
+            self._session.commit()
 
             logger.info("資料匯出成功")
             return {
-                "success": True,
+                "status": "success",
                 "msg": f"儲存 {len(keys_to_save)} 筆資料，刪除 {len(keys_to_delete)} 筆資料",
             }
         except Exception as e:
             logger.error(f"匯出資料時發生錯誤: {e}")
-            session.rollback()
-            raise
+            self._session.rollback()
+            return {
+                "status": "error",
+                "msg": f"匯出資料時發生錯誤: {e}",
+            }
 
     def export_errors(self, data: ProcessingResult[T]) -> None:
         """匯出錯誤記錄 (實作 IExporter 介面)"""
-        with Session(self._engine) as session:
-            error_records = [
-                ErrorRecord(
-                    message=error.message,
-                    data=str(error.data),
-                    extra=str(error.extra),
-                    timestamp=error.timestamp,
-                )
-                for error in data.errors
-            ]
-            session.add_all(error_records)
-            session.commit()
+        error_records = [
+            ErrorRecord(
+                message=error.message,
+                data=str(error.data),
+                extra=str(error.extra),
+                timestamp=error.timestamp,
+            )
+            for error in data.errors
+        ]
+        self._session.add_all(error_records)
+        self._session.commit()
+
+    def is_source_md5_exists_in_latest_record(self, source_md5: str) -> bool:
+        # 最新的md5
+        stmt = (
+            select(self._get_event_source_class().source_md5)
+            .order_by(desc(self._get_event_source_class().id))
+            .limit(1)
+        )
+        result = self._session.exec(stmt).first()
+        return result is not None and source_md5 == result
 
     def _handle_save_event(
         self,
@@ -113,6 +115,7 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
             if model_to_process is None:
                 continue
             model_to_process.event = event_value
+            model_to_process.updated_at = datetime.now()
             models_to_process.append(model_to_process)
         event_source = self._get_event_source_class()(
             source_name=source_data.file_name,

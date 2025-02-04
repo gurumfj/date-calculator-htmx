@@ -1,5 +1,4 @@
 import hashlib
-import io
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Generic, TypeVar
@@ -27,7 +26,9 @@ class SourceData:
 
     @property
     def md5(self) -> str:
-        return hashlib.md5(self.dataframe.to_csv(index=False).encode("utf-8")).hexdigest()
+        return hashlib.md5(
+            self.dataframe.to_csv(index=False).encode("utf-8")
+        ).hexdigest()
 
 
 @dataclass(frozen=True)

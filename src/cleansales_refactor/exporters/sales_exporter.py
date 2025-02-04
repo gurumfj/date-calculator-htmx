@@ -51,21 +51,6 @@ class SaleSQLiteExporter(
         key = "".join(values)
         return hashlib.sha256(key.encode()).hexdigest()[:10]
 
-    # def _save_data_and_event_source(
-    #     self, records: list[SaleRecord]
-    # ) -> SalesEventSource:
-    #     event_source = SalesEventSource(
-    #         source_name="sales",
-    #         source_md5=hashlib.sha256(str(records).encode()).hexdigest()[:10],
-    #         event=Event.ADD,
-    #     )
-    #     records_orm = [self._record_to_orm(record) for record in records]
-    #     event_source.records = records_orm
-    #     return event_source
-
-    # def _delete_data_and_event_source(self, records: list[SaleRecord]) -> SalesEventSource:
-    #     pass
-
     def _record_to_orm(self, record: SaleRecord) -> SaleRecordORM:
         """將銷售記錄轉換為資料表模型"""
         record_orm = SaleRecordORM(**asdict(record))

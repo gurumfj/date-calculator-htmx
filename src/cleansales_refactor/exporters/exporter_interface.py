@@ -8,7 +8,7 @@ T = TypeVar("T")
 class IExporter(Protocol, Generic[T]):
     """定義資料匯出介面"""
 
-    def export_data(self, source_data: SourceData, result: ProcessingResult[T]) -> dict[str, Any]:
+    def export_data(self, source_data: SourceData, result: ProcessingResult[T]) -> dict[str, str]:
         """匯出處理後的資料
 
         Args:
@@ -22,4 +22,8 @@ class IExporter(Protocol, Generic[T]):
         Args:
             result: 包含處理後資料與錯誤的結果物件
         """
+        ...
+
+    def is_source_md5_exists_in_latest_record(self, source_md5: str) -> bool:
+        """檢查 md5 是否存在"""
         ...
