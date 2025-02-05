@@ -8,11 +8,12 @@ services:
     ports:
       - "8888:8000"
     volumes:
-      - ./data:/app/data
-      - ./src:/app/src
-      - ./tests:/app/tests
-      - ./pyproject.toml:/app/pyproject.toml
-      - ./README.md:/app/README.md
+      - .:/app
+      # - ./data:/app/data
+      # - ./src:/app/src
+      # - ./tests:/app/tests
+      # - ./pyproject.toml:/app/pyproject.toml
+      # - ./README.md:/app/README.md
     environment:
       - PYTHONPATH=/app/src
       - PYTHONUNBUFFERED=1

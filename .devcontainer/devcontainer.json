@@ -1,8 +1,8 @@
 {
     "name": "CleanSales Development",
     "dockerComposeFile": "../docker-compose.yml",
-    "service": "api",
-    "workspaceFolder": "/app",
+    "service": "cleansales_api",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -14,15 +14,19 @@
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
-                "python.linting.enabled": true,
-                "python.formatting.provider": "black",
+                // "python.linting.enabled": true,
+                // "python.formatting.provider": "black",
                 "editor.formatOnSave": true,
                 "editor.codeActionsOnSave": {
-                    "source.organizeImports": true
+                    "source.organizeImports": "explicit"
                 }
             }
         }
     },
     "remoteUser": "root",
-    "postCreateCommand": "uv pip install --system -e ."
+    "postCreateCommand": "uv pip install --system -e .",
+    "mounts": [
+        "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gitconfig,target=/home/vscode/.gitconfig,type=bind",
+        "source=${localWorkspaceFolder}/.git,target=/app/.git,type=bind"
+    ]    
 } 
