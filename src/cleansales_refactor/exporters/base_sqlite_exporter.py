@@ -92,15 +92,30 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
         self._session.add_all(error_records)
         self._session.commit()
 
-    def is_source_md5_exists_in_latest_record(self, source_md5: str) -> bool:
+    def is_source_md5_exists_in_latest_record(self, source_data: SourceData) -> bool:
         # 最新的md5
         stmt = (
             select(self._get_event_source_class().source_md5)
+            .where(self._get_event_source_class().event == ProcessingEvent.NEW_MD5)
             .order_by(desc(self._get_event_source_class().id))
             .limit(1)
         )
         result = self._session.exec(stmt).first()
-        return result is not None and source_md5 == result
+        logger.debug(f"最新的md5: {result}")
+        logger.debug(f"來源的md5: {source_data.md5}")
+        is_exists = result is not None and source_data.md5 == result
+        if is_exists:
+            logger.debug(f"md5 已存在")
+        else:
+            logger.debug(f"md5 不存在")
+            event_source = self._get_event_source_class()(
+                source_name=source_data.file_name,
+                source_md5=source_data.md5,
+                event=ProcessingEvent.NEW_MD5,
+            )
+            self._session.add(event_source)
+            self._session.commit()
+        return is_exists
 
     def _handle_save_event(
         self,

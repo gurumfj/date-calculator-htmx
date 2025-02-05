@@ -1,26 +1,44 @@
 import logging
 from typing import Any, Callable, Dict
 
+from pydantic import BaseModel
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import Session
 
-from cleansales_refactor.exporters import Database, SaleSQLiteExporter
+from cleansales_refactor.exporters import Database, SaleSQLiteExporter, BreedSQLiteExporter
 from cleansales_refactor.models.shared import ProcessingResult, SourceData
-from cleansales_refactor.processor import SalesProcessor
+from cleansales_refactor.processor import SalesProcessor, BreedsProcessor
 
-# 設定 logger
+# 先設定基本的 logging 配置
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler()],
 )
 
+# 設定特定的 processor logger
+processor_logger = logging.getLogger("cleansales_refactor.processor")
+processor_logger.setLevel(logging.INFO)
+# 確保 handler 也設定正確的層級
+for handler in processor_logger.handlers:
+    handler.setLevel(logging.INFO)
+
+# API logger
 logger = logging.getLogger(__name__)
 
+
+class ResponseModel(BaseModel):
+    status: str
+    msg: str
+    data: dict[str, Any]
+
 db = Database("data/cleansales_dev.db")
+
+sales_exporter = SaleSQLiteExporter(db.get_session())
+breed_exporter = BreedSQLiteExporter(db.get_session())
 
 
 def sales_processpipline(upload_file: UploadFile, session: Session) -> dict[str, Any]:
@@ -32,18 +50,34 @@ def sales_processpipline(upload_file: UploadFile, session: Session) -> dict[str,
         lambda df: SalesProcessor.process_data(df)
     )
     exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-        lambda processed_data: SaleSQLiteExporter(session).export_data(
-            source_data, processed_data
-        )
+        lambda processed_data: sales_exporter.export_data(source_data, processed_data)
     )
-    is_exists: Callable[[str], bool] = lambda x: SaleSQLiteExporter(
-        session
-    ).is_source_md5_exists_in_latest_record(x)
+    is_exists: Callable[[SourceData], bool] = lambda x: sales_exporter.is_source_md5_exists_in_latest_record(x)
 
-    if is_exists(source_data.md5):
+    if is_exists(source_data):
+        logger.debug(f"販售資料 md5 {source_data.md5} 已存在")
         return {"status": "error", "msg": "md5 已存在"}
     else:
         return exporter(processor(source_data.dataframe))
+    
+def breed_processpipline(upload_file: UploadFile, session: Session) -> dict[str, Any]:
+    source_data = SourceData(
+        file_name=upload_file.filename or "",
+        dataframe=pd.read_excel(upload_file.file),
+    )
+
+    processor: Callable[[pd.DataFrame], ProcessingResult[Any]] = (
+        lambda df: BreedsProcessor.process_data(df)
+    )
+    exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
+        lambda processed_data: breed_exporter.export_data(source_data, processed_data)
+    )
+
+    if breed_exporter.is_source_md5_exists_in_latest_record(source_data):
+        return {"status": "error", "msg": "md5 已存在"}
+    else:
+        return exporter(processor(source_data.dataframe))
+
 
 
 app = FastAPI(
@@ -118,6 +152,24 @@ async def process_sales_file(
         logger.error(f"處理檔案時發生錯誤: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/process-breeds")
+async def process_breeds_file(
+    file_upload: UploadFile,
+    session: Session = Depends(db.get_session),
+) -> JSONResponse:
+    try:
+        if file_upload.filename is None:
+            raise ValueError("未提供檔案名稱")
+        if not file_upload.filename.endswith((".xlsx", ".xls")):
+            raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+        result: dict[str, Any] = breed_processpipline(file_upload, session)
+        return JSONResponse(result)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"處理檔案時發生錯誤: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

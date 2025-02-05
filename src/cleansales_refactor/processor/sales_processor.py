@@ -16,7 +16,7 @@ from .processor_interface import IProcessor
 
 # Configure logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 
 @dataclass(frozen=True)

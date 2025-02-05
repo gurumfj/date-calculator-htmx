@@ -15,7 +15,7 @@ T = TypeVar("T")
 class BreedRecordORM(ORMModel, table=True):
     """入雛記錄資料表模型"""
 
-    __tablename__ = "breed_record"
+    __tablename__ = "breed_record"  # type: ignore
     unique_id: str = Field(default=None, primary_key=True, index=True, unique=True)
 
     # 基本資料
@@ -44,7 +44,7 @@ class BreedRecordORM(ORMModel, table=True):
 class BreedEventSource(BaseEventSource[BreedRecordORM], table=True):
     """入雛事件來源資料表模型"""
 
-    __tablename__ = "breed_event_source"
+    __tablename__ = "breed_event_source"  # type: ignore
     records: list[BreedRecordORM] = Relationship(back_populates="event_source")
 
 
@@ -64,6 +64,10 @@ class BreedSQLiteExporter(
         record_orm = BreedRecordORM(**asdict(record))
         record_orm.unique_id = self.get_unique_key(record)
         return record_orm
+    
+    def _get_event_source_class(self) -> type[BreedEventSource]:
+        """取得事件來源類別"""
+        return BreedEventSource
 
     def _get_orm_class(self) -> type[BreedRecordORM]:
         """取得 ORM 類別"""

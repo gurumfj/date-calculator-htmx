@@ -11,6 +11,7 @@ class ProcessingEvent(Enum):
     ADDED = "added"
     DELETED = "deleted"
     UPDATED = "updated"
+    NEW_MD5 = "new_md5"
 
 
 class ORMModel(SQLModel):
