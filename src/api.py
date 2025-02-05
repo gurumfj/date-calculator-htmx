@@ -4,9 +4,10 @@ from typing import Any, Callable, Dict
 import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session, SQLModel, select
 
 from cleansales_refactor.exporters import (
+    BreedRecordORM,
     BreedSQLiteExporter,
     Database,
     SaleSQLiteExporter,
@@ -98,6 +99,25 @@ def breed_processpipline(upload_file: UploadFile, session: Session) -> ResponseM
         )
 
 
+def get_breeds_is_not_completed(session: Session) -> ResponseModel:
+    stmt = (
+        select(BreedRecordORM)
+        .where(
+            (BreedRecordORM.is_completed != "結場")
+            | (BreedRecordORM.is_completed.is_(None))
+        )
+        .order_by(BreedRecordORM.breed_date.desc())
+    )
+    breeds = session.exec(stmt).all()
+    return ResponseModel(
+        status="success",
+        msg=f"成功取得未結場入雛資料 {len(breeds)} 筆",
+        content={
+            "breeds": [breed.model_dump() for breed in breeds],
+        },
+    )
+
+
 app = FastAPI(
     title="銷售資料處理 API",
     description="""
@@ -187,6 +207,16 @@ async def process_breeds_file(
             raise HTTPException(status_code=400, detail=str(ve))
         except Exception as e:
             logger.error(f"處理檔案時發生錯誤: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/breeding", response_model=ResponseModel)
+async def get_breeding_data() -> ResponseModel:
+    with db.get_session() as session:
+        try:
+            return get_breeds_is_not_completed(session)
+        except Exception as e:
+            logger.error(f"取得未結場入雛資料時發生錯誤: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 

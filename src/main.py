@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 
@@ -11,6 +11,7 @@ from cleansales_refactor.exporters import (
 )
 from cleansales_refactor.models.shared import (
     SourceData,
+    ProcessingResult,
 )
 from cleansales_refactor.processor import BreedsProcessor, SalesProcessor
 
@@ -29,15 +30,17 @@ logging.getLogger("cleansales_refactor").setLevel(logging.DEBUG)
 
 class DataService:
     def __init__(self, db_path: str | Path):
-        self.db = Database(db_path)
+        self.db = Database(str(db_path))
         self.sales_exporter = SaleSQLiteExporter()
         self.breeds_exporter = BreedSQLiteExporter()
 
     def sales_data_service(self, file_path: str | Path) -> dict[str, Any]:
         source_data = SourceData(
-            file_name=file_path, dataframe=pd.read_excel(file_path)
+            file_name=str(file_path), dataframe=pd.read_excel(file_path)
         )
-        processor = lambda source_data: SalesProcessor.execute(source_data)
+        processor: Callable[[SourceData], ProcessingResult[Any]] = (
+            lambda source_data: SalesProcessor.execute(source_data)
+        )
 
         with self.db.get_session() as session:
             if self.sales_exporter.is_source_md5_exists_in_latest_record(
@@ -50,9 +53,11 @@ class DataService:
 
     def breeds_data_service(self, file_path: str | Path) -> dict[str, Any]:
         source_data = SourceData(
-            file_name=file_path, dataframe=pd.read_excel(file_path)
+            file_name=str(file_path), dataframe=pd.read_excel(file_path)
         )
-        processor = lambda source_data: BreedsProcessor.execute(source_data)
+        processor: Callable[[SourceData], ProcessingResult[Any]] = (
+            lambda source_data: BreedsProcessor.execute(source_data)
+        )
 
         with self.db.get_session() as session:
             if self.breeds_exporter.is_source_md5_exists_in_latest_record(
@@ -66,5 +71,5 @@ class DataService:
 
 if __name__ == "__main__":
     data_service = DataService("data.db")
-    # print(data_service.sales_data_service("/app/data/sales_sample.xlsx"))
+    print(data_service.sales_data_service("/app/data/sales_sample.xlsx"))
     print(data_service.breeds_data_service("/app/data/breeds_sample.xlsx"))
