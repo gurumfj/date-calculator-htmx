@@ -9,7 +9,8 @@
                 "ms-python.python",
                 "ms-python.vscode-pylance",
                 "charliermarsh.ruff",
-                "njpwerner.autodocstring"
+                "njpwerner.autodocstring",
+                "ms-python.mypy-type-checker"
             ],
             "settings": {
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
