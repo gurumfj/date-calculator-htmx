@@ -10,6 +10,7 @@ from ..models import (
     BreedRecordValidatorSchema,
     ErrorMessage,
     ProcessingResult,
+    SourceData,
 )
 from .processor_interface import IProcessor
 
@@ -35,12 +36,12 @@ class BreedsProcessor(IProcessor[BreedRecord]):
     """入雛記錄處理服務"""
 
     @staticmethod
-    def process_data(data: pd.DataFrame) -> ProcessingResult[BreedRecord]:
+    def execute(source_data: SourceData) -> ProcessingResult[BreedRecord]:
         """處理資料並返回結果"""
 
         result = reduce(
             lambda x, y: x + y,
-            (BreedsProcessor._validate_and_transform_records(row) for row in data.iterrows()),
+            (BreedsProcessor._validate_and_transform_records(row) for row in source_data.dataframe.iterrows()),
             ProcessState(records=(), errors=()),
         )
 
@@ -48,7 +49,9 @@ class BreedsProcessor(IProcessor[BreedRecord]):
         logger.debug("處理錯誤: %s", len(result.errors))
 
         return ProcessingResult(
-            processed_data=list(result.records), errors=list(result.errors)
+            source_data=source_data,
+            processed_data=list(result.records),
+            errors=list(result.errors),
         )
 
     @staticmethod

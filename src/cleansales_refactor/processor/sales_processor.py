@@ -7,6 +7,7 @@ from typing import Any, Callable, Hashable, TypeAlias, TypeVar
 import pandas as pd
 
 from ..models import (
+    SourceData,
     ErrorMessage,
     ProcessingResult,
     SaleRecord,
@@ -122,11 +123,10 @@ class SalesProcessor(IProcessor[SaleRecord]):
     """銷售記錄處理服務"""
 
     @staticmethod
-    def process_data(data: pd.DataFrame) -> ProcessingResult[SaleRecord]:
-        """處理資料並返回結果"""
-
+    def execute(source_data: SourceData) -> ProcessingResult[SaleRecord]:
+        """執行處理服務"""
         # 驗證和清理銷售記錄
-        cleaned_records, errors = SalesProcessor._validate_and_clean_records(data)
+        cleaned_records, errors = SalesProcessor._validate_and_clean_records(source_data.dataframe)
 
         # 初始化不可變狀態
         initial_state = ProcessingState(cleaned_records=tuple(cleaned_records))
@@ -142,6 +142,7 @@ class SalesProcessor(IProcessor[SaleRecord]):
         return ProcessingResult(
             processed_data=list(final_state.processed_records),  # 轉回 list
             errors=errors,
+            source_data=source_data,
         )
 
     @staticmethod
@@ -154,10 +155,10 @@ class SalesProcessor(IProcessor[SaleRecord]):
         if current is None or next_record is None:
             return False
         if current.location != next_record.location:
-            logger.debug(f"位置改變: {current.location} -> {next_record.location}")
+            # logger.debug(f"位置改變: {current.location} -> {next_record.location}")
             return True
         if over_threshold(next_record.date, current.date):
-            logger.debug(f"日期差異超過閾值: {current.date} -> {next_record.date}")
+            # logger.debug(f"日期差異超過閾值: {current.date} -> {next_record.date}")
             return True
         return False
 

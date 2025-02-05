@@ -28,11 +28,13 @@ M = TypeVar("M", bound=ORMModel)
 
 class BaseEventSource(SQLModel, Generic[M]):
     """基礎事件來源資料表模型"""
+    # __abstract__ = True
 
     id: int = Field(default=None, primary_key=True, index=True)
     source_name: str
     source_md5: str
     event: ProcessingEvent
+    count: int
     created_at: datetime = Field(default_factory=datetime.now)
 
     # 移除直接的 list 類型定義，改由子類別定義具體的關係

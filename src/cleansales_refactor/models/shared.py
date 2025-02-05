@@ -37,7 +37,8 @@ class ProcessingResult(Generic[T]):
 
     processed_data: list[T]
     errors: list[ErrorMessage]
-
+    source_data: SourceData
+    
     def with_updates(self, **updates: Any) -> "ProcessingResult[T]":
         return replace(self, **updates)
 

@@ -1,14 +1,16 @@
 import logging
 from typing import Any, Callable, Dict
 
-from pydantic import BaseModel
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlmodel import Session
+from sqlmodel import Session, SQLModel
 
-from cleansales_refactor.exporters import Database, SaleSQLiteExporter, BreedSQLiteExporter
+from cleansales_refactor.exporters import (
+    Database,
+    SaleSQLiteExporter,
+    BreedSQLiteExporter,
+)
 from cleansales_refactor.models.shared import ProcessingResult, SourceData
 from cleansales_refactor.processor import SalesProcessor, BreedsProcessor
 
@@ -21,63 +23,79 @@ logging.basicConfig(
 
 # 設定特定的 processor logger
 processor_logger = logging.getLogger("cleansales_refactor.processor")
-processor_logger.setLevel(logging.INFO)
+processor_logger.setLevel(logging.DEBUG)
 # 確保 handler 也設定正確的層級
 for handler in processor_logger.handlers:
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
 
 # API logger
 logger = logging.getLogger(__name__)
 
 
-class ResponseModel(BaseModel):
+class ResponseModel(SQLModel):
     status: str
     msg: str
-    data: dict[str, Any]
-
-db = Database("data/cleansales_dev.db")
-
-sales_exporter = SaleSQLiteExporter(db.get_session())
-breed_exporter = BreedSQLiteExporter(db.get_session())
+    content: dict[str, Any]
 
 
-def sales_processpipline(upload_file: UploadFile, session: Session) -> dict[str, Any]:
+db = Database("data/cleansales.db")
+
+sales_exporter = SaleSQLiteExporter()
+breed_exporter = BreedSQLiteExporter()
+
+
+def sales_processpipline(upload_file: UploadFile, session: Session) -> ResponseModel:
     source_data = SourceData(
         file_name=upload_file.filename or "",
         dataframe=pd.read_excel(upload_file.file),
     )
-    processor: Callable[[pd.DataFrame], ProcessingResult[Any]] = (
-        lambda df: SalesProcessor.process_data(df)
+    processor: Callable[[SourceData], ProcessingResult[Any]] = (
+        lambda source_data: SalesProcessor.execute(source_data)
     )
     exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-        lambda processed_data: sales_exporter.export_data(source_data, processed_data)
+        lambda processed_data: sales_exporter.execute(session, processed_data)
     )
-    is_exists: Callable[[SourceData], bool] = lambda x: sales_exporter.is_source_md5_exists_in_latest_record(x)
+    is_exists: Callable[[SourceData], bool] = (
+        lambda x: sales_exporter.is_source_md5_exists_in_latest_record(session, x)
+    )
 
     if is_exists(source_data):
         logger.debug(f"販售資料 md5 {source_data.md5} 已存在")
-        return {"status": "error", "msg": "md5 已存在"}
+        return ResponseModel(status="error", msg="販售資料已存在", content={})
     else:
-        return exporter(processor(source_data.dataframe))
-    
-def breed_processpipline(upload_file: UploadFile, session: Session) -> dict[str, Any]:
+        result = exporter(processor(source_data))
+        return ResponseModel(
+            status="success",
+            msg=f"成功匯入販售資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆",
+            content=result,
+        )
+
+
+def breed_processpipline(upload_file: UploadFile, session: Session) -> ResponseModel:
     source_data = SourceData(
         file_name=upload_file.filename or "",
         dataframe=pd.read_excel(upload_file.file),
     )
-
-    processor: Callable[[pd.DataFrame], ProcessingResult[Any]] = (
-        lambda df: BreedsProcessor.process_data(df)
+    processor: Callable[[SourceData], ProcessingResult[Any]] = (
+        lambda source_data: BreedsProcessor.execute(source_data)
     )
     exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-        lambda processed_data: breed_exporter.export_data(source_data, processed_data)
+        lambda processed_data: breed_exporter.execute(session, processed_data)
+    )
+    is_exists: Callable[[SourceData], bool] = (
+        lambda x: breed_exporter.is_source_md5_exists_in_latest_record(session, x)
     )
 
-    if breed_exporter.is_source_md5_exists_in_latest_record(source_data):
-        return {"status": "error", "msg": "md5 已存在"}
+    if is_exists(source_data):
+        logger.debug(f"入雛資料 md5 {source_data.md5} 已存在")
+        return ResponseModel(status="error", msg="入雛資料已存在", content={})
     else:
-        return exporter(processor(source_data.dataframe))
-
+        result = exporter(processor(source_data))
+        return ResponseModel(
+            status="success",
+            msg=f"成功匯入入雛資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆",
+            content=result,
+        )
 
 
 app = FastAPI(
@@ -121,11 +139,10 @@ async def root() -> Dict[str, str]:
     }
 
 
-@app.post("/process-sales")
+@app.post("/process-sales", response_model=ResponseModel)
 async def process_sales_file(
     file_upload: UploadFile,
-    session: Session = Depends(db.get_session),
-) -> JSONResponse:
+) -> ResponseModel:
     """處理上傳的銷售資料檔案
 
     Args:
@@ -137,39 +154,41 @@ async def process_sales_file(
     Raises:
         HTTPException: 當檔案格式不正確或處理過程發生錯誤時
     """
-    try:
-        # 讀取檔案內容
-        if file_upload.filename is None:
-            raise ValueError("未提供檔案名稱")
-        if not file_upload.filename.endswith((".xlsx", ".xls")):
-            raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
-        # 處理檔案
-        result: dict[str, Any] = sales_processpipline(file_upload, session)
-        return JSONResponse(result)
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        logger.error(f"處理檔案時發生錯誤: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    with db.get_session() as session:
+        try:
+            # 讀取檔案內容
+            if file_upload.filename is None:
+                raise ValueError("未提供檔案名稱")
+            if not file_upload.filename.endswith((".xlsx", ".xls")):
+                raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+            # 處理檔案
+            result: ResponseModel = sales_processpipline(file_upload, session)
+            return result
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(f"處理檔案時發生錯誤: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/process-breeds")
+@app.post("/process-breeds", response_model=ResponseModel)
 async def process_breeds_file(
     file_upload: UploadFile,
-    session: Session = Depends(db.get_session),
-) -> JSONResponse:
-    try:
-        if file_upload.filename is None:
-            raise ValueError("未提供檔案名稱")
-        if not file_upload.filename.endswith((".xlsx", ".xls")):
-            raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
-        result: dict[str, Any] = breed_processpipline(file_upload, session)
-        return JSONResponse(result)
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        logger.error(f"處理檔案時發生錯誤: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+) -> ResponseModel:
+    with db.get_session() as session:
+        try:
+            if file_upload.filename is None:
+                raise ValueError("未提供檔案名稱")
+            if not file_upload.filename.endswith((".xlsx", ".xls")):
+                raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+            result: ResponseModel = breed_processpipline(file_upload, session)
+            return result
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(f"處理檔案時發生錯誤: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
