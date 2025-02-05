@@ -2,17 +2,17 @@ import logging
 from typing import Any, Callable, Dict
 
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, SQLModel
 
 from cleansales_refactor.exporters import (
+    BreedSQLiteExporter,
     Database,
     SaleSQLiteExporter,
-    BreedSQLiteExporter,
 )
 from cleansales_refactor.models.shared import ProcessingResult, SourceData
-from cleansales_refactor.processor import SalesProcessor, BreedsProcessor
+from cleansales_refactor.processor import BreedsProcessor, SalesProcessor
 
 # 先設定基本的 logging 配置
 logging.basicConfig(
