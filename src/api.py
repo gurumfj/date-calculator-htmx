@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session, SQLModel, and_, desc, or_, select
+from sqlmodel import Session, SQLModel, and_, asc, desc, or_, select
 
 from cleansales_refactor.exporters import (
     BreedRecordORM,
@@ -147,7 +147,7 @@ class PostApiDependency:
                     BreedRecordORM.event == ProcessingEvent.ADDED,
                 )
             )
-            .order_by(desc(BreedRecordORM.breed_date))
+            .order_by(asc(BreedRecordORM.breed_date))
         )
         breeds = session.exec(stmt).all()
         return ResponseModel(
