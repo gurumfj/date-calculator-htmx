@@ -1,10 +1,13 @@
 import logging
 from enum import Enum
-from typing import Any, Callable, Dict
+from pathlib import Path
+from typing import Any, Callable
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, SQLModel, and_, desc, or_, select
 
 from cleansales_refactor.exporters import (
@@ -188,10 +191,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# 設定靜態檔案目錄
+static_path = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
 # 設定 CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生產環境中應該限制來源
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -199,17 +206,8 @@ app.add_middleware(
 
 
 @app.get("/")
-async def root() -> Dict[str, str]:
-    """API 根路由
-
-    Returns:
-        包含 API 資訊的字典
-    """
-    return {
-        "message": "歡迎使用銷售資料處理 API",
-        "docs_url": "/docs",
-        "redoc_url": "/redoc",
-    }
+async def root() -> FileResponse:
+    return FileResponse(str(static_path / "index.html"))
 
 
 @app.post("/process-sales", response_model=ResponseModel)
