@@ -90,6 +90,27 @@ export function mergeBreedsByBatch(breeds) {
 
     return Object.entries(batchGroups).map(([batchName, records]) => {
         const firstRecord = records[0];
+        const hasSingleRecord = records.length === 1;
+
+        // 如果只有一筆記錄，直接使用該記錄的資訊
+        if (hasSingleRecord) {
+            return {
+                batch_name: batchName,
+                farm_name: firstRecord.farm_name,
+                address: firstRecord.address,
+                farmer_name: firstRecord.farmer_name,
+                chicken_breeds: [firstRecord.chicken_breed || '未分類'],
+                total_male: firstRecord.male || 0,
+                total_female: firstRecord.female || 0,
+                veterinarians: [firstRecord.veterinarian].filter(Boolean),
+                suppliers: [firstRecord.supplier].filter(Boolean),
+                is_completed: [firstRecord.is_completed].filter(Boolean),
+                individual_records: [], // 空陣列表示不需要 sub-cards
+                breed_date: firstRecord.breed_date // 新增，用於主卡片顯示
+            };
+        }
+
+        // 多筆記錄時的處理邏輯保持不變
         return {
             batch_name: batchName,
             farm_name: firstRecord.farm_name,

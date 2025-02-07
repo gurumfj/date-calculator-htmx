@@ -29,30 +29,46 @@ export function createMergedCard(mergedBreed) {
         }
     });
 
-    // 建立子卡片
+    // 只有一筆記錄時，在主卡片顯示日期
+    if (mergedBreed.individual_records.length === 0 && mergedBreed.breed_date) {
+        const dateField = card.querySelector('.essential-info');
+        const dateElement = document.createElement('div');
+        dateElement.className = 'card-field';
+        dateElement.innerHTML = `
+            <span class="field-label">入雛日期</span>
+            <span class="field-value">${formatFieldValue('breed_date', mergedBreed.breed_date)}</span>
+        `;
+        dateField.insertBefore(dateElement, dateField.firstChild);
+    }
+
+    // 建立子卡片（只有在有多筆記錄時）
     const subCardsContainer = card.querySelector('[data-field="sub_cards"]');
-    const subCardTemplate = document.getElementById('sub-card-template');
-
-    mergedBreed.individual_records.forEach(record => {
-        const subCard = subCardTemplate.content.cloneNode(true);
+    if (mergedBreed.individual_records.length > 0) {
+        const subCardTemplate = document.getElementById('sub-card-template');
         
-        // 設定子卡片欄位值
-        const fields = {
-            'breed_date': record.breed_date,
-            'male': record.male,
-            'female': record.female,
-            'supplier': record.supplier
-        };
+        mergedBreed.individual_records.forEach(record => {
+            const subCard = subCardTemplate.content.cloneNode(true);
+            
+            const fields = {
+                'breed_date': record.breed_date,
+                'male': record.male,
+                'female': record.female,
+                'supplier': record.supplier
+            };
 
-        Object.entries(fields).forEach(([field, value]) => {
-            const element = subCard.querySelector(`[data-field="${field}"]`);
-            if (element) {
-                element.textContent = formatFieldValue(field, value);
-            }
+            Object.entries(fields).forEach(([field, value]) => {
+                const element = subCard.querySelector(`[data-field="${field}"]`);
+                if (element) {
+                    element.textContent = formatFieldValue(field, value);
+                }
+            });
+            
+            subCardsContainer.appendChild(subCard);
         });
-        
-        subCardsContainer.appendChild(subCard);
-    });
+    } else {
+        // 如果沒有多筆記錄，移除 sub-cards 容器
+        subCardsContainer.remove();
+    }
     
     return card;
 }
