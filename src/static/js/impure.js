@@ -1,121 +1,148 @@
-import { formatFieldValue, formatMergedFieldValue, formatTotalInfo, mergeBreedsByBatch, groupMergedBreedsByType } from './pure.js';
+import { formatFieldValue, formatTotalInfo } from './pure.js';
 
 // DOM manipulation functions
-export function createMergedCard(mergedBreed) {
+export function createMergedCard(card) {
     const template = document.getElementById('card-template');
-    const card = template.content.cloneNode(true);
+    const cardElement = template.content.cloneNode(true);
     
     // 設定批次名稱
-    const title = card.querySelector('[data-field="batch_name"]');
-    title.textContent = formatMergedFieldValue('batch_name', mergedBreed.batch_name);
+    const title = cardElement.querySelector('[data-field="batch_name"]');
+    title.textContent = formatFieldValue('batch_name', card.batch_name);
 
     // 設定其他欄位
     const fields = {
-        'farm_name': mergedBreed.farm_name,
-        'address': mergedBreed.address,
-        'farmer_name': mergedBreed.farmer_name,
-        'chicken_breed': mergedBreed.chicken_breeds,
-        'total_male': mergedBreed.total_male,
-        'total_female': mergedBreed.total_female,
-        'veterinarian': mergedBreed.veterinarians,
-        'supplier': mergedBreed.suppliers,
-        'is_completed': mergedBreed.is_completed
+        'farm_name': card.farm_name,
+        'address': card.address,
+        'farmer_name': card.farmer_name,
+        'chicken_breed': card.chicken_breed,
+        'total_male': card.total_male,
+        'total_female': card.total_female,
+        'veterinarian': card.veterinarian,
+        'is_completed': card.is_completed
     };
 
     Object.entries(fields).forEach(([field, value]) => {
-        const element = card.querySelector(`[data-field="${field}"]`);
+        const element = cardElement.querySelector(`[data-field="${field}"]`);
         if (element) {
-            element.textContent = formatMergedFieldValue(field, value);
+            element.textContent = formatFieldValue(field, value);
         }
     });
 
-    // 只有一筆記錄時，在主卡片顯示日期
-    if (mergedBreed.individual_records.length === 0 && mergedBreed.breed_date) {
-        const dateField = card.querySelector('.essential-info');
-        const dateElement = document.createElement('div');
-        dateElement.className = 'card-field';
-        dateElement.innerHTML = `
-            <span class="field-label">入雛日期</span>
-            <span class="field-value">${formatFieldValue('breed_date', mergedBreed.breed_date)}</span>
-        `;
-        dateField.insertBefore(dateElement, dateField.firstChild);
+    // 單筆記錄時，顯示入雛日期和供應商
+    if (card.sub_cards?.length === 0 && (card.breed_date || card.supplier)) {
+        const dateField = cardElement.querySelector('.essential-info');
+        if (dateField) {
+            if (card.breed_date) {
+                const dateElement = document.createElement('div');
+                dateElement.className = 'card-field';
+                dateElement.innerHTML = `
+                    <span class="field-label">入雛日期</span>
+                    <span class="field-value">${formatFieldValue('breed_date', card.breed_date)}</span>
+                `;
+                dateField.insertBefore(dateElement, dateField.firstChild);
+            }
+            
+            if (card.supplier) {
+                const supplierElement = document.createElement('div');
+                supplierElement.className = 'card-field';
+                supplierElement.innerHTML = `
+                    <span class="field-label">供應商</span>
+                    <span class="field-value">${formatFieldValue('supplier', card.supplier)}</span>
+                `;
+                dateField.insertBefore(supplierElement, dateField.firstChild.nextSibling);
+            }
+        }
     }
 
-    // 建立子卡片（只有在有多筆記錄時）
-    const subCardsContainer = card.querySelector('[data-field="sub_cards"]');
-    if (mergedBreed.individual_records.length > 0) {
-        const subCardTemplate = document.getElementById('sub-card-template');
-        
-        mergedBreed.individual_records.forEach(record => {
-            const subCard = subCardTemplate.content.cloneNode(true);
-            
-            const fields = {
-                'breed_date': record.breed_date,
-                'male': record.male,
-                'female': record.female,
-                'supplier': record.supplier
-            };
+    // 建立子卡片
+    const subCardsContainer = cardElement.querySelector('[data-field="sub_cards"]');
+    if (subCardsContainer) {
+        if (card.sub_cards?.length > 0) {
+            const subCardTemplate = document.getElementById('sub-card-template');
+            if (subCardTemplate) {
+                card.sub_cards.forEach(record => {
+                    const subCard = subCardTemplate.content.cloneNode(true);
+                    
+                    const fields = {
+                        'breed_date': record.breed_date,
+                        'male': record.male,
+                        'female': record.female,
+                        'supplier': record.supplier
+                    };
 
-            Object.entries(fields).forEach(([field, value]) => {
-                const element = subCard.querySelector(`[data-field="${field}"]`);
-                if (element) {
-                    element.textContent = formatFieldValue(field, value);
-                }
-            });
-            
-            subCardsContainer.appendChild(subCard);
-        });
-    } else {
-        // 如果沒有多筆記錄，移除 sub-cards 容器
-        subCardsContainer.remove();
+                    Object.entries(fields).forEach(([field, value]) => {
+                        const element = subCard.querySelector(`[data-field="${field}"]`);
+                        if (element) {
+                            element.textContent = formatFieldValue(field, value);
+                        }
+                    });
+                    
+                    subCardsContainer.appendChild(subCard);
+                });
+            }
+        } else {
+            subCardsContainer.remove();
+        }
     }
     
-    return card;
+    return cardElement;
 }
 
-export function createBreedSection(breedType, breeds) {
+export function createBreedSection(section) {
     const template = document.getElementById('breed-section-template');
-    const section = template.content.cloneNode(true);
+    if (!template) return null;
+
+    const sectionElement = template.content.cloneNode(true);
     
-    const title = section.querySelector('.breed-title');
-    title.textContent = breedType;
+    const title = sectionElement.querySelector('.breed-title');
+    if (title) {
+        title.textContent = section.breed_type;
+    }
     
-    const stats = section.querySelector('.breed-stats');
-    const totalStats = {
-        count: breeds.length,
-        totalMale: breeds.reduce((sum, breed) => sum + breed.total_male, 0),
-        totalFemale: breeds.reduce((sum, breed) => sum + breed.total_female, 0)
-    };
-    stats.textContent = `${totalStats.count} 批次 | 公雞 ${totalStats.totalMale} 隻 | 母雞 ${totalStats.totalFemale} 隻`;
+    const stats = sectionElement.querySelector('.breed-stats');
+    if (stats) {
+        stats.textContent = `${section.total_batches} 批次 | 公雞 ${section.total_male} 隻 | 母雞 ${section.total_female} 隻`;
+    }
     
-    const grid = section.querySelector('.cards-grid');
-    breeds.forEach(breed => {
-        const card = createMergedCard(breed);
-        grid.appendChild(card);
-    });
+    const grid = sectionElement.querySelector('.cards-grid');
+    if (grid && Array.isArray(section.cards)) {
+        section.cards.forEach(card => {
+            const cardElement = createMergedCard(card);
+            if (cardElement) {
+                grid.appendChild(cardElement);
+            }
+        });
+    }
     
-    return section;
+    return sectionElement;
 }
 
-export function createFilterButtons(breedTypes, content) {
+export function createFilterButtons(sections, content) {
     const container = content.querySelector('.filter-buttons');
+    if (!container || !Array.isArray(sections)) return;
+
+    // 建立全部按鈕
     const allButton = document.createElement('button');
     allButton.textContent = '全部';
     allButton.className = 'breed-filter active';
     allButton.onclick = () => handleFilter('all');
     container.appendChild(allButton);
     
-    breedTypes.forEach(type => {
+    // 建立各品種按鈕
+    sections.forEach(section => {
         const button = document.createElement('button');
-        button.textContent = type;
+        button.textContent = section.breed_type;
         button.className = 'breed-filter';
-        button.onclick = () => handleFilter(type);
+        button.onclick = () => handleFilter(section.breed_type);
         container.appendChild(button);
     });
 }
 
 export function handleFilter(selectedType) {
     const container = document.getElementById('data-container');
+    if (!container) return;
+
+    // 更新按鈕狀態
     const buttons = container.querySelectorAll('.breed-filter');
     buttons.forEach(button => {
         button.classList.toggle('active', 
@@ -124,54 +151,57 @@ export function handleFilter(selectedType) {
         );
     });
 
+    // 更新區段顯示
     const sections = container.querySelectorAll('.breed-section');
     sections.forEach(section => {
-        const breedType = section.querySelector('.breed-title').textContent;
-        section.style.display = 
-            selectedType === 'all' || breedType === selectedType ? 'block' : 'none';
+        const breedType = section.querySelector('.breed-title')?.textContent;
+        if (breedType) {
+            section.style.display = 
+                selectedType === 'all' || breedType === selectedType ? 'block' : 'none';
+        }
     });
 }
 
 export function showError(message) {
     const container = document.getElementById('data-container');
-    container.innerHTML = `<div class="error">錯誤：${message}</div>`;
+    if (container) {
+        container.innerHTML = `<div class="error">錯誤：${message}</div>`;
+    }
 }
 
 export function showNoData() {
     const container = document.getElementById('data-container');
-    container.innerHTML = '<div class="total-info">目前沒有可用的資料</div>';
+    if (container) {
+        container.innerHTML = '<div class="total-info">目前沒有可用的資料</div>';
+    }
 }
 
-export function renderCards(breeds) {
+export function renderCards(data) {
     const container = document.getElementById('data-container');
     const template = document.getElementById('table-template');
+    if (!container || !template) return;
+
     const content = template.content.cloneNode(true);
     
-    // 合併相同批次的資料
-    const mergedBreeds = mergeBreedsByBatch(breeds);
-    
     // 更新總計資訊
-    const totals = {
-        totalMale: mergedBreeds.reduce((sum, breed) => sum + breed.total_male, 0),
-        totalFemale: mergedBreeds.reduce((sum, breed) => sum + breed.total_female, 0),
-        totalBatches: mergedBreeds.length
-    };
     const totalInfo = content.querySelector('.total-info');
-    totalInfo.textContent = formatTotalInfo(totals);
-    
-    // 分類資料
-    const groupedBreeds = groupMergedBreedsByType(mergedBreeds);
-    const breedTypes = Object.keys(groupedBreeds).sort();
+    if (totalInfo) {
+        totalInfo.textContent = formatTotalInfo(data);
+    }
     
     // 建立篩選按鈕
-    createFilterButtons(breedTypes, content);
+    createFilterButtons(data.sections, content);
     
     // 建立各品種區段
     const sectionsContainer = content.querySelector('#breed-sections');
-    breedTypes.forEach(type => {
-        const section = createBreedSection(type, groupedBreeds[type]);
-        sectionsContainer.appendChild(section);
-    });
+    if (sectionsContainer && Array.isArray(data.sections)) {
+        data.sections.forEach(section => {
+            const sectionElement = createBreedSection(section);
+            if (sectionElement) {
+                sectionsContainer.appendChild(sectionElement);
+            }
+        });
+    }
     
     container.innerHTML = '';
     container.appendChild(content);
@@ -179,17 +209,25 @@ export function renderCards(breeds) {
 
 // API operations
 export async function fetchBreedingDataFromApi() {
-    const response = await fetch('/breeding');
-    return await response.json();
+    try {
+        const response = await fetch('/breeding');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('API 請求失敗:', error);
+        throw new Error('無法取得繁殖資料，請稍後再試');
+    }
 }
 
 export async function fetchBreedingData() {
     try {
         const data = await fetchBreedingDataFromApi();
         
-        if (data.status === 'success') {
-            if (data.content?.breeds?.length > 0) {
-                renderCards(data.content.breeds);
+        if (data.status === 'success' && data.content) {
+            if (data.content.sections?.length > 0) {
+                renderCards(data.content);
             } else {
                 showNoData();
             }

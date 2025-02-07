@@ -1,14 +1,16 @@
 import logging
+from datetime import date
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, List, Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session, SQLModel, and_, asc, desc, or_, select
+from pydantic import BaseModel
+from sqlmodel import Session, SQLModel, and_, asc, or_, select
 
 from cleansales_refactor.exporters import (
     BreedRecordORM,
@@ -52,6 +54,43 @@ class ResponseModel(SQLModel):
     status: str
     msg: str
     content: dict[str, Any]
+
+
+class SubCardInfo(BaseModel):
+    breed_date: date
+    supplier: Optional[str]
+    male: int
+    female: int
+
+
+class BreedCardModel(BaseModel):
+    batch_name: str
+    farm_name: Optional[str]
+    address: Optional[str]
+    farmer_name: Optional[str]
+    chicken_breed: str
+    total_male: int
+    total_female: int
+    veterinarian: Optional[str]
+    is_completed: Optional[str]
+    supplier: Optional[str]  # 只有單筆記錄時使用
+    breed_date: Optional[date]  # 只有單筆記錄時使用
+    sub_cards: List[SubCardInfo] = []  # 多筆記錄時使用
+
+
+class BreedSectionModel(BaseModel):
+    breed_type: str
+    total_batches: int
+    total_male: int
+    total_female: int
+    cards: List[BreedCardModel]
+
+
+class BreedResponseModel(BaseModel):
+    total_batches: int
+    total_male: int
+    total_female: int
+    sections: List[BreedSectionModel]
 
 
 class PostApiDependency:
@@ -135,6 +174,101 @@ class PostApiDependency:
             ProcessEvent.BREEDS_PROCESSING_COMPLETED,
         )
 
+    def process_breed_records(
+        self, records: List[BreedRecordORM]
+    ) -> BreedResponseModel:
+        # 依批次分組
+        batch_groups: dict[str, List[BreedRecordORM]] = {}
+        for record in records:
+            batch_name = record.batch_name or "未命名批次"
+            if batch_name not in batch_groups:
+                batch_groups[batch_name] = []
+            batch_groups[batch_name].append(record)
+
+        # 處理每個批次的資料
+        all_cards = []
+        for batch_name, batch_records in batch_groups.items():
+            first_record = batch_records[0]
+
+            if len(batch_records) == 1:
+                # 單筆記錄
+                card = BreedCardModel(
+                    batch_name=batch_name,
+                    farm_name=first_record.farm_name,
+                    address=first_record.address,
+                    farmer_name=first_record.farmer_name,
+                    chicken_breed=first_record.chicken_breed or "未分類",
+                    total_male=first_record.male or 0,
+                    total_female=first_record.female or 0,
+                    veterinarian=first_record.veterinarian,
+                    is_completed=first_record.is_completed,
+                    breed_date=first_record.breed_date,
+                    supplier=first_record.supplier,
+                    sub_cards=[],
+                )
+            else:
+                # 多筆記錄
+                card = BreedCardModel(
+                    batch_name=batch_name,
+                    farm_name=first_record.farm_name,
+                    address=first_record.address,
+                    farmer_name=first_record.farmer_name,
+                    chicken_breed=first_record.chicken_breed or "未分類",
+                    total_male=sum(r.male or 0 for r in batch_records),
+                    total_female=sum(r.female or 0 for r in batch_records),
+                    veterinarian=first_record.veterinarian,
+                    is_completed=first_record.is_completed,
+                    breed_date=None,
+                    supplier=None,
+                    sub_cards=[
+                        SubCardInfo(
+                            breed_date=r.breed_date,
+                            supplier=r.supplier,
+                            male=r.male or 0,
+                            female=r.female or 0,
+                        )
+                        for r in batch_records
+                    ],
+                )
+            all_cards.append(card)
+
+        # 依品種分組
+        breed_sections: dict[str, List[BreedCardModel]] = {}
+        for card in all_cards:
+            breed_type = card.chicken_breed
+            if breed_type not in breed_sections:
+                breed_sections[breed_type] = []
+            breed_sections[breed_type].append(card)
+
+        # 建立最終回應
+        sections = []
+        total_male = 0
+        total_female = 0
+        total_batches = len(all_cards)
+
+        for breed_type, cards in breed_sections.items():
+            section_total_male = sum(card.total_male for card in cards)
+            section_total_female = sum(card.total_female for card in cards)
+            total_male += section_total_male
+            total_female += section_total_female
+
+            sections.append(
+                BreedSectionModel(
+                    breed_type=breed_type,
+                    total_batches=len(cards),
+                    total_male=section_total_male,
+                    total_female=section_total_female,
+                    cards=cards,
+                )
+            )
+
+        return BreedResponseModel(
+            total_batches=total_batches,
+            total_male=total_male,
+            total_female=total_female,
+            sections=sorted(sections, key=lambda x: x.breed_type),
+        )
+
     def get_breeds_is_not_completed(self, session: Session) -> ResponseModel:
         stmt = (
             select(BreedRecordORM)
@@ -150,12 +284,13 @@ class PostApiDependency:
             .order_by(asc(BreedRecordORM.breed_date))
         )
         breeds = session.exec(stmt).all()
+
+        breed_data = self.process_breed_records(list(breeds))
+
         return ResponseModel(
             status="success",
             msg=f"成功取得未結場入雛資料 {len(breeds)} 筆",
-            content={
-                "breeds": [breed.model_dump() for breed in breeds],
-            },
+            content=breed_data.model_dump(),
         )
 
 
