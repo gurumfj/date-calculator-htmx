@@ -15,7 +15,7 @@ T = TypeVar("T")
 class BreedRecordORM(ORMModel, table=True):
     """入雛記錄資料表模型"""
 
-    __tablename__ = "breed_record"  # type: ignore
+    __tablename__ = "breed_record"
     unique_id: str = Field(default=None, primary_key=True, index=True, unique=True)
 
     # 基本資料
@@ -44,7 +44,7 @@ class BreedRecordORM(ORMModel, table=True):
 class BreedEventSource(BaseEventSource[BreedRecordORM], table=True):
     """入雛事件來源資料表模型"""
 
-    __tablename__ = "breed_event_source"  # type: ignore
+    __tablename__ = "breed_event_source"
     records: list[BreedRecordORM] = Relationship(back_populates="event_source")
 
 

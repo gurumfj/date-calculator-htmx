@@ -1,6 +1,6 @@
 import logging
-from datetime import datetime
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Callable, Generic, TypeVar
 
 from sqlmodel import Session, desc, select
@@ -19,10 +19,20 @@ ES = TypeVar("ES", bound=BaseEventSource[Any])
 class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
     """基礎 SQLite 匯出服務"""
 
-    def execute(self, session: Session, processed_result: ProcessingResult[T]) -> dict[str, int]:
+    def execute(
+        self,
+        processed_result: ProcessingResult[T],
+        session: Session | None = None,
+    ) -> dict[str, int]:
         """執行匯出服務"""
+        if session is None:
+            raise ValueError("session is required")
         try:
-            added_event_source, deleted_event_source = self.export_data(session=session, source_data=processed_result.source_data, data=processed_result)
+            added_event_source, deleted_event_source = self.export_data(
+                session=session,
+                source_data=processed_result.source_data,
+                data=processed_result,
+            )
             error_records = self.export_errors(session=session, data=processed_result)
             session.commit()
             return {
@@ -69,8 +79,9 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
 
         return added_event_source, deleted_event_source
 
-
-    def export_errors(self, session: Session, data: ProcessingResult[T]) -> list[ErrorRecord]:
+    def export_errors(
+        self, session: Session, data: ProcessingResult[T]
+    ) -> list[ErrorRecord]:
         """匯出錯誤記錄 (實作 IExporter 介面)"""
         error_records = [
             ErrorRecord(
@@ -78,13 +89,15 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
                 data=str(error.data),
                 extra=str(error.extra),
                 timestamp=error.timestamp,
-                )
-                for error in data.errors
-            ]
+            )
+            for error in data.errors
+        ]
         session.add_all(error_records)
         return error_records
 
-    def is_source_md5_exists_in_latest_record(self, session: Session, source_data: SourceData) -> bool:
+    def is_source_md5_exists_in_latest_record(
+        self, session: Session, source_data: SourceData
+    ) -> bool:
         # 最新的md5
         stmt = (
             select(self._get_event_source_class().source_md5)

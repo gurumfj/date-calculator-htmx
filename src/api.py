@@ -99,7 +99,7 @@ class PostApiDependency:
             lambda source_data: SalesProcessor.execute(source_data)
         )
         exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-            lambda processed_data: self.sales_exporter.execute(session, processed_data)
+            lambda processed_data: self.sales_exporter.execute(processed_data, session)
         )
 
         return self._base_processpipline(
@@ -121,7 +121,7 @@ class PostApiDependency:
             lambda source_data: BreedsProcessor.execute(source_data)
         )
         exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-            lambda processed_data: self.breed_exporter.execute(session, processed_data)
+            lambda processed_data: self.breed_exporter.execute(processed_data, session)
         )
 
         return self._base_processpipline(
