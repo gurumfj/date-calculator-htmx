@@ -6,6 +6,9 @@ from enum import Enum
 from typing import Any, Callable
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @dataclass
@@ -32,13 +35,6 @@ class EventBus:
             self.callbacks: dict[Enum, list[Callable[[Event], None]]] = defaultdict(
                 list
             )
-
-    @classmethod
-    def get_instance(cls) -> "EventBus":
-        if cls.__instance is None:
-            if cls.__instance is None:
-                cls.__instance = cls()
-        return cls.__instance
 
     def publish(self, event: Event) -> None:
         for callback in self.callbacks[event.event]:

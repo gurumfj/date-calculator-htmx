@@ -33,7 +33,7 @@ class BreedRecordORM(ORMModel, table=True):
     chicken_breed: str | None
     male: int | None
     female: int | None
-    breed_date: datetime | None
+    breed_date: datetime
     supplier: str | None
     sub_location: str | None
     is_completed: str | None

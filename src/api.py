@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict
 import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, SQLModel, and_, desc, or_, select
 
 from cleansales_refactor.exporters import (
     BreedRecordORM,
@@ -13,7 +13,7 @@ from cleansales_refactor.exporters import (
     Database,
     SaleSQLiteExporter,
 )
-from cleansales_refactor.models.shared import ProcessingResult, SourceData
+from cleansales_refactor.models import ProcessingEvent, ProcessingResult, SourceData
 from cleansales_refactor.processor import BreedsProcessor, SalesProcessor
 from event_bus import Event, EventBus, TelegramNotifier
 
@@ -35,6 +35,16 @@ for handler in processor_logger.handlers:
 logger = logging.getLogger(__name__)
 
 
+class ProcessEvent(Enum):
+    SALES_PROCESSING_STARTED = "sales_processing_started"
+    SALES_PROCESSING_COMPLETED = "sales_processing_completed"
+    SALES_PROCESSING_FAILED = "sales_processing_failed"
+
+    BREEDS_PROCESSING_STARTED = "breeds_processing_started"
+    BREEDS_PROCESSING_COMPLETED = "breeds_processing_completed"
+    BREEDS_PROCESSING_FAILED = "breeds_processing_failed"
+
+
 class ResponseModel(SQLModel):
     status: str
     msg: str
@@ -46,6 +56,37 @@ class PostApiDependency:
         self.sales_exporter = SaleSQLiteExporter()
         self.breed_exporter = BreedSQLiteExporter()
         self.event_bus = event_bus
+
+    def _base_processpipline(
+        self,
+        processor: Callable[[SourceData], ProcessingResult[Any]],
+        exporter: Callable[[ProcessingResult[Any]], dict[str, Any]],
+        session: Session,
+        source_data: SourceData,
+        event: ProcessEvent,
+    ) -> ResponseModel:
+        is_exists: Callable[[SourceData], bool] = (
+            lambda x: self.sales_exporter.is_source_md5_exists_in_latest_record(
+                session, x
+            )
+        )
+        if is_exists(source_data):
+            logger.debug(f"販售資料 md5 {source_data.md5} 已存在")
+            return ResponseModel(status="error", msg="販售資料已存在", content={})
+        else:
+            result = exporter(processor(source_data))
+            msg = f"成功匯入販售資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆"
+            self.event_bus.publish(
+                Event(
+                    event=event,
+                    content={"msg": msg},
+                )
+            )
+            return ResponseModel(
+                status="success",
+                msg=msg,
+                content=result,
+            )
 
     def sales_processpipline(
         self, upload_file: UploadFile, session: Session
@@ -60,22 +101,14 @@ class PostApiDependency:
         exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
             lambda processed_data: self.sales_exporter.execute(session, processed_data)
         )
-        is_exists: Callable[[SourceData], bool] = (
-            lambda x: self.sales_exporter.is_source_md5_exists_in_latest_record(
-                session, x
-            )
-        )
 
-        if is_exists(source_data):
-            logger.debug(f"販售資料 md5 {source_data.md5} 已存在")
-            return ResponseModel(status="error", msg="販售資料已存在", content={})
-        else:
-            result = exporter(processor(source_data))
-            return ResponseModel(
-                status="success",
-                msg=f"成功匯入販售資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆",
-                content=result,
-            )
+        return self._base_processpipline(
+            processor,
+            exporter,
+            session,
+            source_data,
+            ProcessEvent.SALES_PROCESSING_COMPLETED,
+        )
 
     def breed_processpipline(
         self, upload_file: UploadFile, session: Session
@@ -90,31 +123,28 @@ class PostApiDependency:
         exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
             lambda processed_data: self.breed_exporter.execute(session, processed_data)
         )
-        is_exists: Callable[[SourceData], bool] = (
-            lambda x: self.breed_exporter.is_source_md5_exists_in_latest_record(
-                session, x
-            )
-        )
 
-        if is_exists(source_data):
-            logger.debug(f"入雛資料 md5 {source_data.md5} 已存在")
-            return ResponseModel(status="error", msg="入雛資料已存在", content={})
-        else:
-            result = exporter(processor(source_data))
-            return ResponseModel(
-                status="success",
-                msg=f"成功匯入入雛資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆",
-                content=result,
-            )
+        return self._base_processpipline(
+            processor,
+            exporter,
+            session,
+            source_data,
+            ProcessEvent.BREEDS_PROCESSING_COMPLETED,
+        )
 
     def get_breeds_is_not_completed(self, session: Session) -> ResponseModel:
         stmt = (
             select(BreedRecordORM)
             .where(
-                (BreedRecordORM.is_completed != "結場")
-                | (BreedRecordORM.is_completed.is_(None))
+                and_(
+                    or_(
+                        BreedRecordORM.is_completed != "結場",
+                        BreedRecordORM.is_completed == None,
+                    ),
+                    BreedRecordORM.event == ProcessingEvent.ADDED,
+                )
             )
-            .order_by(BreedRecordORM.breed_date.desc())
+            .order_by(desc(BreedRecordORM.breed_date))
         )
         breeds = session.exec(stmt).all()
         return ResponseModel(
@@ -126,18 +156,8 @@ class PostApiDependency:
         )
 
 
-class ProcessEvent(Enum):
-    SALES_PROCESSING_STARTED = "sales_processing_started"
-    SALES_PROCESSING_COMPLETED = "sales_processing_completed"
-    SALES_PROCESSING_FAILED = "sales_processing_failed"
-
-    BREEDS_PROCESSING_STARTED = "breeds_processing_started"
-    BREEDS_PROCESSING_COMPLETED = "breeds_processing_completed"
-    BREEDS_PROCESSING_FAILED = "breeds_processing_failed"
-
-
 db = Database("data/cleansales.db")
-event_bus = EventBus.get_instance()
+event_bus = EventBus()
 telegram_notifier = TelegramNotifier(
     event_bus,
     [
@@ -218,38 +238,19 @@ async def process_sales_file(
             result: ResponseModel = api_function.sales_processpipline(
                 file_upload, session
             )
-            event_bus.publish(
-                Event(
-                    event=ProcessEvent.SALES_PROCESSING_COMPLETED,
-                    content={
-                        "result": result,
-                    },
-                    metadata={},
-                )
-            )
             return result
         except ValueError as ve:
-            event_bus.publish(
-                Event(
-                    event=ProcessEvent.SALES_PROCESSING_FAILED,
-                    content={
-                        "message": str(ve),
-                    },
-                    metadata={},
-                )
-            )
             raise HTTPException(status_code=400, detail=str(ve))
         except Exception as e:
+            logger.error(f"處理販售資料檔案時發生錯誤: {e}")
             event_bus.publish(
                 Event(
                     event=ProcessEvent.SALES_PROCESSING_FAILED,
                     content={
-                        "message": str(e),
+                        "msg": str(e),
                     },
-                    metadata={},
                 )
             )
-            logger.error(f"處理檔案時發生錯誤: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -266,21 +267,33 @@ async def process_breeds_file(
             result: ResponseModel = api_function.breed_processpipline(
                 file_upload, session
             )
-            event_bus.publish(
-                Event(
-                    event=ProcessEvent.BREEDS_PROCESSING_COMPLETED,
-                    content={
-                        "result": result,
-                    },
-                    metadata={},
-                )
-            )
             return result
         except ValueError as ve:
             raise HTTPException(status_code=400, detail=str(ve))
         except Exception as e:
-            logger.error(f"處理檔案時發生錯誤: {e}")
+            logger.error(f"處理入雛資料檔案時發生錯誤: {e}")
+            event_bus.publish(
+                Event(
+                    event=ProcessEvent.BREEDS_PROCESSING_FAILED,
+                    content={
+                        "msg": str(e),
+                    },
+                )
+            )
             raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/test_notification")
+async def test_notification(
+    msg: str,
+) -> ResponseModel:
+    event_bus.publish(
+        Event(
+            event=ProcessEvent.SALES_PROCESSING_COMPLETED,
+            content={"msg": msg},
+        )
+    )
+    return ResponseModel(status="success", msg="測試通知成功", content={})
 
 
 @app.get("/breeding", response_model=ResponseModel)
