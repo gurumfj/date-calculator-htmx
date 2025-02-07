@@ -2,7 +2,7 @@
     "name": "CleanSales Development",
     "dockerComposeFile": "../docker-compose.yml",
     "service": "cleansales_api",
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"workspaceFolder": "/app/${localWorkspaceFolderBasename}",
     "customizations": {
         "vscode": {
             "extensions": [

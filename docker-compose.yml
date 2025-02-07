@@ -21,3 +21,4 @@ services:
     restart: unless-stopped
     # 開發環境下使用 uvicorn 支援熱重載
     command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src 
+    
