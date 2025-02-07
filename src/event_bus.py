@@ -1,56 +1,59 @@
+import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from threading import Lock
-from typing import Callable, Protocol
+from typing import Any, Callable
+
 import requests
-import os
+
+
 @dataclass
 class Event:
     event: Enum
-    content: dict
-    metadata: dict = field(default_factory=dict)
-    
-    def __post_init__(self):
-        self.metadata["timestamp"] = datetime.now()
+    content: dict[str, Any]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        self.metadata["timestamp"] = datetime.now()
 
 
 class EventBus:
     __instance = None
-    __lock = Lock()
+    # __lock = Lock()
 
-    def __new__(cls) -> None:
-        with cls.__lock:
-            if cls.__instance is None:
-                cls.__instance = super().__new__(cls)
-            return cls.__instance
+    def __new__(cls) -> "EventBus":
+        # with cls.__lock:
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+        return cls.__instance
 
     def __init__(self) -> None:
         if not hasattr(self, "_initialized"):
             self._initialized = True
-            self.callbacks = defaultdict(list)
+            self.callbacks: dict[Enum, list[Callable[[Event], None]]] = defaultdict(
+                list
+            )
 
     @classmethod
     def get_instance(cls) -> "EventBus":
         if cls.__instance is None:
-            with cls.__lock:
-                if cls.__instance is None:
-                    cls.__instance = cls()
+            # with cls.__lock:
+            if cls.__instance is None:
+                cls.__instance = cls()
         return cls.__instance
 
-    def publish(self, event: Event):
+    def publish(self, event: Event) -> None:
         for callback in self.callbacks[event.event]:
             callback(event)
 
-    def register(self, event: Event, callback: Callable[[Event], None]):
-        self.callbacks.setdefault(event.event, []).append(callback)
-
+    def register(self, event: Enum, callback: Callable[[Event], None]) -> None:
+        self.callbacks.setdefault(event, []).append(callback)
 
 
 class TelegramNotifier:
     post_url: str
+
     def __init__(self, event_bus: EventBus, register_events: list[Enum]) -> None:
         self.event_bus = event_bus
         self.post_url = os.getenv("TELEGRAM_WEBHOOK_URL")
@@ -66,4 +69,3 @@ class TelegramNotifier:
             print(request)
         except Exception as e:
             print(e)
-
