@@ -20,10 +20,8 @@ class Event:
 
 class EventBus:
     __instance = None
-    # __lock = Lock()
 
     def __new__(cls) -> "EventBus":
-        # with cls.__lock:
         if cls.__instance is None:
             cls.__instance = super().__new__(cls)
         return cls.__instance
@@ -38,7 +36,6 @@ class EventBus:
     @classmethod
     def get_instance(cls) -> "EventBus":
         if cls.__instance is None:
-            # with cls.__lock:
             if cls.__instance is None:
                 cls.__instance = cls()
         return cls.__instance
@@ -52,16 +49,20 @@ class EventBus:
 
 
 class TelegramNotifier:
-    post_url: str
+    post_url: str | None = None
 
     def __init__(self, event_bus: EventBus, register_events: list[Enum]) -> None:
         self.event_bus = event_bus
         self.post_url = os.getenv("TELEGRAM_WEBHOOK_URL")
+        if not self.post_url:
+            raise ValueError("TELEGRAM_WEBHOOK_URL is not set")
         for event in register_events:
             self.event_bus.register(event, self.notify)
 
-    def notify(self, event: Event):
+    def notify(self, event: Event) -> None:
         try:
+            if not self.post_url:
+                raise ValueError("TELEGRAM_WEBHOOK_URL is not set")
             request = requests.post(
                 url=self.post_url,
                 json=event.content,
