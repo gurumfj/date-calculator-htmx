@@ -106,6 +106,7 @@ class PostApiDependency:
         session: Session,
         source_data: SourceData,
         event: ProcessEvent,
+        pipeline_name: str,
     ) -> ResponseModel:
         is_exists: Callable[[SourceData], bool] = (
             lambda x: self.sales_exporter.is_source_md5_exists_in_latest_record(
@@ -113,11 +114,11 @@ class PostApiDependency:
             )
         )
         if is_exists(source_data):
-            logger.debug(f"販售資料 md5 {source_data.md5} 已存在")
-            return ResponseModel(status="error", msg="販售資料已存在", content={})
+            logger.debug(f"{pipeline_name} md5 {source_data.md5} 已存在")
+            return ResponseModel(status="error", msg=f"{pipeline_name} 資料已存在", content={})
         else:
             result = exporter(processor(source_data))
-            msg = f"成功匯入販售資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆"
+            msg = f"成功匯入 {pipeline_name} 資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆"
             self.event_bus.publish(
                 Event(
                     event=event,
@@ -150,6 +151,7 @@ class PostApiDependency:
             session,
             source_data,
             ProcessEvent.SALES_PROCESSING_COMPLETED,
+            "販售",
         )
 
     def breed_processpipline(
@@ -172,6 +174,7 @@ class PostApiDependency:
             session,
             source_data,
             ProcessEvent.BREEDS_PROCESSING_COMPLETED,
+            "入雛",
         )
 
     def process_breed_records(
