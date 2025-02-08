@@ -7,7 +7,7 @@ class BreedRecord:
     """入雛記錄資料模型"""
 
     # 基本資料
-    farm_name: str | None
+    farm_name: str
     address: str | None
     farm_license: str | None
 
@@ -18,10 +18,10 @@ class BreedRecord:
     # 批次資料
     batch_name: str | None
     veterinarian: str | None
-    chicken_breed: str | None
-    male: int | None
-    female: int | None
-    breed_date: datetime | None
+    chicken_breed: str
+    male: int
+    female: int
+    breed_date: datetime
     supplier: str | None
     sub_location: str | None
     is_completed: str | None

@@ -19,7 +19,7 @@ class BreedRecordORM(ORMModel, table=True):
     unique_id: str = Field(default=None, primary_key=True, index=True, unique=True)
 
     # 基本資料
-    farm_name: str | None
+    farm_name: str
     address: str | None
     farm_license: str | None
 
@@ -30,9 +30,9 @@ class BreedRecordORM(ORMModel, table=True):
     # 批次資料
     batch_name: str | None
     veterinarian: str | None
-    chicken_breed: str | None
-    male: int | None
-    female: int | None
+    chicken_breed: str
+    male: int
+    female: int
     breed_date: datetime
     supplier: str | None
     sub_location: str | None

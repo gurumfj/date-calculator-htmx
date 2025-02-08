@@ -27,6 +27,7 @@ class CleanSalesService:
         self,
         session: Session,
         source_data: SourceData,
+        check_exists: bool = True,
     ) -> Response:
         return self._base_process(
             self.sales_processor,
@@ -34,12 +35,14 @@ class CleanSalesService:
             session,
             source_data,
             "販售",
+            check_exists,
         )
 
     def execute_clean_breeds(
         self,
         session: Session,
         source_data: SourceData,
+        check_exists: bool = True,
     ) -> Response:
         return self._base_process(
             self.breeds_processor,
@@ -47,6 +50,7 @@ class CleanSalesService:
             session,
             source_data,
             "入雛",
+            check_exists,
         )
 
     def _base_process(
@@ -56,8 +60,11 @@ class CleanSalesService:
         session: Session,
         source_data: SourceData,
         pipeline_name: str,
+        check_exists: bool = True,
     ) -> Response:
-        if exporter.is_source_md5_exists_in_latest_record(session, source_data):
+        if check_exists and exporter.is_source_md5_exists_in_latest_record(
+            session, source_data
+        ):
             logger.debug(f"{pipeline_name} md5 {source_data.md5} 已存在")
             return Response(
                 status="error", msg=f"{pipeline_name} 資料已存在", content={}

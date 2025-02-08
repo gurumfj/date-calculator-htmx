@@ -1,11 +1,15 @@
-import logging
 from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
-
-# logger = logging.getLogger(__name__)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 
 class BreedRecordValidatorSchema(BaseModel):
@@ -16,7 +20,7 @@ class BreedRecordValidatorSchema(BaseModel):
     """
 
     # 基本資料
-    farm_name: str | None = Field(None, description="牧場名稱", alias="畜牧場名")
+    farm_name: str = Field(..., description="牧場名稱", alias="畜牧場名")
     address: str | None = Field(None, description="牧場地址", alias="畜牧場址")
     farm_license: str | None = Field(None, description="登記證號", alias="登記證號")
 
@@ -27,14 +31,14 @@ class BreedRecordValidatorSchema(BaseModel):
     )
 
     # 批次資料
-    batch_name: str = Field(..., description="場別", alias="場別")
+    batch_name: str | None = Field(None, description="場別", alias="場別")
     # batch_id: Optional[str] = Field(None, description="場別ID")
     sub_location: str | None = Field(None, description="分場", alias="分場")
     veterinarian: str | None = Field(None, description="獸醫名稱", alias="Dr.")
     is_completed: str | None = Field(None, description="是否完成", alias="結場")
 
     # 記錄資料
-    chicken_breed: str | None = Field(None, description="雞的種類", alias="雞種")
+    chicken_breed: str = Field(..., description="雞的種類", alias="雞種")
     breed_date: datetime = Field(..., description="入雛日期", alias="入雛日期")
     chick_count: tuple[int, int] | None = Field(
         None, description="入雛數量", alias="入雛數量"
@@ -98,11 +102,11 @@ class BreedRecordValidatorSchema(BaseModel):
 
     @field_validator("total_chick_count", mode="before")
     @classmethod
-    def validate_total_chick_count(cls, value: Any) -> int | None:
+    def validate_total_chick_count(cls, value: Any) -> int:
         try:
             if not isinstance(value, int):
-                return None
-            return value
+                return int(value)
+            return value or 0
         except Exception as e:
             # logger.error("轉換入雛總量錯誤: %s", str(e))
             raise ValueError(f"轉換入雛總量錯誤: {str(e)}")
@@ -121,31 +125,25 @@ class BreedRecordValidatorSchema(BaseModel):
     #         return False  # 發生異常時返回 False
 
     @computed_field
-    def male(self) -> int | None:
+    def male(self) -> int:
         try:
-            if self.chicken_breed == "閹雞":
-                return self.total_chick_count
-            elif self.chick_count:
+            if self.chick_count:
                 return self.chick_count[0]
-            elif self.total_chick_count:
-                return self.total_chick_count // 2
-
-            return None
+            if self.chicken_breed == "閹雞":
+                return self.total_chick_count or 0
+            return self.total_chick_count // 2 if self.total_chick_count else 0
         except Exception as e:
             # logger.error("計算公雞數量錯誤: %s", str(e))
             raise ValueError(f"計算公雞數量錯誤: {str(e)}")
 
     @computed_field
-    def female(self) -> int | None:
+    def female(self) -> int:
         try:
+            if self.chick_count:
+                return self.chick_count[1]
             if self.chicken_breed == "閹雞":
                 return 0
-            elif self.chick_count:
-                return self.chick_count[1]
-            elif self.total_chick_count:
-                return self.total_chick_count // 2
-
-            return None
+            return self.total_chick_count // 2 if self.total_chick_count else 0
         except Exception as e:
             # logger.error("計算母雞數量錯誤: %s", str(e))
             raise ValueError(f"計算母雞數量錯誤: {str(e)}")

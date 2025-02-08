@@ -12,7 +12,6 @@ from .processors import BreedsProcessor, IProcessor, SalesProcessor
 from .shared.models import ErrorMessage, ProcessingResult, Response, SourceData
 
 __all__ = [
-    "ProcessingEvent",
     "CleanSalesService",
     "ErrorMessage",
     "ProcessingResult",
@@ -28,4 +27,5 @@ __all__ = [
     "SaleSQLiteExporter",
     "Database",
     "IExporter",
+    "ProcessingEvent",
 ]
