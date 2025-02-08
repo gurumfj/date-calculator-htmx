@@ -4,13 +4,13 @@ from dataclasses import asdict
 import pandas as pd
 import pytest
 
-from cleansales_refactor.models import (
+from cleansales_refactor import (
     ErrorMessage,
     ProcessingResult,
     SaleRecord,
     SaleRecordsGroupByLocation,
 )
-from cleansales_refactor.processor.sales_processor import SaleRecordProcessor
+from cleansales_refactor.processors.sales_processor import SaleRecordProcessor
 
 
 @pytest.fixture

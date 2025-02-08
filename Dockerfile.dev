@@ -25,4 +25,4 @@ ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=development
 
 # 在容器啟動時運行的命令
-CMD ["python", "src/api.py"] 
+CMD ["python", "src/fastapi/app.py"] 

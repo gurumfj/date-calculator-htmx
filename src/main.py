@@ -1,19 +1,15 @@
+import argparse
 import logging
 from pathlib import Path
-from typing import Any, Callable
 
 import pandas as pd
 
-from cleansales_refactor.exporters import (
-    BreedSQLiteExporter,
+from cleansales_refactor import (
+    CleanSalesService,
     Database,
-    SaleSQLiteExporter,
-)
-from cleansales_refactor.models.shared import (
+    Response,
     SourceData,
-    ProcessingResult,
 )
-from cleansales_refactor.processor import BreedsProcessor, SalesProcessor
 
 # 設定根 logger
 logging.basicConfig(
@@ -31,45 +27,75 @@ logging.getLogger("cleansales_refactor").setLevel(logging.DEBUG)
 class DataService:
     def __init__(self, db_path: str | Path):
         self.db = Database(str(db_path))
-        self.sales_exporter = SaleSQLiteExporter()
-        self.breeds_exporter = BreedSQLiteExporter()
+        self.clean_sales_service = CleanSalesService()
 
-    def sales_data_service(self, file_path: str | Path) -> dict[str, Any]:
+    def sales_data_service(
+        self, file_path: str | Path, check_md5: bool = True
+    ) -> Response:
         source_data = SourceData(
             file_name=str(file_path), dataframe=pd.read_excel(file_path)
         )
-        processor: Callable[[SourceData], ProcessingResult[Any]] = (
-            lambda source_data: SalesProcessor.execute(source_data)
-        )
-
         with self.db.get_session() as session:
-            if self.sales_exporter.is_source_md5_exists_in_latest_record(
-                session, source_data
-            ):
-                logger.debug(f"販售資料 md5 {source_data.md5} 已存在")
-                return dict(status="error", msg="販售資料已存在", content={})
-            else:
-                return self.sales_exporter.execute(session, processor(source_data))
+            return self.clean_sales_service.execute_clean_sales(
+                session, source_data, check_exists=check_md5
+            )
 
-    def breeds_data_service(self, file_path: str | Path) -> dict[str, Any]:
+    def breeds_data_service(
+        self, file_path: str | Path, check_md5: bool = True
+    ) -> Response:
         source_data = SourceData(
             file_name=str(file_path), dataframe=pd.read_excel(file_path)
         )
-        processor: Callable[[SourceData], ProcessingResult[Any]] = (
-            lambda source_data: BreedsProcessor.execute(source_data)
-        )
-
         with self.db.get_session() as session:
-            if self.breeds_exporter.is_source_md5_exists_in_latest_record(
-                session, source_data
-            ):
-                logger.debug(f"品種資料 md5 {source_data.md5} 已存在")
-                return dict(status="error", msg="品種資料已存在", content={})
-            else:
-                return self.breeds_exporter.execute(session, processor(source_data))
+            return self.clean_sales_service.execute_clean_breeds(
+                session, source_data, check_exists=check_md5
+            )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="清理銷售和品種資料的命令列工具")
+    parser.add_argument(
+        "--db-path", type=str, default="data/main.db", help="資料庫檔案路徑 (預設: data/main.db)"
+    )
+    parser.add_argument(
+        "--type",
+        type=str,
+        choices=["sales", "breeds"],
+        required=True,
+        help="要處理的資料類型: sales (銷售資料) 或 breeds (品種資料)",
+    )
+    parser.add_argument(
+        "--input-file", type=str, required=True, help="輸入的 Excel 檔案路徑"
+    )
+    parser.add_argument(
+        "--check-md5",
+        action="store_true",
+        default=True,
+        help="是否檢查 MD5 避免重複匯入 (預設: True)",
+    )
+    parser.add_argument(
+        "--no-check-md5",
+        action="store_false",
+        dest="check_md5",
+        help="關閉 MD5 檢查",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    data_service = DataService("data.db")
-    print(data_service.sales_data_service("/app/data/sales_sample.xlsx"))
-    print(data_service.breeds_data_service("/app/data/breeds_sample.xlsx"))
+    args = parse_args()
+    data_service = DataService(args.db_path)
+
+    try:
+        if args.type == "sales":
+            result = data_service.sales_data_service(
+                args.input_file, check_md5=args.check_md5
+            )
+        else:  # breeds
+            result = data_service.breeds_data_service(
+                args.input_file, check_md5=args.check_md5
+            )
+        print(result)
+    except Exception as e:
+        logger.error(f"處理資料時發生錯誤: {str(e)}")
+        raise
