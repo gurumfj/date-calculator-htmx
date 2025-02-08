@@ -5,9 +5,9 @@ from typing import Optional, TypeVar
 
 from sqlmodel import Field, Relationship
 
-from ..models import BreedRecord
-from ..models.orm_models import BaseEventSource, ORMModel
+from ..domain.models import BreedRecord
 from .base_sqlite_exporter import BaseSQLiteExporter
+from .orm_models import BaseEventSource, ORMModel
 
 T = TypeVar("T")
 
@@ -64,7 +64,7 @@ class BreedSQLiteExporter(
         record_orm = BreedRecordORM(**asdict(record))
         record_orm.unique_id = self.get_unique_key(record)
         return record_orm
-    
+
     def _get_event_source_class(self) -> type[BreedEventSource]:
         """取得事件來源類別"""
         return BreedEventSource

@@ -38,7 +38,7 @@ class ProcessingResult(Generic[T]):
     processed_data: list[T]
     errors: list[ErrorMessage]
     source_data: SourceData
-    
+
     def with_updates(self, **updates: Any) -> "ProcessingResult[T]":
         return replace(self, **updates)
 
@@ -51,3 +51,10 @@ class ProcessorPipelineData(Generic[T]):
 
     def with_updates(self, **updates: Any) -> "ProcessorPipelineData[T]":
         return replace(self, **updates)
+
+
+@dataclass(frozen=True)
+class Response:
+    status: str
+    msg: str
+    content: dict[str, Any]

@@ -5,9 +5,9 @@ from typing import Any, Callable, Generic, TypeVar
 
 from sqlmodel import Session, desc, select
 
-from ..models import ProcessingResult, SourceData
-from ..models.orm_models import BaseEventSource, ErrorRecord, ORMModel, ProcessingEvent
+from ..shared.models import ProcessingResult, SourceData
 from .exporter_interface import IExporter
+from .orm_models import BaseEventSource, ErrorRecord, ORMModel, ProcessingEvent
 
 logger = logging.getLogger(__name__)
 

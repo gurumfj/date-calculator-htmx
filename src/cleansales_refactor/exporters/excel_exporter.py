@@ -1,9 +1,8 @@
 import pandas as pd
 
-from cleansales_refactor.models.sale_record import ProcessingResult
-from cleansales_refactor.services import IExporter
-
-from ..models import SaleRecord
+from ..domain.models import SaleRecord
+from ..shared.models import ProcessingResult
+from .exporter_interface import IExporter
 
 
 class ExcelExporter(IExporter[SaleRecord]):

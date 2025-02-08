@@ -5,9 +5,9 @@ from typing import List, Optional
 
 from sqlmodel import Field, Relationship
 
-from cleansales_refactor.exporters import BaseSQLiteExporter
-from cleansales_refactor.models import SaleRecord
-from cleansales_refactor.models.orm_models import BaseEventSource, ORMModel
+from ..domain.models import SaleRecord
+from .base_sqlite_exporter import BaseSQLiteExporter
+from .orm_models import BaseEventSource, ORMModel
 
 
 class SaleRecordORM(ORMModel, table=True):
@@ -45,9 +45,7 @@ class SaleSQLiteExporter(
 
     def get_unique_key(self, record: SaleRecord) -> str:
         """取得記錄的唯一識別碼"""
-        values = [
-            str(value) for value in asdict(record).values() if value is not None
-        ]
+        values = [str(value) for value in asdict(record).values() if value is not None]
         key = "".join(values)
         return hashlib.sha256(key.encode()).hexdigest()[:10]
 

@@ -1,7 +1,6 @@
 from typing import Generic, Protocol, TypeVar
 
-
-from ..models import ProcessingResult, SourceData
+from ..shared.models import ProcessingResult, SourceData
 
 T = TypeVar("T")
 

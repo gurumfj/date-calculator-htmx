@@ -27,7 +27,7 @@ class BreedRecordValidatorSchema(BaseModel):
     )
 
     # 批次資料
-    batch_name: str | None = Field(None, description="場別", alias="場別")
+    batch_name: str = Field(..., description="場別", alias="場別")
     # batch_id: Optional[str] = Field(None, description="場別ID")
     sub_location: str | None = Field(None, description="分場", alias="分場")
     veterinarian: str | None = Field(None, description="獸醫名稱", alias="Dr.")
@@ -35,7 +35,7 @@ class BreedRecordValidatorSchema(BaseModel):
 
     # 記錄資料
     chicken_breed: str | None = Field(None, description="雞的種類", alias="雞種")
-    breed_date: datetime | None = Field(None, description="入雛日期", alias="入雛日期")
+    breed_date: datetime = Field(..., description="入雛日期", alias="入雛日期")
     chick_count: tuple[int, int] | None = Field(
         None, description="入雛數量", alias="入雛數量"
     )

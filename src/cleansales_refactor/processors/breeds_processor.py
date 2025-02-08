@@ -5,15 +5,10 @@ from typing import Hashable, TypeAlias
 
 import pandas as pd
 
-from ..models import (
-    BreedRecord,
-    BreedRecordValidatorSchema,
-    ErrorMessage,
-    ProcessingResult,
-    SourceData,
-)
+from ..domain.models import BreedRecord
+from ..shared.models import ErrorMessage, ProcessingResult, SourceData
 from .processor_interface import IProcessor
-
+from .validator_schema import BreedRecordValidatorSchema
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +36,10 @@ class BreedsProcessor(IProcessor[BreedRecord]):
 
         result = reduce(
             lambda x, y: x + y,
-            (BreedsProcessor._validate_and_transform_records(row) for row in source_data.dataframe.iterrows()),
+            (
+                BreedsProcessor._validate_and_transform_records(row)
+                for row in source_data.dataframe.iterrows()
+            ),
             ProcessState(records=(), errors=()),
         )
 
@@ -79,13 +77,11 @@ class BreedsProcessor(IProcessor[BreedRecord]):
 
     @staticmethod
     def __transform_records(model: BreedRecordValidatorSchema) -> BreedRecord:
-        return BreedRecord(
-            **{
-                k: v
-                for k, v in model.model_dump().items()
-                if k in BreedRecord.__annotations__
-            }
-        )
+        return BreedRecord(**{
+            k: v
+            for k, v in model.model_dump().items()
+            if k in BreedRecord.__annotations__
+        })
 
     # @staticmethod
     # def _generate_validated_df(df: pd.DataFrame) -> pd.DataFrame:

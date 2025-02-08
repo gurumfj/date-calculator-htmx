@@ -6,14 +6,10 @@ from typing import Any, Callable, Hashable, TypeAlias, TypeVar
 
 import pandas as pd
 
-from ..models import (
-    SourceData,
-    ErrorMessage,
-    ProcessingResult,
-    SaleRecord,
-    SaleRecordValidatorSchema,
-)
+from ..domain.models import SaleRecord
+from ..shared.models import ErrorMessage, ProcessingResult, SourceData
 from .processor_interface import IProcessor
+from .validator_schema import SaleRecordValidatorSchema
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -126,7 +122,9 @@ class SalesProcessor(IProcessor[SaleRecord]):
     def execute(source_data: SourceData) -> ProcessingResult[SaleRecord]:
         """執行處理服務"""
         # 驗證和清理銷售記錄
-        cleaned_records, errors = SalesProcessor._validate_and_clean_records(source_data.dataframe)
+        cleaned_records, errors = SalesProcessor._validate_and_clean_records(
+            source_data.dataframe
+        )
 
         # 初始化不可變狀態
         initial_state = ProcessingState(cleaned_records=tuple(cleaned_records))
