@@ -4,38 +4,21 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
-class SubCardInfo(BaseModel):
+class BreedInfo(BaseModel):
     breed_date: date
     supplier: Optional[str]
+    chicken_breed: str
     male: int
     female: int
 
 
-class BreedCardModel(BaseModel):
+class BatchGroupBreedResponseModel(BaseModel):
     batch_name: str
-    farm_name: Optional[str]
+    farm_name: str
     address: Optional[str]
     farmer_name: Optional[str]
-    chicken_breed: str
     total_male: int
     total_female: int
     veterinarian: Optional[str]
-    is_completed: Optional[str]
-    supplier: Optional[str]  # 只有單筆記錄時使用
-    breed_date: Optional[date]  # 只有單筆記錄時使用
-    sub_cards: List[SubCardInfo] = []  # 多筆記錄時使用
-
-
-class BreedSectionModel(BaseModel):
-    breed_type: str
-    total_batches: int
-    total_male: int
-    total_female: int
-    cards: List[BreedCardModel]
-
-
-class BreedResponseModel(BaseModel):
-    total_batches: int
-    total_male: int
-    total_female: int
-    sections: List[BreedSectionModel]
+    is_completed: bool
+    breeds_info: List[BreedInfo]

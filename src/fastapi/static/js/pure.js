@@ -1,43 +1,32 @@
 // Type definitions
 /**
- * @typedef {Object} SubCardInfo
+ * @typedef {Object} BreedInfo
  * @property {string} breed_date - 入雛日期
  * @property {string} [supplier] - 供應商
+ * @property {string} chicken_breed - 品種
  * @property {number} male - 公雞數
  * @property {number} female - 母雞數
  */
 
 /**
- * @typedef {Object} BreedCard
+ * @typedef {Object} Batch
  * @property {string} batch_name - 批次名稱
- * @property {string} [farm_name] - 農場名稱
+ * @property {string} farm_name - 農場名稱
  * @property {string} [address] - 農場地址
  * @property {string} [farmer_name] - 畜主姓名
- * @property {string} chicken_breed - 品種
  * @property {number} total_male - 總公雞數
  * @property {number} total_female - 總母雞數
  * @property {string} [veterinarian] - 獸醫師
- * @property {string} [is_completed] - 狀態
- * @property {string} [supplier] - 供應商（單筆記錄時使用）
- * @property {string} [breed_date] - 入雛日期（單筆記錄時使用）
- * @property {SubCardInfo[]} sub_cards - 子卡片列表
+ * @property {boolean} is_completed - 是否結案
+ * @property {BreedInfo[]} breeds_info - 入雛記錄列表
  */
 
 /**
- * @typedef {Object} BreedSection
- * @property {string} breed_type - 品種類型
- * @property {number} total_batches - 批次總數
- * @property {number} total_male - 公雞總數
- * @property {number} total_female - 總母雞數
- * @property {BreedCard[]} cards - 卡片列表
- */
-
-/**
- * @typedef {Object} BreedResponse
- * @property {number} total_batches - 總批次數
- * @property {number} total_male - 總公雞數
- * @property {number} total_female - 總母雞數
- * @property {BreedSection[]} sections - 品種區段列表
+ * @typedef {Object} ApiResponse
+ * @property {string} status - 回應狀態
+ * @property {string} msg - 回應訊息
+ * @property {Object} content - 回應內容
+ * @property {Batch[]} content.batches - 批次列表
  */
 
 // Pure functions
@@ -46,16 +35,27 @@ export function formatTotalInfo(totals) {
 }
 
 export function formatFieldValue(field, value) {
+    if (value === null || value === undefined) {
+        return '-';
+    }
+
     if (field === 'breed_date') {
         return new Date(value).toLocaleDateString('zh-TW');
     }
+
     if (field === 'male' || field === 'female' || field === 'total_male' || field === 'total_female') {
-        return value || '0';
+        return value.toString();
     }
+
     if (field === 'batch_name' && !value) {
         return '未命名批次';
     }
-    return value || '-';
+
+    if (field === 'is_completed') {
+        return value ? '已結場' : '未結場';
+    }
+
+    return value.toString();
 }
 
 export function formatMergedFieldValue(field, value) {
