@@ -2,25 +2,24 @@ import logging
 from datetime import date
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, List, Optional
 
 import pandas as pd
+from pydantic import BaseModel
+from sqlmodel import Session, SQLModel, and_, asc, or_, select
+
+from cleansales_refactor import (
+    CleanSalesService,
+    Database,
+    SourceData,
+    ProcessingEvent,
+)
+from cleansales_refactor.exporters import BreedRecordORM
+from event_bus import Event, EventBus, TelegramNotifier
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from sqlmodel import Session, SQLModel, and_, asc, or_, select
-
-from cleansales_refactor.exporters import (
-    BreedRecordORM,
-    BreedSQLiteExporter,
-    Database,
-    SaleSQLiteExporter,
-)
-from cleansales_refactor.models import ProcessingEvent, ProcessingResult, SourceData
-from cleansales_refactor.processor import BreedsProcessor, SalesProcessor
-from event_bus import Event, EventBus, TelegramNotifier
 
 # 先設定基本的 logging 配置
 logging.basicConfig(
@@ -95,41 +94,8 @@ class BreedResponseModel(BaseModel):
 
 class PostApiDependency:
     def __init__(self, event_bus: EventBus) -> None:
-        self.sales_exporter = SaleSQLiteExporter()
-        self.breed_exporter = BreedSQLiteExporter()
+        self.service = CleanSalesService()
         self.event_bus = event_bus
-
-    def _base_processpipline(
-        self,
-        processor: Callable[[SourceData], ProcessingResult[Any]],
-        exporter: Callable[[ProcessingResult[Any]], dict[str, Any]],
-        session: Session,
-        source_data: SourceData,
-        event: ProcessEvent,
-        pipeline_name: str,
-    ) -> ResponseModel:
-        is_exists: Callable[[SourceData], bool] = (
-            lambda x: self.sales_exporter.is_source_md5_exists_in_latest_record(
-                session, x
-            )
-        )
-        if is_exists(source_data):
-            logger.debug(f"{pipeline_name} md5 {source_data.md5} 已存在")
-            return ResponseModel(status="error", msg=f"{pipeline_name} 資料已存在", content={})
-        else:
-            result = exporter(processor(source_data))
-            msg = f"成功匯入 {pipeline_name} 資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆"
-            self.event_bus.publish(
-                Event(
-                    event=event,
-                    content={"msg": msg},
-                )
-            )
-            return ResponseModel(
-                status="success",
-                msg=msg,
-                content=result,
-            )
 
     def sales_processpipline(
         self, upload_file: UploadFile, session: Session
@@ -138,20 +104,18 @@ class PostApiDependency:
             file_name=upload_file.filename or "",
             dataframe=pd.read_excel(upload_file.file),
         )
-        processor: Callable[[SourceData], ProcessingResult[Any]] = (
-            lambda source_data: SalesProcessor.execute(source_data)
-        )
-        exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-            lambda processed_data: self.sales_exporter.execute(processed_data, session)
-        )
-
-        return self._base_processpipline(
-            processor,
-            exporter,
-            session,
-            source_data,
-            ProcessEvent.SALES_PROCESSING_COMPLETED,
-            "販售",
+        result = self.service.execute_clean_sales(session, source_data)
+        if result.status == "success":
+            self.event_bus.publish(
+                Event(
+                    event=ProcessEvent.SALES_PROCESSING_COMPLETED,
+                    content={"msg": result.msg},
+                )
+            )
+        return ResponseModel(
+            status=result.status,
+            msg=result.msg,
+            content=result.content,
         )
 
     def breed_processpipline(
@@ -161,20 +125,18 @@ class PostApiDependency:
             file_name=upload_file.filename or "",
             dataframe=pd.read_excel(upload_file.file),
         )
-        processor: Callable[[SourceData], ProcessingResult[Any]] = (
-            lambda source_data: BreedsProcessor.execute(source_data)
-        )
-        exporter: Callable[[ProcessingResult[Any]], dict[str, Any]] = (
-            lambda processed_data: self.breed_exporter.execute(processed_data, session)
-        )
-
-        return self._base_processpipline(
-            processor,
-            exporter,
-            session,
-            source_data,
-            ProcessEvent.BREEDS_PROCESSING_COMPLETED,
-            "入雛",
+        result = self.service.execute_clean_breeds(session, source_data)
+        if result.status == "success":
+            self.event_bus.publish(
+                Event(
+                    event=ProcessEvent.BREEDS_PROCESSING_COMPLETED,
+                    content={"msg": result.msg},
+                )
+            )
+        return ResponseModel(
+            status=result.status,
+            msg=result.msg,
+            content=result.content,
         )
 
     def process_breed_records(
