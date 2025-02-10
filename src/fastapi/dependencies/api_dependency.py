@@ -108,6 +108,8 @@ class PostApiDependency:
                         chicken_breed=breed.chicken_breed,
                         male=breed.male,
                         female=breed.female,
+                        day_age=breed.day_age,
+                        week_age=breed.week_age,
                     )
                     for breed in batch.breeds_info
                 ],

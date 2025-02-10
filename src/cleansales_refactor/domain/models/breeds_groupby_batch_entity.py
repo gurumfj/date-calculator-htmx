@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import List
 
 from .breed_record import BreedRecord
@@ -12,6 +12,15 @@ class Breeds:
     chicken_breed: str
     male: int
     female: int
+
+    @property
+    def day_age(self) -> int:
+        return (datetime.now() - self.breed_date).days + 1
+
+    @property
+    def week_age(self) -> str:
+        day: list[int] = [7, 1, 2, 3, 4, 5, 6]
+        return f"{self.day_age // 7 -1 if self.day_age % 7 == 0 else self.day_age // 7}/{day[self.day_age % 7]}"
 
 
 @dataclass

@@ -42,7 +42,8 @@ function createCard(batch) {
                 'supplier': info.supplier,
                 'chicken_breed': info.chicken_breed,
                 'male': info.male,
-                'female': info.female
+                'female': info.female,
+                'week_age': info.week_age  // 新增 week_age 欄位
             };
 
             Object.entries(fields).forEach(([field, value]) => {

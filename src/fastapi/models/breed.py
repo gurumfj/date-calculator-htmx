@@ -10,6 +10,8 @@ class BreedInfo(BaseModel):
     chicken_breed: str
     male: int
     female: int
+    day_age: int
+    week_age: str
 
 
 class BatchGroupBreedResponseModel(BaseModel):
