@@ -15,35 +15,33 @@ function createCard(batch) {
         'total_male': batch.total_male,
         'total_female': batch.total_female,
         'veterinarian': batch.veterinarian,
-        'is_completed': batch.is_completed
+        'batch_state': batch.batch_state
     };
 
     Object.entries(fields).forEach(([field, value]) => {
         const element = cardElement.querySelector(`[data-field="${field}"]`);
         if (element) {
             element.textContent = formatFieldValue(field, value);
-            if (field === 'is_completed') {
-                element.classList.add(value ? 'is-completed-true' : 'is-completed-false');
-            }
         }
     });
 
-    // 建立 breeds_info
+    // 建立繁殖記錄
     const breedsInfoContainer = cardElement.querySelector('[data-field="breeds_info"]');
-    if (breedsInfoContainer && batch.breeds_info?.length > 0) {
-        console.log('Processing breeds_info:', batch.breeds_info); // 加入除錯訊息
+    if (breedsInfoContainer && batch.breed_date?.length > 0) {
+        console.log('Processing breeds_info:', batch.breed_date); // 加入除錯訊息
         const breedInfoTemplate = document.getElementById('breed-info-template');
-        batch.breeds_info.forEach(info => {
-            console.log('Creating breed info element:', info); // 加入除錯訊息
+        
+        batch.breed_date.forEach((date, index) => {
+            console.log('Creating breed info element:', { date, supplier: batch.supplier[index], chicken_breed: batch.chicken_breed[index], male: batch.male[index], female: batch.female[index], week_age: batch.week_age[index] }); // 加入除錯訊息
             const breedInfoElement = breedInfoTemplate.content.cloneNode(true);
             
             const fields = {
-                'breed_date': info.breed_date,
-                'supplier': info.supplier,
-                'chicken_breed': info.chicken_breed,
-                'male': info.male,
-                'female': info.female,
-                'week_age': info.week_age  // 新增 week_age 欄位
+                'breed_date': batch.breed_date[index],
+                'supplier': batch.supplier[index],
+                'chicken_breed': batch.chicken_breed[index],
+                'male': batch.male[index],
+                'female': batch.female[index],
+                'week_age': batch.week_age[index]
             };
 
             Object.entries(fields).forEach(([field, value]) => {
@@ -56,7 +54,7 @@ function createCard(batch) {
             breedsInfoContainer.appendChild(breedInfoElement);
         });
     } else {
-        console.log('No breeds_info found or empty:', batch.breeds_info); // 加入除錯訊息
+        console.log('No breeds_info found or empty:', batch.breed_date); // 加入除錯訊息
     }
     
     return cardElement;
@@ -98,7 +96,7 @@ function renderCards(data) {
         // 取得所有不重複的品種
         const breeds = [...new Set(
             data.batches.flatMap(batch => 
-                batch.breeds_info.map(info => info.chicken_breed)
+                batch.chicken_breed
             )
         )].sort();
 

@@ -33,7 +33,7 @@ class BatchAggregate:
         ]):
             raise ValueError("All breed records must be from the same batch")
         if not all([
-            record.location == self.breeds[0].location for record in self.sales
+            record.location == self.breeds[0].batch_name for record in self.sales
         ]):
             raise ValueError("All sale records must be from the same location")
         if not self.breeds[0].batch_name == self.sales[0].location:
