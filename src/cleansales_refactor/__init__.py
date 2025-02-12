@@ -1,6 +1,6 @@
 from .cleansales_service import CleanSalesService
 from .cleansales_domain_service import CleanSalesDomainService
-from .domain.models import BreedRecord, SaleRecord
+from .domain.models import BreedRecord, SaleRecord, BatchAggregate, BatchState
 from .exporters import (
     BaseSQLiteExporter,
     BreedSQLiteExporter,
@@ -21,6 +21,8 @@ __all__ = [
     "SourceData",
     "BreedRecord",
     "SaleRecord",
+    "BatchAggregate",
+    "BatchState",
     "BreedsProcessor",
     "SalesProcessor",
     "IProcessor",
