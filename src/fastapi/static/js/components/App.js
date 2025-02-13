@@ -1,5 +1,36 @@
 const { useState, useEffect } = React;
 
+// 提取計算總數的純函數
+const calculateTotals = (batches) => {
+    return {
+        totalMale: batches.reduce((sum, batch) => sum + batch.total_male, 0),
+        totalFemale: batches.reduce((sum, batch) => sum + batch.total_female, 0),
+        totalBatches: batches.length
+    };
+};
+
+// 提取錯誤顯示組件
+const ErrorMessage = ({ message }) => (
+    <div className="text-red-500 p-4 text-center">{message}</div>
+);
+
+// 提取載入中組件
+const LoadingMessage = () => (
+    <div className="text-gray-600 p-4 text-center">載入中...</div>
+);
+
+// 提取無資料組件
+const NoDataMessage = () => (
+    <div className="text-gray-600 p-4 text-center">目前沒有可用的資料</div>
+);
+
+// 提取總計資訊組件
+const TotalInfo = ({ totalBatches, totalMale, totalFemale }) => (
+    <div className="bg-white rounded-lg shadow p-4 mb-6 text-center">
+        總計：{totalBatches} 批次，公雞 {totalMale} 隻，母雞 {totalFemale} 隻
+    </div>
+);
+
 function App() {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
@@ -27,19 +58,20 @@ function App() {
         }
     };
 
-    if (error) return <div className="text-red-500 p-4 text-center">{error}</div>;
-    if (!data) return <div className="text-gray-600 p-4 text-center">載入中...</div>;
-    if (data.batches.length === 0) return <div className="text-gray-600 p-4 text-center">目前沒有可用的資料</div>;
+    if (error) return <ErrorMessage message={error} />;
+    if (!data) return <LoadingMessage />;
+    if (data.batches.length === 0) return <NoDataMessage />;
 
-    const totalMale = data.batches.reduce((sum, batch) => sum + batch.total_male, 0);
-    const totalFemale = data.batches.reduce((sum, batch) => sum + batch.total_female, 0);
+    const { totalMale, totalFemale, totalBatches } = calculateTotals(data.batches);
 
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold text-center text-primary mb-8">繁殖資料查詢</h1>
-            <div className="bg-white rounded-lg shadow p-4 mb-6 text-center">
-                總計：{data.batches.length} 批次，公雞 {totalMale} 隻，母雞 {totalFemale} 隻
-            </div>
+            <TotalInfo 
+                totalBatches={totalBatches}
+                totalMale={totalMale}
+                totalFemale={totalFemale}
+            />
             <FilterButtons 
                 batches={data.batches}
                 selectedBreed={selectedBreed}
