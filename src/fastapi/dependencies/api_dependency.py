@@ -107,6 +107,16 @@ class PostApiDependency:
             content={"count": len(response_data), "batches": response_data},
         )
 
+    def get_breeds_by_batch_name(self, batch_name: str) -> BatchAggregateResponseModel:
+        breeds = self.breed_repository.get_breeds_by_batch_name(batch_name)
+        sales = self.sale_repository.get_sales_by_location(batch_name)
+        batch_aggregate = BatchAggregate(breeds=breeds, sales=sales)
+        return BatchAggregateResponseModel(
+            status="success",
+            msg="Successfully retrieved breeds by batch name",
+            content={"batch_aggregate": batch_aggregate},
+        )
+
 
 def get_api_dependency(
     event_bus: EventBus = Depends(get_event_bus),

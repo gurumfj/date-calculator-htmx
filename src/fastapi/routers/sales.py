@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from ..core.events import ProcessEvent
 from ..dependencies.api_dependency import PostApiDependency, get_api_dependency
-from ..models.response import ResponseModel
+from ..models.response import BatchAggregateResponseModel, ResponseModel
 
 logger = logging.getLogger(__name__)
 
@@ -37,3 +37,11 @@ async def process_sales_file(
             )
         )
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sales/{batch_name}", response_model=BatchAggregateResponseModel)
+async def get_sales_by_batch_name(
+    batch_name: str,
+    api_dependency: PostApiDependency = Depends(get_api_dependency),
+) -> BatchAggregateResponseModel:
+    return api_dependency.get_breeds_by_batch_name(batch_name)
