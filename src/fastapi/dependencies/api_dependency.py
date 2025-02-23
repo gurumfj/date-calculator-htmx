@@ -81,23 +81,7 @@ class PostApiDependency:
             batch_aggregates.append(BatchAggregate(breeds=breeds, sales=sales))
 
         response_data = [
-            BatchAggregateModel(
-                batch_name=batch.batch_name,
-                farm_name=batch.farm_name,
-                address=batch.address,
-                farmer_name=batch.farmer_name,
-                total_male=batch.total_male,
-                total_female=batch.total_female,
-                veterinarian=batch.veterinarian,
-                batch_state=batch.batch_state,
-                breed_date=batch.breed_date,
-                supplier=batch.supplier,
-                chicken_breed=batch.chicken_breed,
-                male=batch.male,
-                female=batch.female,
-                day_age=batch.day_age,
-                week_age=batch.week_age,
-            )
+            self._batch_aggregate_to_model(batch)
             for batch in batch_aggregates
         ]
 
@@ -111,10 +95,32 @@ class PostApiDependency:
         breeds = self.breed_repository.get_breeds_by_batch_name(batch_name)
         sales = self.sale_repository.get_sales_by_location(batch_name)
         batch_aggregate = BatchAggregate(breeds=breeds, sales=sales)
+        response_data = [
+            self._batch_aggregate_to_model(batch_aggregate)
+        ]
         return BatchAggregateResponseModel(
             status="success",
             msg="Successfully retrieved breeds by batch name",
-            content={"batch_aggregate": batch_aggregate},
+            content={"count": len(response_data), "batches": response_data},
+        )
+
+    def _batch_aggregate_to_model(self, batch_aggregate: BatchAggregate) -> BatchAggregateModel:
+        return BatchAggregateModel(
+            batch_name=batch_aggregate.batch_name,
+            farm_name=batch_aggregate.farm_name,
+            address=batch_aggregate.address,
+            farmer_name=batch_aggregate.farmer_name,
+            total_male=batch_aggregate.total_male,
+            total_female=batch_aggregate.total_female,
+            veterinarian=batch_aggregate.veterinarian,
+            batch_state=batch_aggregate.batch_state,
+            breed_date=batch_aggregate.breed_date,
+            supplier=batch_aggregate.supplier,
+            chicken_breed=batch_aggregate.chicken_breed,
+            male=batch_aggregate.male,
+            female=batch_aggregate.female,
+            day_age=batch_aggregate.day_age,
+            week_age=batch_aggregate.week_age,
         )
 
 

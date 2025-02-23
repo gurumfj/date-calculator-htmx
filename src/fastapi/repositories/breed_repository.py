@@ -35,3 +35,23 @@ class BreedRepository:
             })
             for orm in breeds_orm
         ]
+
+    def get_breeds_by_batch_name(self, batch_name: str) -> List[BreedRecord]:
+        stmt = (
+            select(BreedRecordORM)
+            .where(
+                and_(
+                    BreedRecordORM.batch_name == batch_name,
+                    BreedRecordORM.event == ProcessingEvent.ADDED,
+                )
+            )
+        )
+        breeds_orm = self.session.exec(stmt).all()
+        return [
+            BreedRecord(**{
+                k: v
+                for k, v in orm.__dict__.items()
+                if k in BreedRecord.__annotations__
+            })
+            for orm in breeds_orm
+        ]
