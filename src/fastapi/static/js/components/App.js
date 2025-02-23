@@ -89,7 +89,11 @@ function BatchRow({ batch, selectedBreed }) {
                             {batch.farm_name} · {batch.farmer_name}
                         </div>
                     </div>
-                    <div className="flex gap-8 px-6">
+                    <div className="flex gap-6 px-4">
+                        <div className="text-center">
+                            <div className="text-gray-600 text-xs">週齡</div>
+                            <div className="text-accent font-semibold">{batch.week_age[0]}</div>
+                        </div>
                         <div className="text-center">
                             <div className="text-gray-600 text-xs">公</div>
                             <div className="text-accent font-semibold text-lg">{batch.total_male}</div>
@@ -97,6 +101,12 @@ function BatchRow({ batch, selectedBreed }) {
                         <div className="text-center">
                             <div className="text-gray-600 text-xs">母</div>
                             <div className="text-accent font-semibold text-lg">{batch.total_female}</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-gray-600 text-xs">銷售進度</div>
+                            <div className={`font-semibold ${batch.sales_percentage >= 0.8 ? 'text-green-600' : 'text-blue-600'}`}>
+                                {(batch.sales_percentage * 100).toFixed(1)}%
+                            </div>
                         </div>
                     </div>
                     <button 
@@ -163,7 +173,7 @@ function App() {
 
     const fetchBreedingData = async () => {
         try {
-            const response = await fetch('/breeds/not-completed');
+            const response = await fetch('/api/not-completed');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

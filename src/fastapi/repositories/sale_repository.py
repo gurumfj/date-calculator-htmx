@@ -1,17 +1,20 @@
 from typing import List
 
-from sqlmodel import Session, select
+from sqlmodel import Session, and_, select
 
 from cleansales_refactor.domain.models import SaleRecord
 from cleansales_refactor.exporters import SaleRecordORM
-
+from cleansales_refactor import ProcessingEvent
 
 class SaleRepository:
     def __init__(self, session: Session):
         self.session = session
 
     def get_sales_by_location(self, location: str) -> List[SaleRecord]:
-        stmt = select(SaleRecordORM).where(SaleRecordORM.location == location)
+        stmt = select(SaleRecordORM).where(and_(
+            SaleRecordORM.location == location,
+            SaleRecordORM.event == ProcessingEvent.ADDED,
+        ))
         sales_orm = self.session.exec(stmt).all()
         return [
             SaleRecord(**{

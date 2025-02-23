@@ -111,3 +111,23 @@ class BatchAggregate:
         day_age = lambda x: (datetime.now() - x).days + 1
         week_age = lambda x: f"{x // 7 -1 if x % 7 == 0 else x // 7}/{day[x % 7]}"
         return tuple(week_age(day_age(breed.breed_date)) for breed in self.breeds)
+
+    @property
+    def sales_male(self) -> int:
+        return sum(sale.male_count for sale in self.sales)
+
+    @property
+    def sales_female(self) -> int:
+        return sum(sale.female_count for sale in self.sales)
+
+    @property
+    def total_sales(self) -> int:
+        return self.sales_male + self.sales_female
+    
+    @property
+    def sales_percentage(self) -> float:
+        if not self.sales:
+            return 0
+
+        total_breeds = sum(breed.male + breed.female for breed in self.breeds)
+        return round(self.total_sales / total_breeds, 4)

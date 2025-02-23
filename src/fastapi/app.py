@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .core.events import ProcessEvent
-from .routers import breeds, sales
+from .routers import api, upload
 
 # 設定根 logger
 logging.basicConfig(
@@ -90,9 +90,8 @@ async def root() -> FileResponse:
 
 
 # 註冊路由
-app.include_router(sales.router)
-app.include_router(breeds.router)
-
+app.include_router(upload.router)
+app.include_router(api.router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -120,6 +120,10 @@ class PostApiDependency:
             female=batch_aggregate.female,
             day_age=batch_aggregate.day_age,
             week_age=batch_aggregate.week_age,
+            sales_male=batch_aggregate.sales_male,
+            sales_female=batch_aggregate.sales_female,
+            total_sales=batch_aggregate.total_sales,
+            sales_percentage=batch_aggregate.sales_percentage,
         )
 
 
