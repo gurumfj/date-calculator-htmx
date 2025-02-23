@@ -4,7 +4,7 @@ from collections import defaultdict
 import pandas as pd
 from sqlmodel import Session
 
-from cleansales_refactor import CleanSalesDomainService, CleanSalesService, SourceData
+from cleansales_refactor import CleanSalesService, SourceData
 from cleansales_refactor.domain.models import BatchAggregate, BreedRecord
 from event_bus import Event, EventBus
 from fastapi import Depends, UploadFile
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 class PostApiDependency:
     def __init__(self, event_bus: EventBus, session: Session) -> None:
         self.service = CleanSalesService()
-        self.domain_service = CleanSalesDomainService()
         self.event_bus = event_bus
         self.session = session
         self.breed_repository = BreedRepository(session)

@@ -1,5 +1,4 @@
 from .cleansales_service import CleanSalesService
-from .cleansales_domain_service import CleanSalesDomainService
 from .domain.models import BreedRecord, SaleRecord, BatchAggregate, BatchState
 from .exporters import (
     BaseSQLiteExporter,
@@ -14,7 +13,6 @@ from .shared.models import ErrorMessage, ProcessingResult, Response, SourceData
 
 __all__ = [
     "CleanSalesService",
-    "CleanSalesDomainService",
     "ErrorMessage",
     "ProcessingResult",
     "Response",
