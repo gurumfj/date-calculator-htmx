@@ -3,12 +3,8 @@
     --secondary-color: #34495e;
     --accent-color: #3498db;
     --background-color: #f5f7fa;
-    --card-background: #ffffff;
     --text-color: #2c3e50;
-    --border-radius: 12px;
     --spacing: 20px;
-    --card-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    /* ... rest of the CSS variables ... */
 }
 
 * {
