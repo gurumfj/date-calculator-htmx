@@ -76,45 +76,80 @@ function BatchRow({ batch, selectedBreed }) {
     return (
         <tr className={`${STATE_STYLES[batch.batch_state]} border-b border-gray-100`}>
             <td className="p-4" colSpan="6">
-                {/* 主要批次資訊 */}
-                <div className="flex items-center gap-4">
+                {/* 主要批次資訊 - 上半部 */}
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex-1">
                         <div className="text-lg font-semibold text-primary">
                             {location}
                             <span className="ml-2 text-sm font-normal text-gray-500">
                                 {batch.batch_state}
                             </span>
+                            {/* 添加品種標籤 */}
+                            {batch.chicken_breed.map((breed, index) => (
+                                <span key={index} className="ml-2 px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                    {breed}
+                                </span>
+                            ))}
                         </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                            {batch.farm_name} · {batch.farmer_name}
-                        </div>
-                    </div>
-                    <div className="flex gap-6 px-4">
-                        <div className="text-center">
-                            <div className="text-gray-600 text-xs">週齡</div>
-                            <div className="text-accent font-semibold">{batch.week_age[0]}</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-gray-600 text-xs">公</div>
-                            <div className="text-accent font-semibold text-lg">{batch.total_male}</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-gray-600 text-xs">母</div>
-                            <div className="text-accent font-semibold text-lg">{batch.total_female}</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-gray-600 text-xs">銷售進度</div>
-                            <div className={`font-semibold ${batch.sales_percentage >= 0.8 ? 'text-green-600' : 'text-blue-600'}`}>
-                                {(batch.sales_percentage * 100).toFixed(1)}%
-                            </div>
+                        <div className="text-sm text-gray-600 mt-1 flex items-center gap-4">
+                            <span>{batch.farm_name} · {batch.farmer_name}</span>
+                            {/* 添加最早進雞日期 */}
+                            <span className="text-xs px-2 py-0.5 bg-gray-50 rounded">
+                                入雛: {new Date(batch.breed_date[0]).toLocaleDateString('zh-TW', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                })}
+                            </span>
                         </div>
                     </div>
                     <button 
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
                         onClick={() => setIsExpanded(!isExpanded)}
+                        className="px-3 py-1 text-sm text-gray-600 hover:text-accent"
                     >
                         {isExpanded ? '收起' : '詳細'}
                     </button>
+                </div>
+
+                {/* 主要批次資訊 - 下半部 */}
+                <div className="flex gap-8 justify-center border-t border-gray-100 pt-4">
+                    <div className="text-center">
+                        <div className="text-gray-600 text-xs mb-1">週齡</div>
+                        <div className="text-accent font-semibold">
+                            {batch.week_age[0].split('/')[0]}
+                            <span className="text-xs text-gray-500 ml-1">週</span>
+                            <span className="text-xs text-gray-400">/{batch.week_age[0].split('/')[1]}日</span>
+                        </div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-gray-600 text-xs mb-1">公雞存欄</div>
+                        <div className="text-accent font-semibold text-lg">
+                            {batch.total_male}
+                            <span className="text-xs text-gray-500 ml-1">隻</span>
+                        </div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-gray-600 text-xs mb-1">母雞存欄</div>
+                        <div className="text-accent font-semibold text-lg">
+                            {batch.total_female}
+                            <span className="text-xs text-gray-500 ml-1">隻</span>
+                        </div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-gray-600 text-xs mb-1">銷售進度</div>
+                        <div className={`font-semibold flex items-center gap-1
+                            ${batch.sales_percentage >= 0.8 ? 'text-green-600' : 'text-blue-600'}`}>
+                            <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                    className={`h-full rounded-full ${
+                                        batch.sales_percentage >= 0.8 ? 'bg-green-600' : 'bg-blue-600'
+                                    }`}
+                                    style={{ width: `${batch.sales_percentage * 100}%` }}
+                                />
+                            </div>
+                            <span>{(batch.sales_percentage * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* 詳細資訊 */}
@@ -123,23 +158,28 @@ function BatchRow({ batch, selectedBreed }) {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-gray-200">
-                                    <th className="py-2 text-left font-medium text-gray-600">進雞日期</th>
-                                    <th className="py-2 text-left font-medium text-gray-600">供應商</th>
-                                    <th className="py-2 text-left font-medium text-gray-600">品種</th>
-                                    <th className="py-2 text-center font-medium text-gray-600 w-20">週齡</th>
-                                    <th className="py-2 text-center font-medium text-gray-600 w-20">公</th>
-                                    <th className="py-2 text-center font-medium text-gray-600 w-20">母</th>
+                                    <th className="py-2 text-left font-medium text-gray-600">入雛日期</th>
+                                    <th className="py-2 text-left font-medium text-gray-600">種源</th>
+                                    <th className="py-2 text-center font-medium text-gray-600">週齡/日</th>
+                                    <th className="py-2 text-center font-medium text-gray-600">公雞</th>
+                                    <th className="py-2 text-center font-medium text-gray-600">母雞</th>
+                                    <th className="py-2 text-center font-medium text-gray-600">總計</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {batch.breed_date.map((date, index) => (
-                                    <tr key={index} className="border-b border-gray-50">
-                                        <td className="py-2">{new Date(date).toLocaleDateString('zh-TW')}</td>
+                                    <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
+                                        <td className="py-2">{new Date(date).toLocaleDateString('zh-TW', {
+                                            month: '2-digit',
+                                            day: '2-digit'
+                                        })}</td>
                                         <td className="py-2">{batch.supplier[index] || '-'}</td>
-                                        <td className="py-2 font-medium">{batch.chicken_breed[index]}</td>
                                         <td className="py-2 text-center">{batch.week_age[index]}</td>
                                         <td className="py-2 text-center text-accent">{batch.male[index]}</td>
                                         <td className="py-2 text-center text-accent">{batch.female[index]}</td>
+                                        <td className="py-2 text-center font-medium">
+                                            {batch.male[index] + batch.female[index]}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
