@@ -2,8 +2,8 @@ from typing import List
 
 from sqlmodel import Session, and_, asc, or_, select
 
-from cleansales_refactor.domain.models import BreedRecord
-from cleansales_refactor.exporters import BreedRecordORM, ProcessingEvent
+from src.cleansales_refactor.domain.models import BreedRecord
+from src.cleansales_refactor.exporters import BreedRecordORM, ProcessingEvent
 
 
 class BreedRepository:
@@ -28,30 +28,31 @@ class BreedRepository:
         breeds_orm = self.session.exec(stmt).all()
 
         return [
-            BreedRecord(**{
-                k: v
-                for k, v in orm.__dict__.items()
-                if k in BreedRecord.__annotations__
-            })
+            BreedRecord(
+                **{
+                    k: v
+                    for k, v in orm.__dict__.items()
+                    if k in BreedRecord.__annotations__
+                }
+            )
             for orm in breeds_orm
         ]
 
     def get_breeds_by_batch_name(self, batch_name: str) -> List[BreedRecord]:
-        stmt = (
-            select(BreedRecordORM)
-            .where(
-                and_(
-                    BreedRecordORM.batch_name == batch_name,
-                    BreedRecordORM.event == ProcessingEvent.ADDED,
-                )
+        stmt = select(BreedRecordORM).where(
+            and_(
+                BreedRecordORM.batch_name == batch_name,
+                BreedRecordORM.event == ProcessingEvent.ADDED,
             )
         )
         breeds_orm = self.session.exec(stmt).all()
         return [
-            BreedRecord(**{
-                k: v
-                for k, v in orm.__dict__.items()
-                if k in BreedRecord.__annotations__
-            })
+            BreedRecord(
+                **{
+                    k: v
+                    for k, v in orm.__dict__.items()
+                    if k in BreedRecord.__annotations__
+                }
+            )
             for orm in breeds_orm
         ]

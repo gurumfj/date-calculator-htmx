@@ -1,16 +1,14 @@
 import logging
 from pathlib import Path
-from typing import Generator
 
-from sqlmodel import Session
-
-from cleansales_refactor import Database
-from event_bus import EventBus, TelegramNotifier
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from src.core.event_bus import TelegramNotifier
+
+from .core.dependencies import get_event_bus
 from .core.events import ProcessEvent
 from .routers import api, upload
 
@@ -32,10 +30,17 @@ for handler in processor_logger.handlers:
 logger = logging.getLogger(__name__)
 
 # 初始化依賴項
-db = Database("data/cleansales.db")
-event_bus = EventBus()
+# db = Database("data/cleansales.db")
+
+
+# def get_event_bus() -> EventBus:
+#     return EventBus()
+
+
+# event_bus = get_event_bus()
+
 telegram_notifier = TelegramNotifier(
-    event_bus,
+    get_event_bus(),
     [
         ProcessEvent.SALES_PROCESSING_STARTED,
         ProcessEvent.SALES_PROCESSING_COMPLETED,
@@ -47,9 +52,16 @@ telegram_notifier = TelegramNotifier(
 )
 
 
-def get_session() -> Generator[Session, None, None]:
-    with db.get_session() as session:
-        yield session
+# def get_session() -> Generator[Session, None, None]:
+#     with db.get_session() as session:
+#         yield session
+
+
+# def get_api_dependency(
+#     event_bus: EventBus = Depends(get_event_bus),
+#     session: Session = Depends(get_session),
+# ) -> PostApiDependency:
+#     return PostApiDependency(event_bus=event_bus, session=session)
 
 
 # 建立 FastAPI 應用程式
@@ -93,13 +105,18 @@ async def root() -> FileResponse:
 app.include_router(upload.router)
 app.include_router(api.router)
 
-if __name__ == "__main__":
+
+def main() -> None:
     import uvicorn
 
     uvicorn.run(
-        "app:app",
+        "src.api.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
         reload_dirs=["src"],
     )
+
+
+if __name__ == "__main__":
+    main()

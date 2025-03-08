@@ -1,11 +1,16 @@
 import logging
+from typing import TYPE_CHECKING
 
-from event_bus import Event
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
+from src.core.event_bus import Event
+
+from ..core.dependencies import get_api_dependency
 from ..core.events import ProcessEvent
-from ..dependencies.api_dependency import PostApiDependency, get_api_dependency
 from ..models.response import ResponseModel
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +20,7 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 @router.post("/breeds", response_model=ResponseModel)
 async def process_breeds_file(
     file_upload: UploadFile,
-    api_dependency: PostApiDependency = Depends(get_api_dependency),
+    api_dependency=Depends(get_api_dependency),
 ) -> ResponseModel:
     try:
         if file_upload.filename is None:
@@ -42,7 +47,7 @@ async def process_breeds_file(
 @router.post("/sales", response_model=ResponseModel)
 async def process_sales_file(
     file_upload: UploadFile,
-    api_dependency: PostApiDependency = Depends(get_api_dependency),
+    api_dependency=Depends(get_api_dependency),
 ) -> ResponseModel:
     try:
         if file_upload.filename is None:

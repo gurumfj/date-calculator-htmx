@@ -3,7 +3,7 @@ import traceback
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..dependencies.api_dependency import PostApiDependency, get_api_dependency
+from ..core.dependencies import get_api_dependency
 from ..models.response import BatchAggregateResponseModel
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api", tags=["api"])
 
 @router.get("/not-completed", response_model=BatchAggregateResponseModel)
 async def get_breeding_data(
-    api_dependency: PostApiDependency = Depends(get_api_dependency),
+    api_dependency=Depends(get_api_dependency),
 ) -> BatchAggregateResponseModel:
     """取得未結案的入雛批次資料
 
@@ -65,9 +65,10 @@ async def get_breeding_data(
             },
         )
 
+
 @router.get("/{batch_name}", response_model=BatchAggregateResponseModel)
 async def get_sales_by_batch_name(
     batch_name: str,
-    api_dependency: PostApiDependency = Depends(get_api_dependency),
+    api_dependency=Depends(get_api_dependency),
 ) -> BatchAggregateResponseModel:
     return api_dependency.get_breeds_by_batch_name(batch_name)

@@ -2,15 +2,13 @@ import logging
 from collections import defaultdict
 
 import pandas as pd
+from fastapi import UploadFile
 from sqlmodel import Session
 
-from cleansales_refactor import CleanSalesService, SourceData
-from cleansales_refactor.domain.models import BatchAggregate, BreedRecord
-from event_bus import Event, EventBus
-from fastapi import Depends, UploadFile
+from src.cleansales_refactor import CleanSalesService, SourceData
+from src.cleansales_refactor.domain.models import BatchAggregate, BreedRecord
 
-from ..core.database import get_session
-from ..core.event_bus import get_event_bus
+from ...core.event_bus import Event, EventBus
 from ..core.events import ProcessEvent as ApiProcessEvent
 from ..models.breed import (
     BatchAggregateModel,
@@ -80,8 +78,7 @@ class PostApiDependency:
             batch_aggregates.append(BatchAggregate(breeds=breeds, sales=sales))
 
         response_data = [
-            self._batch_aggregate_to_model(batch)
-            for batch in batch_aggregates
+            self._batch_aggregate_to_model(batch) for batch in batch_aggregates
         ]
 
         return BatchAggregateResponseModel(
@@ -94,16 +91,16 @@ class PostApiDependency:
         breeds = self.breed_repository.get_breeds_by_batch_name(batch_name)
         sales = self.sale_repository.get_sales_by_location(batch_name)
         batch_aggregate = BatchAggregate(breeds=breeds, sales=sales)
-        response_data = [
-            self._batch_aggregate_to_model(batch_aggregate)
-        ]
+        response_data = [self._batch_aggregate_to_model(batch_aggregate)]
         return BatchAggregateResponseModel(
             status="success",
             msg="Successfully retrieved breeds by batch name",
             content={"count": len(response_data), "batches": response_data},
         )
 
-    def _batch_aggregate_to_model(self, batch_aggregate: BatchAggregate) -> BatchAggregateModel:
+    def _batch_aggregate_to_model(
+        self, batch_aggregate: BatchAggregate
+    ) -> BatchAggregateModel:
         return BatchAggregateModel(
             batch_name=batch_aggregate.batch_name,
             farm_name=batch_aggregate.farm_name,
@@ -127,8 +124,8 @@ class PostApiDependency:
         )
 
 
-def get_api_dependency(
-    event_bus: EventBus = Depends(get_event_bus),
-    session: Session = Depends(get_session),
-) -> PostApiDependency:
-    return PostApiDependency(event_bus=event_bus, session=session)
+# def get_api_dependency(
+#     event_bus: EventBus = Depends(get_event_bus),
+#     session: Session = Depends(get_session),
+# ) -> PostApiDependency:
+#     return PostApiDependency(event_bus=event_bus, session=session)

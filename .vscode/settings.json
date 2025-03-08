@@ -31,7 +31,7 @@
     "python.analysis.autoImportCompletions": true,
     // "python.linting.mypyEnabled": true,
     // "python.linting.enabled": true,
-    "mypy-type-checker.importStrategy": "fromEnvironment",
+    "mypy-type-checker.importStrategy": "useBundled",
     "mypy-type-checker.preferDaemon": false,
     // "pyright.disableLanguageServices": false,
     "python.analysis.diagnosticSeverityOverrides": {
