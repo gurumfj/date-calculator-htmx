@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -6,9 +5,8 @@ from enum import Enum
 from typing import Any, Callable
 
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
+from cleansales_refactor.core.config import settings
 
 
 @dataclass
@@ -44,12 +42,15 @@ class EventBus:
         self.callbacks.setdefault(event, []).append(callback)
 
 
+event_bus = EventBus()
+
+
 class TelegramNotifier:
     post_url: str | None = None
 
-    def __init__(self, event_bus: EventBus, register_events: list[Enum]) -> None:
+    def __init__(self, register_events: list[Enum]) -> None:
         self.event_bus = event_bus
-        self.post_url = os.getenv("TELEGRAM_WEBHOOK_URL")
+        self.post_url = settings.TELEGRAM_WEBHOOK_URL
         if not self.post_url:
             raise ValueError("TELEGRAM_WEBHOOK_URL is not set")
         for event in register_events:
