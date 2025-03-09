@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-from cleansales_refactor import DataService
+from .services.data_service import DataService
 
 # 設定根 logger
 logging.basicConfig(
@@ -50,6 +50,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """
+    主程式入口點。可以通過以下方式執行：
+    1. python -m cleansales_refactor
+    2. uv run cleansales
+    3. 從其他程式中導入：from cleansales_refactor import main
+    """
     args = parse_args()
     data_service = DataService(args.db_path)
 

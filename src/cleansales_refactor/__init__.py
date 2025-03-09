@@ -1,3 +1,4 @@
+from .__main__ import main
 from .domain.models import BatchAggregate, BatchState, BreedRecord, SaleRecord
 from .exporters import (
     BaseSQLiteExporter,
@@ -32,4 +33,5 @@ __all__ = [
     "Database",
     "IExporter",
     "ProcessingEvent",
+    "main",
 ]

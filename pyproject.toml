@@ -39,7 +39,7 @@ packages = ["src/cleansales_refactor"]
 allow-direct-references = true
 
 [project.scripts]
-cleansales = "cleansales_refactor.__main__:main"
+cleansales = "cleansales_refactor:main"
 
 [tool.pytest.ini_options]
 pythonpath = [
@@ -72,6 +72,10 @@ ignore_missing_imports = false
 # packages = ["src/modules"]
 
 [tool.ruff]
+# Assume Python 3.12
+target-version = "py312"
+line-length = 88
+
 # Enable auto-fix
 fix = true
 # exclude 731 in ruff
