@@ -17,3 +17,6 @@ wheels/
 *.xlsx
 *.db
 .env
+
+# 資料庫
+data/

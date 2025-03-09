@@ -2,7 +2,7 @@ import argparse
 import logging
 
 from cleansales_refactor.core.config import settings
-from cleansales_refactor.services.data_service import DataService
+from cleansales_refactor.services.cli_service import CLIService
 
 # 設定根 logger
 logging.basicConfig(
@@ -19,33 +19,51 @@ logging.getLogger("cleansales_refactor").setLevel(logging.DEBUG)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="清理銷售和品種資料的命令列工具")
-    parser.add_argument(
-        "--db-path",
-        type=str,
-        default=settings.DB_PATH,
-        help=f"資料庫檔案路徑 (預設: {settings.DB_PATH})",
-    )
-    parser.add_argument(
-        "--type",
-        type=str,
+
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+
+    """ import """
+    import_parser = subparsers.add_parser("import", help="匯入資料")
+    import_parser.add_argument(
+        "type",
         choices=["sales", "breeds"],
-        required=True,
         help="要處理的資料類型: sales (銷售資料) 或 breeds (品種資料)",
     )
-    parser.add_argument(
-        "--input-file", type=str, required=True, help="輸入的 Excel 檔案路徑"
+    import_parser.add_argument(
+        "-i",
+        type=str,
+        required=True,
+        dest="input_file",
+        help="輸入的 Excel 檔案路徑",
     )
-    parser.add_argument(
-        "--check-md5",
-        action="store_true",
-        default=True,
-        help="是否檢查 MD5 避免重複匯入 (預設: True)",
+    import_parser.add_argument(
+        "-o",
+        type=str,
+        default=settings.DB_PATH,
+        dest="db_path",
+        help=f"資料庫檔案路徑 (預設: {settings.DB_PATH})",
     )
-    parser.add_argument(
-        "--no-check-md5",
+    import_parser.add_argument(
+        "--no-md5",
         action="store_false",
         dest="check_md5",
         help="關閉 MD5 檢查",
+    )
+
+    """ query """
+    query_parser = subparsers.add_parser("query", help="查詢資料")
+    query_parser.add_argument(
+        "-db",
+        "--db-path",
+        type=str,
+        default=settings.DB_PATH,
+        dest="db_path",
+        help=f"資料庫檔案路徑 (預設: {settings.DB_PATH})",
+    )
+    query_parser.add_argument(
+        "type",
+        choices=["sales", "breeds"],
+        help="要查詢的資料類型: sales (銷售資料) 或 breeds (品種資料)",
     )
     return parser.parse_args()
 
@@ -58,17 +76,26 @@ def main() -> None:
     3. 從其他程式中導入：from cleansales_refactor import main
     """
     args = parse_args()
-    data_service = DataService(args.db_path)
 
     try:
-        if args.type == "sales":
-            result = data_service.sales_data_service(
-                args.input_file, check_md5=args.check_md5
-            )
-        else:  # breeds
-            result = data_service.breeds_data_service(
-                args.input_file, check_md5=args.check_md5
-            )
+        cli_service = CLIService(args.db_path)
+        if args.subcommand == "import":
+            match args.type:
+                case "sales":
+                    result = cli_service.import_sales(
+                        args.input_file, check_md5=args.check_md5
+                    )
+                case "breeds":
+                    result = cli_service.import_breeds(
+                        args.input_file, check_md5=args.check_md5
+                    )
+        elif args.subcommand == "query":
+            match args.type:
+                case "sales":
+                    result = "command is not implemented"
+                case "breeds":
+                    result = cli_service.query_breeds()
+
         print(result)
     except Exception as e:
         logger.error(f"處理資料時發生錯誤: {str(e)}")
