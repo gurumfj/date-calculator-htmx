@@ -1,28 +1,29 @@
-version: '3.8'
+# version: '3.8'
 
 services:
-  # cleansales_api:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.dev
-  #   ports:
-  #     - "8888:8000"
-  #   volumes:
-  #     - .:/app
-  #     # - ./data:/app/data
-  #     # - ./src:/app/src
-  #     # - ./tests:/app/tests
-  #     # - ./pyproject.toml:/app/pyproject.toml
-  #     # - ./README.md:/app/README.md
-  #   environment:
-  #     - PYTHONPATH=/app/src
-  #     - PYTHONUNBUFFERED=1
-  #     - ENVIRONMENT=development
-  #   restart: unless-stopped
-  #   # 開發環境下使用 uvicorn 支援熱重載
-  #   command: uvicorn src.fastapi.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src 
-  cleansales:
+  cleansales_api:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: uv run cleansales
+    ports:
+      - "8888:8000"
+    volumes:
+      - .:/app
+      # - ./data:/app/data
+      # - ./src:/app/src
+      # - ./tests:/app/tests
+      # - ./pyproject.toml:/app/pyproject.toml
+      # - ./README.md:/app/README.md
+    # environment:
+    #   - PYTHONPATH=/app/src
+    #   - PYTHONUNBUFFERED=1
+    #   - ENVIRONMENT=development
+    restart: unless-stopped
+    # 開發環境下使用 uvicorn 支援熱重載
+    command: uv run cleansales-api
+    # command: uvicorn src.fastapi.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src 
+  # cleansales:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   command: uv run cleansales
