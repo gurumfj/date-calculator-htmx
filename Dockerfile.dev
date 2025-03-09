@@ -9,10 +9,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 #     && rm -rf /var/lib/apt/lists/*
 
 # 複製專案文件
-ADD . /app
 
 # 設置工作目錄
 WORKDIR /app
+
+COPY pyproject.toml README.md .env ./
 
 # 安裝 uv 包管理器
 # RUN pip install uv
@@ -21,7 +22,7 @@ WORKDIR /app
 # COPY pyproject.toml README.md ./
 
 # 使用 uv 安裝依賴
-RUN uv pip install --system -e .
+# RUN uv pip install -e .
 
 
 # 設置環境變數

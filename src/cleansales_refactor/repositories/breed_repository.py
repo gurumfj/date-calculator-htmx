@@ -41,7 +41,7 @@ class BreedRepository:
     def get_breeds_by_batch_name(self, batch_name: str) -> List[BreedRecord]:
         stmt = select(BreedRecordORM).where(
             and_(
-                BreedRecordORM.batch_name == batch_name,
+                BreedRecordORM.batch_name.like(f"%{batch_name}%"),
                 BreedRecordORM.event == ProcessingEvent.ADDED,
             )
         )

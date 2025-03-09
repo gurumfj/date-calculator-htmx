@@ -146,7 +146,7 @@ class BatchAggregate:
         result.append(f"場址: {self.address}")
         result.append(f"品種: {', '.join(self.chicken_breed)}")
         result.append(
-            f"進雞日期: {', '.join(d.strftime('%Y-%m-%d') for d in self.breed_date)}"
+            f"入雛日期: {', '.join(d.strftime('%Y-%m-%d') for d in self.breed_date)}"
         )
         result.append(f"日齡: {', '.join(str(d) for d in self.day_age)}")
         result.append(f"週齡: {', '.join(self.week_age)}")

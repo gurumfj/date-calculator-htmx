@@ -1,8 +1,7 @@
 import argparse
 import logging
 
-from cleansales_refactor.core import Database, settings
-from cleansales_refactor.services import CleanSalesService, QueryService
+from cleansales_refactor.core import settings
 
 from .cli_service import CLIService
 
@@ -73,6 +72,20 @@ def parse_args() -> argparse.Namespace:
         default="all",
         help="要查詢的品種類型 (預設: 全部)",
     )
+    query_parser.add_argument(
+        "-n",
+        "--batch-name",
+        type=str,
+        help="要查詢的批次名稱",
+    )
+    query_parser.add_argument(
+        "-s",
+        "--status",
+        choices=["all", "completed", "breeding", "sale"],
+        default="all",
+        dest="status",
+        help="要查詢的批次狀態 (預設: 全部)",
+    )
     return parser.parse_args()
 
 
@@ -103,7 +116,12 @@ def main() -> None:
                 case "sales":
                     result = "command is not implemented"
                 case "breeds":
-                    result = cli_service.query_breeds(args.breed)
+                    if args.batch_name:
+                        result = cli_service.query_breed_by_batch_name(
+                            args.batch_name, args.status
+                        )
+                    else:
+                        result = cli_service.query_breeds_not_completed(args.breed)
 
         print(result)
     except Exception as e:

@@ -44,7 +44,7 @@ class CLIService:
                 session, source_data, check_exists=check_md5
             )
 
-    def query_breeds(self, breed_type: str = "all") -> str:
+    def query_breeds_not_completed(self, breed_type: str = "all") -> str:
         """查詢未完成的品種資料"""
 
         with self.db.get_session() as session:
@@ -78,4 +78,18 @@ class CLIService:
                 ]
                 msg.append(f"批次: {len(msg)} 批次")
 
+            return "\n".join(msg)
+
+    def query_breed_by_batch_name(self, batch_name: str, status: str = "all") -> str:
+        """查詢品種資料"""
+        msg = []
+        with self.db.get_session() as session:
+            result = self.query_service.get_breed_by_batch_name(
+                session, batch_name, status
+            )
+            if not result:
+                msg.append("未找到符合條件的記錄")
+            else:
+                for batch in result:
+                    msg.append(str(batch))
             return "\n".join(msg)
