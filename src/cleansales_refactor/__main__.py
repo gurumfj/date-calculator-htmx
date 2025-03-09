@@ -1,7 +1,8 @@
 import argparse
 import logging
 
-from .services.data_service import DataService
+from cleansales_refactor.core.config import settings
+from cleansales_refactor.services.data_service import DataService
 
 # 設定根 logger
 logging.basicConfig(
@@ -21,8 +22,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--db-path",
         type=str,
-        default="data/main.db",
-        help="資料庫檔案路徑 (預設: data/main.db)",
+        default=settings.DB_PATH,
+        help=f"資料庫檔案路徑 (預設: {settings.DB_PATH})",
     )
     parser.add_argument(
         "--type",

@@ -20,6 +20,7 @@ dependencies = [
     "requests>=2.32.3",
     "types-requests>=2.32.0.20241016",
     "python-dotenv>=1.0.1",
+    "pydantic-settings>=2.8.1",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,7 @@ allow-direct-references = true
 
 [project.scripts]
 cleansales = "cleansales_refactor:main"
+cleansales-api = "cleansales_refactor:run_api"
 
 [tool.pytest.ini_options]
 pythonpath = [
