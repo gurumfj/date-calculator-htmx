@@ -141,7 +141,7 @@ class BatchAggregate:
     def __str__(self) -> str:
         """批次彙整資料"""
         result = []
-        result.append(f"批次編號: {self.batch_name}")
+        result.append(f"批次: {self.batch_name}")
         result.append(f"飼養戶: {self.farmer_name}")
         result.append(f"場址: {self.address}")
         result.append(f"品種: {', '.join(self.chicken_breed)}")
@@ -155,8 +155,9 @@ class BatchAggregate:
         result.append(f"獸醫師: {self.veterinarian}")
         result.append(f"種雞場: {', '.join(filter(None, self.supplier))}")
         result.append(f"批次狀態: {self.batch_state.value}")
-        result.append(
-            f"銷售率: {self.sales_percentage * 100} %, 銷售數量: {self.total_sales:,} 隻"
-        )
+        if self.sales:
+            result.append(
+                f"銷售率: {round(self.sales_percentage * 100, 2)} %, 銷售數量: {self.total_sales:,} 隻"
+            )
         result.append("-" * 80)
         return "\n".join(result)

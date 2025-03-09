@@ -2,7 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from cleansales_refactor import BatchState
+from cleansales_refactor.domain.models import BatchState
 
 
 class BatchAggregateModel(BaseModel):

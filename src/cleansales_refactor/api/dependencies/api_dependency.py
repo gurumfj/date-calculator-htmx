@@ -1,12 +1,14 @@
 import logging
-from collections import defaultdict
 
 import pandas as pd
 from fastapi import UploadFile
 from sqlmodel import Session
 
-from cleansales_refactor import CleanSalesService, SourceData
-from cleansales_refactor.domain.models import BatchAggregate, BreedRecord
+from cleansales_refactor.domain.models import BatchAggregate
+
+# from cleansales_refactor import CleanSalesService, SourceData
+from cleansales_refactor.services import CleanSalesService, QueryService
+from cleansales_refactor.shared.models import SourceData
 
 from ...core.event_bus import Event, event_bus
 from ..core.events import ProcessEvent as ApiProcessEvent
@@ -14,19 +16,21 @@ from ..models.breed import (
     BatchAggregateModel,
 )
 from ..models.response import BatchAggregateResponseModel, ResponseModel
-from ..repositories.breed_repository import BreedRepository
-from ..repositories.sale_repository import SaleRepository
+
+# from ..repositories.breed_repository import BreedRepository
+# from ..repositories.sale_repository import SaleRepository
 
 logger = logging.getLogger(__name__)
 
 
 class PostApiDependency:
     def __init__(self, session: Session) -> None:
-        self.service = CleanSalesService()
         self.event_bus = event_bus
         self.session = session
-        self.breed_repository = BreedRepository(session)
-        self.sale_repository = SaleRepository(session)
+        self.service = CleanSalesService()
+        self.query_service = QueryService()
+        # self.breed_repository = BreedRepository(session)
+        # self.sale_repository = SaleRepository(session)
 
     def sales_processpipline(self, upload_file: UploadFile) -> ResponseModel:
         source_data = SourceData(
@@ -67,16 +71,16 @@ class PostApiDependency:
         )
 
     def get_breeds_is_not_completed(self) -> BatchAggregateResponseModel:
-        batch_aggregates: list[BatchAggregate] = []
-        breed_records_dict: dict[str, list[BreedRecord]] = defaultdict(list)
-        breeds: list[BreedRecord] = self.breed_repository.get_not_completed_breeds()
-        for breed in breeds:
-            breed_records_dict[breed.batch_name].append(breed)
+        # batch_aggregates: list[BatchAggregate] = []
+        # breed_records_dict: dict[str, list[BreedRecord]] = defaultdict(list)
+        # breeds: list[BreedRecord] = self.breed_repository.get_not_completed_breeds()
+        # for breed in breeds:
+        #     breed_records_dict[breed.batch_name].append(breed)
 
-        for batch_name, breeds in breed_records_dict.items():
-            sales = self.sale_repository.get_sales_by_location(batch_name)
-            batch_aggregates.append(BatchAggregate(breeds=breeds, sales=sales))
-
+        # for batch_name, breeds in breed_records_dict.items():
+        #     sales = self.sale_repository.get_sales_by_location(batch_name)
+        #     batch_aggregates.append(BatchAggregate(breeds=breeds, sales=sales))
+        batch_aggregates = self.query_service.get_breeds_is_not_completed(self.session)
         response_data = [
             self._batch_aggregate_to_model(batch) for batch in batch_aggregates
         ]

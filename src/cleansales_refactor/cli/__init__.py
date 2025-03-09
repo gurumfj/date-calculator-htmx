@@ -1,7 +1,8 @@
 import argparse
 import logging
 
-from cleansales_refactor.core import settings
+from cleansales_refactor.core import Database, settings
+from cleansales_refactor.services import CleanSalesService, QueryService
 
 from .cli_service import CLIService
 
@@ -66,6 +67,12 @@ def parse_args() -> argparse.Namespace:
         choices=["sales", "breeds"],
         help="要查詢的資料類型: sales (銷售資料) 或 breeds (品種資料)",
     )
+    query_parser.add_argument(
+        "-breed",
+        type=str,
+        default="all",
+        help="要查詢的品種類型 (預設: 全部)",
+    )
     return parser.parse_args()
 
 
@@ -76,10 +83,11 @@ def main() -> None:
     2. uv run cleansales
     3. 從其他程式中導入：from cleansales_refactor import main
     """
-    args = parse_args()
 
+    """ initialize """
+    args = parse_args()
+    cli_service = CLIService(args.db_path)
     try:
-        cli_service = CLIService(args.db_path)
         if args.subcommand == "import":
             match args.type:
                 case "sales":
@@ -95,7 +103,7 @@ def main() -> None:
                 case "sales":
                     result = "command is not implemented"
                 case "breeds":
-                    result = cli_service.query_breeds()
+                    result = cli_service.query_breeds(args.breed)
 
         print(result)
     except Exception as e:
