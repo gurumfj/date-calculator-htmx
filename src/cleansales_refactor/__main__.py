@@ -1,15 +1,7 @@
 import argparse
 import logging
-from pathlib import Path
 
-import pandas as pd
-
-from cleansales_refactor import (
-    CleanSalesService,
-    Database,
-    Response,
-    SourceData,
-)
+from cleansales_refactor import DataService
 
 # 設定根 logger
 logging.basicConfig(
@@ -24,38 +16,13 @@ logger = logging.getLogger(__name__)
 logging.getLogger("cleansales_refactor").setLevel(logging.DEBUG)
 
 
-class DataService:
-    def __init__(self, db_path: str | Path):
-        self.db = Database(str(db_path))
-        self.clean_sales_service = CleanSalesService()
-
-    def sales_data_service(
-        self, file_path: str | Path, check_md5: bool = True
-    ) -> Response:
-        source_data = SourceData(
-            file_name=str(file_path), dataframe=pd.read_excel(file_path)
-        )
-        with self.db.get_session() as session:
-            return self.clean_sales_service.execute_clean_sales(
-                session, source_data, check_exists=check_md5
-            )
-
-    def breeds_data_service(
-        self, file_path: str | Path, check_md5: bool = True
-    ) -> Response:
-        source_data = SourceData(
-            file_name=str(file_path), dataframe=pd.read_excel(file_path)
-        )
-        with self.db.get_session() as session:
-            return self.clean_sales_service.execute_clean_breeds(
-                session, source_data, check_exists=check_md5
-            )
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="清理銷售和品種資料的命令列工具")
     parser.add_argument(
-        "--db-path", type=str, default="data/main.db", help="資料庫檔案路徑 (預設: data/main.db)"
+        "--db-path",
+        type=str,
+        default="data/main.db",
+        help="資料庫檔案路徑 (預設: data/main.db)",
     )
     parser.add_argument(
         "--type",
@@ -82,7 +49,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main() -> None:
     args = parse_args()
     data_service = DataService(args.db_path)
 
@@ -99,3 +66,7 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"處理資料時發生錯誤: {str(e)}")
         raise
+
+
+if __name__ == "__main__":
+    main()

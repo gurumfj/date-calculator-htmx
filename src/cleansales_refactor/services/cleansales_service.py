@@ -3,13 +3,13 @@ from typing import Any
 
 from sqlmodel import Session
 
-from .exporters import (
+from ..exporters import (
     BaseSQLiteExporter,
     BreedSQLiteExporter,
     SaleSQLiteExporter,
 )
-from .processors import BreedsProcessor, IProcessor, SalesProcessor
-from .shared.models import Response, SourceData
+from ..processors import BreedsProcessor, IProcessor, SalesProcessor
+from ..shared.models import Response, SourceData
 
 logger = logging.getLogger(__name__)
 
