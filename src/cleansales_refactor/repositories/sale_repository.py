@@ -2,9 +2,8 @@ from typing import List
 
 from sqlmodel import Session, and_, select
 
-from cleansales_refactor import ProcessingEvent
 from cleansales_refactor.domain.models import SaleRecord
-from cleansales_refactor.exporters import SaleRecordORM
+from cleansales_refactor.exporters import ProcessingEvent, SaleRecordORM
 
 
 class SaleRepository:

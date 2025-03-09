@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 import requests
 
-from cleansales_refactor.core.config import settings
+from .config import settings
 
 
 @dataclass

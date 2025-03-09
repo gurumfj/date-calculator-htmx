@@ -1,8 +1,9 @@
 import argparse
 import logging
 
-from cleansales_refactor.core.config import settings
-from cleansales_refactor.services.cli_service import CLIService
+from cleansales_refactor.core import settings
+
+from .cli_service import CLIService
 
 # 設定根 logger
 logging.basicConfig(
