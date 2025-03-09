@@ -3,17 +3,12 @@ from typing import Generator
 from fastapi import Depends
 from sqlmodel import Session
 
-from src.cleansales_refactor import Database
-from src.core.event_bus import EventBus
+from cleansales_refactor import Database
+from cleansales_refactor.core.config import settings
 
 from ..dependencies.api_dependency import PostApiDependency
 
-
-def get_event_bus() -> EventBus:
-    return EventBus()
-
-
-db = Database("data/cleansales.db")
+db = Database(settings.DB_PATH)
 
 
 def get_session() -> Generator[Session, None, None]:
@@ -22,7 +17,6 @@ def get_session() -> Generator[Session, None, None]:
 
 
 def get_api_dependency(
-    event_bus: EventBus = Depends(get_event_bus),
     session: Session = Depends(get_session),
 ) -> PostApiDependency:
-    return PostApiDependency(event_bus=event_bus, session=session)
+    return PostApiDependency(session=session)

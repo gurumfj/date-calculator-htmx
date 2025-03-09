@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
-from src.core.event_bus import Event
+from cleansales_refactor.core.event_bus import Event
 
 from ..core.dependencies import get_api_dependency
 from ..core.events import ProcessEvent

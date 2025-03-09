@@ -2,8 +2,8 @@ from typing import List
 
 from sqlmodel import Session, and_, asc, or_, select
 
-from src.cleansales_refactor.domain.models import BreedRecord
-from src.cleansales_refactor.exporters import BreedRecordORM, ProcessingEvent
+from cleansales_refactor.domain.models import BreedRecord
+from cleansales_refactor.exporters import BreedRecordORM, ProcessingEvent
 
 
 class BreedRepository:

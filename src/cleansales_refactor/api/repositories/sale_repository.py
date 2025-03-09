@@ -2,9 +2,9 @@ from typing import List
 
 from sqlmodel import Session, and_, select
 
-from src.cleansales_refactor import ProcessingEvent
-from src.cleansales_refactor.domain.models import SaleRecord
-from src.cleansales_refactor.exporters import SaleRecordORM
+from cleansales_refactor import ProcessingEvent
+from cleansales_refactor.domain.models import SaleRecord
+from cleansales_refactor.exporters import SaleRecordORM
 
 
 class SaleRepository:

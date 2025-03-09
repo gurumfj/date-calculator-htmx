@@ -6,9 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.core.event_bus import TelegramNotifier
+from cleansales_refactor.core.event_bus import TelegramNotifier
 
-from .core.dependencies import get_event_bus
 from .core.events import ProcessEvent
 from .routers import api, upload
 
@@ -40,7 +39,6 @@ logger = logging.getLogger(__name__)
 # event_bus = get_event_bus()
 
 telegram_notifier = TelegramNotifier(
-    get_event_bus(),
     [
         ProcessEvent.SALES_PROCESSING_STARTED,
         ProcessEvent.SALES_PROCESSING_COMPLETED,
@@ -104,19 +102,3 @@ async def root() -> FileResponse:
 # 註冊路由
 app.include_router(upload.router)
 app.include_router(api.router)
-
-
-def main() -> None:
-    import uvicorn
-
-    uvicorn.run(
-        "src.api.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        reload_dirs=["src"],
-    )
-
-
-if __name__ == "__main__":
-    main()

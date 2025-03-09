@@ -5,10 +5,10 @@ import pandas as pd
 from fastapi import UploadFile
 from sqlmodel import Session
 
-from src.cleansales_refactor import CleanSalesService, SourceData
-from src.cleansales_refactor.domain.models import BatchAggregate, BreedRecord
+from cleansales_refactor import CleanSalesService, SourceData
+from cleansales_refactor.domain.models import BatchAggregate, BreedRecord
 
-from ...core.event_bus import Event, EventBus
+from ...core.event_bus import Event, event_bus
 from ..core.events import ProcessEvent as ApiProcessEvent
 from ..models.breed import (
     BatchAggregateModel,
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class PostApiDependency:
-    def __init__(self, event_bus: EventBus, session: Session) -> None:
+    def __init__(self, session: Session) -> None:
         self.service = CleanSalesService()
         self.event_bus = event_bus
         self.session = session
