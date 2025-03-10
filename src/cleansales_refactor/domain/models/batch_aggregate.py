@@ -1,6 +1,8 @@
 from datetime import date, datetime
 from enum import Enum
 
+import pandas as pd
+
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
 
@@ -137,6 +139,68 @@ class BatchAggregate:
 
         total_breeds = sum(breed.male + breed.female for breed in self.breeds)
         return round(self.total_sales / total_breeds, 4)
+
+    @property
+    def sales_trend_data(self) -> dict[str, pd.DataFrame]:
+        """使用 pandas 處理銷售走勢資料，供前端繪製走勢圖使用
+
+        Returns:
+            dict[str, pd.DataFrame]: {
+                'daily': pd.DataFrame - 每日銷售資料
+                'raw': pd.DataFrame - 原始銷售資料
+            }
+        """
+        if not self.sales:
+            return {"daily": pd.DataFrame(), "raw": pd.DataFrame()}
+
+        # 直接將 sales records 轉換為 DataFrame
+        df = pd.DataFrame(
+            [
+                {
+                    "date": pd.to_datetime(sale.date),  # 確保轉換成 datetime
+                    "customer": sale.customer,
+                    "male_count": sale.male_count,
+                    "female_count": sale.female_count,
+                    "total_weight": sale.total_weight or 0,
+                    "total_price": sale.total_price or 0,
+                    "male_price": sale.male_price or 0,
+                    "female_price": sale.female_price or 0,
+                    "closed": sale.closed,
+                }
+                for sale in self.sales
+            ]
+        )
+
+        if df.empty:
+            return {"daily": pd.DataFrame(), "raw": pd.DataFrame()}
+
+        # 計算每日統計資料
+        daily_stats = (
+            df.groupby("date")
+            .agg(
+                {
+                    "male_count": "sum",
+                    "female_count": "sum",
+                    "total_weight": "sum",
+                    "total_price": "sum",
+                }
+            )
+            .round(2)
+        )
+
+        # 計算平均重量
+        daily_stats["avg_weight"] = (
+            daily_stats["total_weight"]
+            / (daily_stats["male_count"] + daily_stats["female_count"])
+        ).round(2)
+
+        # 格式化日期
+        daily_stats.index = daily_stats.index.strftime("%Y-%m-%d")
+
+        return {
+            "daily": daily_stats.to_dict(orient="index"),
+            "raw": df.to_dict(orient="records"),
+        }
 
     def __str__(self) -> str:
         """批次彙整資料"""

@@ -3,7 +3,12 @@ from typing import List
 
 from sqlmodel import Session
 
-from cleansales_refactor.domain.models import BatchAggregate, BatchState, BreedRecord
+from cleansales_refactor.domain.models import (
+    BatchAggregate,
+    BatchState,
+    BreedRecord,
+    SaleRecord,
+)
 from cleansales_refactor.repositories import BreedRepository, SaleRepository
 
 
@@ -69,3 +74,9 @@ class QueryService:
                 return list(
                     filter(lambda x: x.batch_state == BatchState.SALE, batch_aggregates)
                 )
+
+    def get_sales_data(
+        self, session: Session, limit: int, offset: int
+    ) -> list[SaleRecord]:
+        sale_repository = SaleRepository(session)
+        return sale_repository.get_sales_data(limit, offset)

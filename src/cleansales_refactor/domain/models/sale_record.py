@@ -18,3 +18,9 @@ class SaleRecord:
     male_price: float | None
     female_price: float | None
     unpaid: str | None
+
+    def __str__(self) -> str:
+        msg = []
+        for k, v in self.__dict__.items():
+            msg.append(f"{k}: {v}")
+        return "\n".join(msg)

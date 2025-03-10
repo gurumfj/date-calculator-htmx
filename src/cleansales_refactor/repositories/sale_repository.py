@@ -28,3 +28,23 @@ class SaleRepository:
             )
             for orm in sales_orm
         ]
+
+    def get_sales_data(self, limit: int = 300, offset: int = 0) -> list[SaleRecord]:
+        stmt = (
+            select(SaleRecordORM)
+            .where(SaleRecordORM.event == ProcessingEvent.ADDED)
+            .order_by(SaleRecordORM.date.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        sales_orm = self.session.exec(stmt).all()
+        return [
+            SaleRecord(
+                **{
+                    k: v
+                    for k, v in orm.__dict__.items()
+                    if k in SaleRecord.__annotations__
+                }
+            )
+            for orm in sales_orm
+        ]
