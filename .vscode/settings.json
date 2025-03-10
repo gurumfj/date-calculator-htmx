@@ -80,6 +80,7 @@
     // "windsurfPyright.analysis.typeCheckingMode": "standard",
     "mypy-type-checker.args": [
         "--config-file=./pyproject.toml"
-    ]
+    ],
+    "postman.settings.dotenv-detection-notification-visibility": false
 }
     

@@ -1,19 +1,12 @@
-from .cli import main
+# from .cli import main
 from .core import Database, event_bus, settings
-from .domain.models import BreedRecord, SaleRecord
-from .services import CleanSalesService, QueryService
 
+# def run_mcp_server() -> None:
+#     import asyncio
 
-def run_api() -> None:
-    import uvicorn
+#     from cleansales_refactor.mcp import mcp_server
 
-    uvicorn.run(
-        "cleansales_refactor.api.app:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        reload_dirs=["src/cleansales_refactor"],
-    )
+#     asyncio.run(mcp_server.main())
 
 
 # if __name__ == "__main__":
@@ -24,13 +17,8 @@ __all__ = [
     "Database",
     "event_bus",
     "settings",
-    # domain models
-    "BreedRecord",
-    "SaleRecord",
-    # services
-    "CleanSalesService",
-    "QueryService",
     # entry point
-    "main",
-    "run_api",
+    # "main",
+    # "run_api",
+    # "run_mcp_server",
 ]

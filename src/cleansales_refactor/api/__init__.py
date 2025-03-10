@@ -12,4 +12,16 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
-__all__ = ["get_session"]
+def main() -> None:
+    import uvicorn
+
+    uvicorn.run(
+        "cleansales_refactor.api.app:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        reload_dirs=["src/cleansales_refactor"],
+    )
+
+
+__all__ = ["get_session", "main"]

@@ -4,8 +4,8 @@ import traceback
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
-from cleansales_refactor import QueryService
 from cleansales_refactor.domain.models import BatchAggregate, SaleRecord
+from cleansales_refactor.services import QueryService
 
 from .. import get_session
 from ..models import (
