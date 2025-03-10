@@ -93,3 +93,14 @@ class CLIService:
                 for batch in result:
                     msg.append(str(batch))
             return "\n".join(msg)
+
+    def query_sales(self, limit: int = 100, offset: int = 0) -> str:
+        """查詢銷售資料"""
+        with self.db.get_session() as session:
+            result = self.query_service.get_sales_data(session, limit, offset)
+            msg = []
+            for sale in result:
+                msg.append(str(sale))
+                msg.append("-" * 88)
+
+            return "\n".join(msg)

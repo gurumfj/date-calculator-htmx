@@ -1,7 +1,7 @@
 from .cli import main
 from .core import Database, event_bus, settings
 from .domain.models import BreedRecord, SaleRecord
-from .services import CleanSalesService
+from .services import CleanSalesService, QueryService
 
 
 def run_api() -> None:
@@ -29,6 +29,7 @@ __all__ = [
     "SaleRecord",
     # services
     "CleanSalesService",
+    "QueryService",
     # entry point
     "main",
     "run_api",
