@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from cleansales_refactor.core.event_bus import TelegramNotifier
 
 from .core.events import ProcessEvent
-from .routers import api, upload
+from .routers import query, upload
 
 # 設定根 logger
 logging.basicConfig(
@@ -101,4 +101,4 @@ async def root() -> FileResponse:
 
 # 註冊路由
 app.include_router(upload.router)
-app.include_router(api.router)
+app.include_router(query.router)

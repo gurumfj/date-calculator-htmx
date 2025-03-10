@@ -1,11 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 
-from pydantic import BaseModel
+from sqlmodel import SQLModel
 
 from cleansales_refactor.domain.models import BatchState
 
 
-class BatchAggregateModel(BaseModel):
+class BatchAggregateResponseModel(SQLModel):
     batch_name: str
     farm_name: str
     address: str | None
@@ -25,3 +25,18 @@ class BatchAggregateModel(BaseModel):
     sales_female: int
     total_sales: int
     sales_percentage: float
+
+
+class SalesRecordResponseModel(SQLModel):
+    closed: str | None
+    handler: str | None
+    date: datetime
+    location: str
+    customer: str
+    male_count: int
+    female_count: int
+    total_weight: float | None
+    total_price: float | None
+    male_price: float | None
+    female_price: float | None
+    unpaid: str | None

@@ -218,11 +218,8 @@ function App() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const result = await response.json();
-            if (result.status === 'success' && result.content && result.content.batches) {
-                setData(result.content);
-            } else {
-                throw new Error(result.msg || '發生錯誤');
-            }
+            // 直接使用回傳的陣列資料
+            setData({ batches: result });
         } catch (error) {
             console.error('API 請求失敗:', error);
             setError('無法取得繁殖資料，請稍後再試');
