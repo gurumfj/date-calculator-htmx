@@ -1,3 +1,19 @@
+"""
+################################################################################
+# 文件上傳路由模組
+#
+# 這個模組處理所有與文件上傳相關的 API 端點，包括：
+# - 入雛資料文件上傳和處理
+# - 銷售資料文件上傳和處理
+#
+# 主要功能：
+# 1. 文件格式驗證（僅接受 Excel 文件）
+# 2. 數據處理和清理
+# 3. 事件發布（用於通知處理狀態）
+# 4. 錯誤處理和日誌記錄
+################################################################################
+"""
+
 import logging
 
 import pandas as pd
@@ -11,13 +27,21 @@ from cleansales_refactor.shared.models import SourceData
 from .. import ProcessEvent, get_event_bus, get_session
 from ..models import ResponseModel
 
+# 配置路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
 
 
 def get_clean_sales_service() -> CleanSalesService:
+    """
+    依賴注入：獲取清理銷售數據的服務實例
+
+    Returns:
+        CleanSalesService: 用於處理銷售和入雛數據的服務實例
+    """
     return CleanSalesService()
 
 
+# 創建路由器實例，設置前綴和標籤
 router = APIRouter(prefix="/upload", tags=["upload"])
 
 
@@ -29,18 +53,41 @@ async def process_breeds_file(
     service: CleanSalesService = Depends(get_clean_sales_service),
     event_bus: EventBus = Depends(get_event_bus),
 ) -> ResponseModel:
+    """
+    處理入雛資料 Excel 文件的上傳端點
+
+    Args:
+        file_upload (UploadFile): 上傳的 Excel 文件
+        check_exists (bool): 是否檢查數據是否已存在
+        session (Session): 數據庫會話實例
+        service (CleanSalesService): 數據處理服務實例
+        event_bus (EventBus): 事件總線實例
+
+    Returns:
+        ResponseModel: 包含處理結果的響應模型
+
+    Raises:
+        HTTPException: 當文件格式錯誤或處理過程中出現錯誤時
+    """
     try:
+        # 驗證文件名稱和格式
         if file_upload.filename is None:
             raise ValueError("未提供檔案名稱")
         if not file_upload.filename.endswith((".xlsx", ".xls")):
             raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+
+        # 讀取並轉換數據
         source_data = SourceData(
             file_name=file_upload.filename,
             dataframe=pd.read_excel(file_upload.file),
         )
+
+        # 執行數據處理
         result = service.execute_clean_breeds(
             session, source_data, check_exists=check_exists
         )
+
+        # 處理成功時發布事件
         if result.status == "success":
             event_bus.publish(
                 Event(
@@ -48,12 +95,15 @@ async def process_breeds_file(
                     content={"msg": result.msg},
                 )
             )
+
         return ResponseModel(
             status=result.status,
             msg=result.msg,
             content=result.content,
         )
+
     except ValueError as ve:
+        # 處理驗證錯誤
         logger.error(f"處理入雛資料檔案時發生錯誤: {ve}")
         event_bus.publish(
             Event(
@@ -62,7 +112,9 @@ async def process_breeds_file(
             )
         )
         raise HTTPException(status_code=400, detail=str(ve))
+
     except Exception as e:
+        # 處理其他未預期的錯誤
         logger.error(f"處理入雛資料檔案時發生錯誤: {e}")
         event_bus.publish(
             Event(
@@ -83,19 +135,41 @@ async def process_sales_file(
     event_bus: EventBus = Depends(get_event_bus),
     service: CleanSalesService = Depends(get_clean_sales_service),
 ) -> ResponseModel:
+    """
+    處理銷售資料 Excel 文件的上傳端點
+
+    Args:
+        file_upload (UploadFile): 上傳的 Excel 文件
+        check_exists (bool): 是否檢查數據是否已存在
+        session (Session): 數據庫會話實例
+        event_bus (EventBus): 事件總線實例
+        service (CleanSalesService): 數據處理服務實例
+
+    Returns:
+        ResponseModel: 包含處理結果的響應模型
+
+    Raises:
+        HTTPException: 當文件格式錯誤或處理過程中出現錯誤時
+    """
     try:
+        # 驗證文件名稱和格式
         if file_upload.filename is None:
             raise ValueError("未提供檔案名稱")
         if not file_upload.filename.endswith((".xlsx", ".xls")):
             raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+
+        # 讀取並轉換數據
         source_data = SourceData(
             file_name=file_upload.filename,
             dataframe=pd.read_excel(file_upload.file),
         )
+
+        # 執行數據處理
         result = service.execute_clean_sales(
             session, source_data, check_exists=check_exists
         )
 
+        # 處理成功時發布事件
         if result.status == "success":
             event_bus.publish(
                 Event(
@@ -103,12 +177,15 @@ async def process_sales_file(
                     content={"msg": result.msg},
                 )
             )
+
         return ResponseModel(
             status=result.status,
             msg=result.msg,
             content=result.content,
         )
+
     except ValueError as ve:
+        # 處理驗證錯誤
         logger.error(f"處理販售資料檔案時發生錯誤: {ve}")
         event_bus.publish(
             Event(
@@ -117,7 +194,9 @@ async def process_sales_file(
             )
         )
         raise HTTPException(status_code=400, detail=str(ve))
+
     except Exception as e:
+        # 處理其他未預期的錯誤
         logger.error(f"處理販售資料檔案時發生錯誤: {e}")
         event_bus.publish(
             Event(
