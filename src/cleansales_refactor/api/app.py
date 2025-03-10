@@ -6,9 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from cleansales_refactor.core.event_bus import TelegramNotifier
-
-from .core.events import ProcessEvent
 from .routers import query, upload
 
 # 設定根 logger
@@ -28,39 +25,6 @@ for handler in processor_logger.handlers:
 # API logger
 logger = logging.getLogger(__name__)
 
-# 初始化依賴項
-# db = Database("data/cleansales.db")
-
-
-# def get_event_bus() -> EventBus:
-#     return EventBus()
-
-
-# event_bus = get_event_bus()
-
-telegram_notifier = TelegramNotifier(
-    [
-        ProcessEvent.SALES_PROCESSING_STARTED,
-        ProcessEvent.SALES_PROCESSING_COMPLETED,
-        ProcessEvent.SALES_PROCESSING_FAILED,
-        ProcessEvent.BREEDS_PROCESSING_STARTED,
-        ProcessEvent.BREEDS_PROCESSING_COMPLETED,
-        ProcessEvent.BREEDS_PROCESSING_FAILED,
-    ],
-)
-
-
-# def get_session() -> Generator[Session, None, None]:
-#     with db.get_session() as session:
-#         yield session
-
-
-# def get_api_dependency(
-#     event_bus: EventBus = Depends(get_event_bus),
-#     session: Session = Depends(get_session),
-# ) -> PostApiDependency:
-#     return PostApiDependency(event_bus=event_bus, session=session)
-
 
 # 建立 FastAPI 應用程式
 app = FastAPI(
@@ -74,8 +38,9 @@ app = FastAPI(
     - 返回處理結果和錯誤訊息
     
     ## 使用方式
-    1. 使用 POST `/process-sales` 上傳 Excel 檔案
-    2. 系統會自動處理檔案並返回結果
+    1. 使用 POST `/upload/sales` 上傳販售資料 Excel 檔案
+    2. 使用 POST `/upload/breeds` 上傳入雛資料 Excel 檔案
+    3. 系統會自動處理檔案並返回結果
     """,
     version="1.0.0",
 )

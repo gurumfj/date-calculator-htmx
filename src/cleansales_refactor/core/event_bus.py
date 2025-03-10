@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, Callable
 
 import requests
+from pydantic import AnyHttpUrl
 
 from .config import settings
 
@@ -46,15 +47,15 @@ event_bus = EventBus()
 
 
 class TelegramNotifier:
-    post_url: str | None = None
+    post_url: AnyHttpUrl | None = None
 
-    def __init__(self, register_events: list[Enum]) -> None:
-        self.event_bus = event_bus
+    def __init__(self, event_bus: EventBus, register_events: list[Enum]) -> None:
+        self._event_bus = event_bus
         self.post_url = settings.TELEGRAM_WEBHOOK_URL
         if not self.post_url:
             raise ValueError("TELEGRAM_WEBHOOK_URL is not set")
         for event in register_events:
-            self.event_bus.register(event, self.notify)
+            self._event_bus.register(event, self.notify)
 
     def notify(self, event: Event) -> None:
         try:

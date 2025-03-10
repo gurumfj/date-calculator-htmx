@@ -1,5 +1,5 @@
 from .config import settings
 from .database import Database
-from .event_bus import event_bus
+from .event_bus import Event, EventBus, TelegramNotifier
 
-__all__ = ["Database", "event_bus", "settings"]
+__all__ = ["Database", "settings", "EventBus", "TelegramNotifier", "Event"]
