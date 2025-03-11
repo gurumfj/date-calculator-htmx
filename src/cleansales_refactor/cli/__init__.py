@@ -1,10 +1,8 @@
 import argparse
 import logging
-from pathlib import Path
 
 from cleansales_refactor import Database
 from cleansales_refactor.core import settings
-from cleansales_refactor.domain.models import BatchAggregate
 from cleansales_refactor.repositories import BreedRepository, SaleRepository
 from cleansales_refactor.services import QueryService
 

@@ -37,6 +37,7 @@ class BreedRecordORM(ORMModel, table=True):
     supplier: str | None
     sub_location: str | None
     is_completed: str | None
+
     event_source_id: int = Field(foreign_key="breed_event_source.id")
     event_source: Optional["BreedEventSource"] = Relationship(back_populates="records")
 

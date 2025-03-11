@@ -1,5 +1,23 @@
+"""
+################################################################################
+# 核心配置模組
+#
+# 這個模組提供了核心功能的配置，包括：
+# 1. 數據庫配置
+# 2. 事件總線配置
+# 3. 通知配置
+#
+# 主要功能：
+# - 配置驗證
+# - 環境變量處理
+# - 默認值設置
+################################################################################
+"""
+
+import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -8,19 +26,64 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
-    """設定"""
+    """應用程序設置模型"""
 
-    DB_PATH: str = Field(default="data/main.db")
-    TELEGRAM_WEBHOOK_URL: AnyHttpUrl
+    # 基礎路徑配置
+    BASE_DIR: Path = Field(default=ROOT_DIR)
+    DATA_DIR: Path = Field(default_factory=lambda: ROOT_DIR / "data")
+
+    # 數據庫配置
+    DB_PATH: str = Field(default_factory=lambda: str(ROOT_DIR / "data" / "main.db"))
+
+    # API 服務配置
+    API_HOST: str = Field(default="0.0.0.0")
+    API_PORT: int = Field(default=8000)
+    API_RELOAD: bool = Field(default=True)
+
+    # 上傳文件配置
+    MAX_UPLOAD_SIZE: int = Field(default=10 * 1024 * 1024)  # 10MB
+    ALLOWED_EXTENSIONS: set[str] = Field(default={".xlsx", ".xls"})
+
+    # 日誌配置
+    LOG_LEVEL: str = Field(default="INFO")
+    LOG_FORMAT: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    # Telegram 通知配置
+    TELEGRAM_BOT_TOKEN: str = Field(default="")
+    TELEGRAM_CHAT_ID: str = Field(default="")
+    TELEGRAM_WEBHOOK_URL: Optional[AnyHttpUrl] = Field(default=None)
 
     model_config = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
         env_file_encoding="utf-8",
+        case_sensitive=True,
     )
+
+    def model_post_init(self, _) -> None:
+        """模型初始化後的處理
+
+        在這裡處理目錄創建和 Telegram 配置
+        """
+        # 確保必要的目錄存在
+        self.DATA_DIR.mkdir(exist_ok=True)
+        # self.STATIC_DIR.mkdir(exist_ok=True)
+
+        # 從環境變量加載 Telegram 配置
+        if os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"):
+            self.TELEGRAM_WEBHOOK_URL = AnyHttpUrl(
+                f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={self.TELEGRAM_CHAT_ID}"
+            )
 
 
 @lru_cache
 def get_settings() -> Settings:
+    """獲取設置實例（使用緩存）
+
+    Returns:
+        Settings: 設置實例
+    """
     return Settings()
 
 
