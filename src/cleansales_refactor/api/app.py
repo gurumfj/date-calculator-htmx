@@ -1,12 +1,18 @@
 """
 ################################################################################
-# CleanSales API 主應用程式
+# FastAPI 應用程式入口點
 #
-# 這個模組實現了 CleanSales 的主要 FastAPI 應用程式。它負責：
-# 1. API 服務器的配置和初始化
-# 2. 日誌系統的設置
-# 3. 中間件的配置（CORS、靜態文件）
-# 4. 路由的註冊和管理
+# 這個模組是整個 API 服務的入口點，負責：
+# 1. 配置 FastAPI 應用程式
+# 2. 設置中間件
+# 3. 註冊路由
+# 4. 提供靜態文件服務
+#
+# 主要功能：
+# - 應用程式配置
+# - 中間件配置（CORS、日誌等）
+# - 路由註冊
+# - 靜態文件服務
 ################################################################################
 """
 
@@ -20,25 +26,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .routers import query, upload
 
-# 配置日誌系統
-# -----------------------------------------------------------------------------
-# 設定根 logger，使用 DEBUG 級別以捕獲所有重要信息
-# 格式包含：時間戳、logger名稱、日誌級別和具體消息
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-
-# 配置特定的處理器 logger
-# 這個 logger 專門用於處理銷售數據的核心邏輯
-processor_logger = logging.getLogger("cleansales_refactor.processor")
-processor_logger.setLevel(logging.DEBUG)
-# 確保所有 handler 都使用相同的日誌級別
-for handler in processor_logger.handlers:
-    handler.setLevel(logging.DEBUG)
-
-# API 專用的 logger 實例
+# 配置日誌記錄器
 logger = logging.getLogger(__name__)
 
 # FastAPI 應用程式配置
@@ -84,9 +72,12 @@ app.add_middleware(
     allow_headers=["*"],  # 允許所有 HTTP 頭部
 )
 
-
-# 路由定義
+# 路由註冊
 # -----------------------------------------------------------------------------
+app.include_router(query.router)
+app.include_router(upload.router)
+
+
 @app.get("/")
 async def root() -> FileResponse:
     """
@@ -96,11 +87,3 @@ async def root() -> FileResponse:
         FileResponse: 返回靜態目錄中的 index.html 文件
     """
     return FileResponse(str(static_path / "index.html"))
-
-
-# 註冊其他路由模組
-# -----------------------------------------------------------------------------
-# 文件上傳相關的路由（/upload/...）
-app.include_router(upload.router)
-# 數據查詢相關的路由（/query/...）
-app.include_router(query.router)

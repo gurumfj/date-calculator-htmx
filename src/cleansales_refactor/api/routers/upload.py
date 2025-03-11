@@ -15,6 +15,7 @@
 """
 
 import logging
+from typing import Set
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
@@ -30,6 +31,14 @@ from ..models import ResponseModel
 # 配置路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
 
+# 添加允許的MIME類型
+ALLOWED_MIME_TYPES: Set[str] = {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # xlsx
+    "application/vnd.ms-excel",  # xls
+}
+
+_clean_sales_service = CleanSalesService()
+
 
 def get_clean_sales_service() -> CleanSalesService:
     """
@@ -38,11 +47,29 @@ def get_clean_sales_service() -> CleanSalesService:
     Returns:
         CleanSalesService: 用於處理銷售和入雛數據的服務實例
     """
-    return CleanSalesService()
+    return _clean_sales_service
 
 
 # 創建路由器實例，設置前綴和標籤
 router = APIRouter(prefix="/upload", tags=["upload"])
+
+
+def validate_excel_file(file: UploadFile) -> None:
+    """
+    驗證上傳文件是否為有效的Excel文件
+
+    Args:
+        file (UploadFile): 上傳的文件
+
+    Raises:
+        ValueError: 當文件無效時拋出異常
+    """
+    if file.filename is None:
+        raise ValueError("未提供檔案名稱")
+
+    content_type = file.content_type
+    if content_type not in ALLOWED_MIME_TYPES:
+        raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
 
 
 @router.post("/breeds", response_model=ResponseModel)
@@ -70,11 +97,8 @@ async def process_breeds_file(
         HTTPException: 當文件格式錯誤或處理過程中出現錯誤時
     """
     try:
-        # 驗證文件名稱和格式
-        if file_upload.filename is None:
-            raise ValueError("未提供檔案名稱")
-        if not file_upload.filename.endswith((".xlsx", ".xls")):
-            raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+        # 使用新的驗證函數
+        validate_excel_file(file_upload)
 
         # 讀取並轉換數據
         source_data = SourceData(
@@ -152,11 +176,8 @@ async def process_sales_file(
         HTTPException: 當文件格式錯誤或處理過程中出現錯誤時
     """
     try:
-        # 驗證文件名稱和格式
-        if file_upload.filename is None:
-            raise ValueError("未提供檔案名稱")
-        if not file_upload.filename.endswith((".xlsx", ".xls")):
-            raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
+        # 使用新的驗證函數
+        validate_excel_file(file_upload)
 
         # 讀取並轉換數據
         source_data = SourceData(
