@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from .batch_state import BatchState
+
 
 @dataclass(frozen=True)
 class BreedRecord:
@@ -25,3 +27,9 @@ class BreedRecord:
     supplier: str | None
     sub_location: str | None
     is_completed: str | None
+
+    @property
+    def batch_state(self) -> BatchState:
+        return (
+            BatchState.COMPLETED if self.is_completed == "結場" else BatchState.BREEDING
+        )

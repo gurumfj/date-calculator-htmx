@@ -1,82 +1,80 @@
+import logging
 from collections import defaultdict
-from typing import List
 
 from sqlmodel import Session
 
 from cleansales_refactor.domain.models import (
     BatchAggregate,
-    BatchState,
     BreedRecord,
-    SaleRecord,
 )
-from cleansales_refactor.repositories import BreedRepository, SaleRepository
+from cleansales_refactor.repositories import (
+    BreedRepositoryProtocol,
+    SaleRepositoryProtocol,
+)
 
-
-def group_breeds_by_batch_name(
-    breeds: List[BreedRecord],
-) -> dict[str, list[BreedRecord]]:
-    breed_records_dict: dict[str, list[BreedRecord]] = defaultdict(list)
-    for breed in breeds:
-        breed_records_dict[breed.batch_name].append(breed)
-    return breed_records_dict
-
-
-def create_batch_aggregates(
-    breed_records_dict: dict[str, list[BreedRecord]], sale_repository: SaleRepository
-) -> list[BatchAggregate]:
-    batch_aggregates: list[BatchAggregate] = []
-    for batch_name, breeds in breed_records_dict.items():
-        sales = sale_repository.get_sales_by_location(batch_name)
-        batch_aggregates.append(BatchAggregate(breeds=breeds, sales=sales))
-    return batch_aggregates
+logger = logging.getLogger(__name__)
 
 
 class QueryService:
-    def get_breeds_is_not_completed(self, session: Session) -> list[BatchAggregate]:
-        breed_repository = BreedRepository(session)
-        sale_repository = SaleRepository(session)
+    """查詢服務
 
-        breeds = breed_repository.get_not_completed_breeds()
-        breed_records_dict = group_breeds_by_batch_name(breeds)
-        batch_aggregates = create_batch_aggregates(breed_records_dict, sale_repository)
+    負責創建 BatchAggregate 實例。主要功能：
+    1. 通過 repositories 獲取數據
+    2. 創建 BatchAggregate 實例
+    """
 
-        return list(
-            filter(lambda x: x.batch_state != BatchState.COMPLETED, batch_aggregates)
-        )
+    def __init__(
+        self,
+        breed_repository: BreedRepositoryProtocol,
+        sale_repository: SaleRepositoryProtocol,
+    ):
+        self.breed_repository = breed_repository
+        self.sale_repository = sale_repository
 
-    def get_breed_by_batch_name(
-        self, session: Session, batch_name: str, status: str = "all"
-    ) -> list[BatchAggregate]:
-        breed_repository = BreedRepository(session)
-        sale_repository = SaleRepository(session)
+    def get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
+        """獲取所有批次聚合
 
-        breeds = breed_repository.get_breeds_by_batch_name(batch_name)
-        breed_records_dict = group_breeds_by_batch_name(breeds)
-        batch_aggregates = create_batch_aggregates(breed_records_dict, sale_repository)
+        將養殖記錄按批次分組並聚合相關銷售記錄
 
-        match status:
-            case "all":
-                return batch_aggregates
-            case "completed":
-                return list(
-                    filter(
-                        lambda x: x.batch_state == BatchState.COMPLETED,
-                        batch_aggregates,
-                    )
+        Args:
+            session (Session): 數據庫會話
+
+        Returns:
+            list[BatchAggregate]: 批次聚合列表，包含每個批次的養殖和銷售記錄
+        """
+        try:
+            # 使用海象運算符簡化代碼流程
+            if not (breeds := self.breed_repository.get_all(session)):
+                return []
+
+            # 使用 defaultdict 進行分組
+            breed_groups: dict[str, list[BreedRecord]] = defaultdict(list)
+            for breed in breeds:
+                if breed.batch_name:  # 確保 batch_name 不為 None
+                    breed_groups[breed.batch_name].append(breed)
+
+            # 創建並返回批次聚合列表
+            return [
+                BatchAggregate(
+                    breeds=breeds,
+                    sales=self.sale_repository.get_sales_by_location(
+                        session, batch_name
+                    ),
                 )
-            case "breeding":
-                return list(
-                    filter(
-                        lambda x: x.batch_state == BatchState.BREEDING, batch_aggregates
-                    )
-                )
-            case "sale":
-                return list(
-                    filter(lambda x: x.batch_state == BatchState.SALE, batch_aggregates)
-                )
+                for batch_name, breeds in breed_groups.items()
+            ]
+        except Exception as e:
+            logger.error(f"獲取批次聚合數據時發生錯誤: {e}")
+            raise ValueError(f"獲取批次聚合數據時發生錯誤: {str(e)}")
 
-    def get_sales_data(
-        self, session: Session, limit: int, offset: int
-    ) -> list[SaleRecord]:
-        sale_repository = SaleRepository(session)
-        return sale_repository.get_sales_data(limit, offset)
+    # def get_sales_data(self, limit: int = 300, offset: int = 0) -> list[SaleRecord]:
+    #     """獲取銷售記錄數據
+    #     TODO: 需要建構獲取 raw sales data 的 presentation layer
+    #     Args:
+    #         limit (int, optional): 返回記錄的最大數量. Defaults to 300.
+    #         offset (int, optional): 起始位置. Defaults to 0.
+
+    #     Returns:
+    #         List[SaleRecord]: 銷售記錄列表
+    #     """
+    #     return self.sale_repository.get_sales_data(limit=limit, offset=offset)

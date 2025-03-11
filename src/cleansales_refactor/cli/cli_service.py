@@ -1,13 +1,23 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
-from ..core import Database
-from ..services import CleanSalesService, QueryService
+from ..domain.models import BatchAggregate, BatchState
 from ..shared.models import Response, SourceData
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class QueryFilter:
+    """查詢過濾條件"""
+
+    batch_name: str | None = None
+    breed_type: str | None = None
+    status: Literal["all", "completed", "breeding", "sale"] = "all"
 
 
 class CLIService:
@@ -18,11 +28,6 @@ class CLIService:
     2. 匯入品種資料
     3. 查詢品種資料
     """
-
-    def __init__(self, db_path: str | Path):
-        self.db = Database(str(db_path))
-        self.clean_sales_service = CleanSalesService()
-        self.query_service = QueryService()
 
     def import_sales(self, file_path: str | Path, check_md5: bool = True) -> Response:
         """匯入銷售資料"""
@@ -44,63 +49,73 @@ class CLIService:
                 session, source_data, check_exists=check_md5
             )
 
-    def query_breeds_not_completed(self, breed_type: str = "all") -> str:
-        """查詢未完成的品種資料"""
+    @staticmethod
+    def _filter_aggregates(
+        aggregates: list[BatchAggregate], filter_: QueryFilter
+    ) -> list[BatchAggregate]:
+        """純函數：過濾批次聚合數據
 
-        with self.db.get_session() as session:
-            result = self.query_service.get_breeds_is_not_completed(session)
-            if not result:
-                return "未找到符合條件的記錄"
+        Args:
+            aggregates: 原始聚合數據
+            filter_: 過濾條件
 
-            msg = []
+        Returns:
+            過濾後的聚合數據
+        """
+        result = aggregates
 
-            if breed_type == "all":
-                msg = [str(batch) for batch in result]
-                chicken_breeds_set = set([batch.chicken_breed[0] for batch in result])
-                logger.debug(f"chicken_breeds_set: {chicken_breeds_set}")
-                for chicken_breed in chicken_breeds_set:
-                    msg.extend(
-                        [
-                            f"{chicken_breed}: {
-                                len(
-                                    [
-                                        batch
-                                        for batch in result
-                                        if chicken_breed in batch.chicken_breed
-                                    ]
-                                )
-                            } 批次"
-                        ]
-                    )
-            else:
-                msg = [
-                    str(batch) for batch in result if breed_type in batch.chicken_breed
-                ]
-                msg.append(f"批次: {len(msg)} 批次")
+        if filter_.batch_name:
+            result = [
+                aggr
+                for aggr in result
+                if aggr.batch_name and filter_.batch_name in aggr.batch_name
+            ]
 
-            return "\n".join(msg)
+        if filter_.breed_type:
+            result = [
+                aggr
+                for aggr in result
+                if aggr.chicken_breed and filter_.breed_type in aggr.chicken_breed
+            ]
 
-    def query_breed_by_batch_name(self, batch_name: str, status: str = "all") -> str:
+        if filter_.status != "all":
+            state_map = {
+                "completed": BatchState.COMPLETED,
+                "breeding": BatchState.BREEDING,
+                "sale": BatchState.SALE,
+            }
+            if state := state_map.get(filter_.status):
+                result = [aggr for aggr in result if aggr.batch_state == state]
+
+        return result
+
+    def query_breeds(
+        self,
+        aggrs: list[BatchAggregate],
+        batch_name: str | None = None,
+        breed_type: str | None = None,
+        status: Literal["all", "completed", "breeding", "sale"] = "all",
+    ) -> list[BatchAggregate]:
         """查詢品種資料"""
-        msg = []
-        with self.db.get_session() as session:
-            result = self.query_service.get_breed_by_batch_name(
-                session, batch_name, status
-            )
-            if not result:
-                msg.append("未找到符合條件的記錄")
-            else:
-                for batch in result:
-                    msg.append(str(batch))
-            return "\n".join(msg)
+        try:
+            filter_ = QueryFilter(batch_name, breed_type, status)
+            filtered_aggrs = self._filter_aggregates(aggrs, filter_)
+            return filtered_aggrs
+        except Exception as e:
+            logger.error(f"篩選批次聚合資料時發生錯誤: {e}")
+            raise ValueError(f"查詢失敗: {str(e)}")
 
-    def query_sales(self, limit: int = 100, offset: int = 0) -> str:
-        """查詢銷售資料"""
-        with self.db.get_session() as session:
-            result = self.query_service.get_sales_data(session, limit, offset)
-            msg = []
-            for sale in result:
-                msg.append(str(sale))
-                msg.append("-" * 88)
+    # def query_sales(self, limit: int = 100, offset: int = 0) -> str:
+    # TODO: 需要建構獲取 raw sales data 的 presentation layer
+    #     """查詢銷售資料"""
+    #     with self.db.get_session() as session:
 
-            return "\n".join(msg)
+    #         result = self.query_service.get_sales_data(
+    #             session, limit=limit, offset=offset
+    #         )
+    #         msg = []
+    #         for sale in result:
+    #             msg.append(str(sale))
+    #             msg.append("-" * 88)
+    #         msg.append(f"共 {len(result)} 筆記錄")
+    #         return "\n".join(msg)
