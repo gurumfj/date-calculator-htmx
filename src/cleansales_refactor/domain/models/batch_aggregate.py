@@ -1,19 +1,58 @@
 from datetime import date, datetime
 
 import pandas as pd
+import wcwidth
+from tabulate import tabulate
 
 from .batch_state import BatchState
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
 
+wcwidth.WIDE_CHARS_MODE = True
+
+
+def format_currency(amount: float, round_to: int = 0) -> str:
+    """格式化金額"""
+    return f"NT$ {amount:,.{round_to}f}"
+
+
+def day_age(
+    breed_date: date | datetime, diff_date: date | datetime = datetime.now().date()
+) -> int:
+    """日齡"""
+    if isinstance(breed_date, datetime):
+        breed_date = breed_date.date()
+    if isinstance(diff_date, datetime):
+        diff_date = diff_date.date()
+    return (diff_date - breed_date).days + 1
+
+
+def week_age(day_age: int) -> str:
+    """週齡"""
+    day = [7, 1, 2, 3, 4, 5, 6]
+    return (
+        f"{day_age // 7 - 1 if day_age % 7 == 0 else day_age // 7}/{day[day_age % 7]}"
+    )
+
 
 class SalesTrendData:
-    """銷售走勢資料"""
+    """銷售走勢資料類別
+
+    整合並分析批次的銷售數據，提供各項統計指標
+    包含銷售總量、營收、平均重量、客戶分析等
+
+    主要功能:
+    - 計算各項銷售統計指標
+    - 產生銷售趨勢報表
+    - 客戶交易分析
+    """
 
     # TODO: 作為 BatchAggregate 的子屬性。
     def __init__(self, sales: list[SaleRecord], breeds: list[BreedRecord]) -> None:
         self.breeds = breeds
         self.sales = sales
+
+    """ SUMMARY """
 
     @property
     def sales_male(self) -> int:
@@ -38,71 +77,29 @@ class SalesTrendData:
         return round(self.total_sales / total_breeds, 4)
 
     @property
-    def sales_trend_data(self) -> dict[str, pd.DataFrame]:
-        """使用 pandas 處理銷售走勢資料，供前端繪製走勢圖使用
-
-        Returns:
-            dict[str, pd.DataFrame]: {
-                'daily': pd.DataFrame - 每日銷售資料
-                'raw': pd.DataFrame - 原始銷售資料
-            }
-        """
-        if not self.sales:
-            return {"daily": pd.DataFrame(), "raw": pd.DataFrame()}
-
-        # 直接將 sales records 轉換為 DataFrame
-        df = pd.DataFrame(
-            [
-                {
-                    "date": pd.to_datetime(sale.date),  # 確保轉換成 datetime
-                    "customer": sale.customer,
-                    "male_count": sale.male_count,
-                    "female_count": sale.female_count,
-                    "total_weight": sale.total_weight or 0,
-                    "total_price": sale.total_price or 0,
-                    "male_price": sale.male_price or 0,
-                    "female_price": sale.female_price or 0,
-                    "closed": sale.closed,
-                }
-                for sale in self.sales
-            ]
-        )
-
-        if df.empty:
-            return {"daily": pd.DataFrame(), "raw": pd.DataFrame()}
-
-        # 計算每日統計資料
-        daily_stats = (
-            df.groupby("date")
-            .agg(
-                {
-                    "male_count": "sum",
-                    "female_count": "sum",
-                    "total_weight": "sum",
-                    "total_price": "sum",
-                }
-            )
-            .round(2)
-        )
-
-        # 計算平均重量
-        daily_stats["avg_weight"] = (
-            daily_stats["total_weight"]
-            / (daily_stats["male_count"] + daily_stats["female_count"])
-        ).round(2)
-
-        # 格式化日期
-        daily_stats.index = daily_stats.index.strftime("%Y-%m-%d")
-
-        return {
-            "daily": daily_stats.to_dict(orient="index"),
-            "raw": df.to_dict(orient="records"),
-        }
-
-    @property
     def total_revenue(self) -> float:
         """總營收"""
-        return round(sum(sale.total_price or 0 for sale in self.sales), 2)
+        return round(sum(sale.total_price or 0 for sale in self.sales), -3)
+
+    @property
+    def avg_male_weight(self) -> float:
+        """平均公雞重量"""
+        if not any(sale.male_avg_weight for sale in self.sales):
+            return 0
+        valid_weights = [
+            sale.male_avg_weight for sale in self.sales if sale.male_avg_weight
+        ]
+        return round(sum(valid_weights) / len(valid_weights), 2)
+
+    @property
+    def avg_female_weight(self) -> float:
+        """平均母雞重量"""
+        if not any(sale.female_avg_weight for sale in self.sales):
+            return 0
+        valid_weights = [
+            sale.female_avg_weight for sale in self.sales if sale.female_avg_weight
+        ]
+        return round(sum(valid_weights) / len(valid_weights), 2)
 
     @property
     def avg_male_price(self) -> float:
@@ -120,17 +117,73 @@ class SalesTrendData:
         valid_prices = [sale.female_price for sale in self.sales if sale.female_price]
         return round(sum(valid_prices) / len(valid_prices), 2)
 
-    @property
-    def customer_statistics(self) -> dict[str, dict[str, float | int]]:
-        """客戶統計"""
-        from collections import defaultdict
+    """ DATA FRAME"""
 
-        stats = defaultdict(lambda: {"交易次數": 0, "總金額": 0.0})
-        for sale in self.sales:
-            stats[sale.customer]["交易次數"] += 1
-            stats[sale.customer]["總金額"] += sale.total_price or 0
-            stats[sale.customer]["總金額"] = round(stats[sale.customer]["總金額"], 2)
-        return dict(stats)
+    @property
+    def sales_data(self) -> pd.DataFrame:
+        """銷售資料"""
+        # 先創建基本的銷售資料 DataFrame
+        base_data = [
+            {
+                "date": sale.date,
+                "customer": sale.customer,
+                "male_count": sale.male_count,
+                "female_count": sale.female_count,
+                "total_weight": sale.total_weight,
+                "total_price": sale.total_price,
+                "male_avg_weight": sale.male_avg_weight,
+                "female_avg_weight": sale.female_avg_weight,
+            }
+            for sale in self.sales
+        ]
+
+        df = pd.DataFrame(base_data).sort_values("date")
+
+        # 取得最早的入雛日期
+        earliest_breed_date = min(breed.breed_date for breed in self.breeds)
+
+        # 主要日齡欄位（用於圖表）
+        df["day_age"] = (
+            df["date"].apply(lambda x: day_age(earliest_breed_date, x)).astype(int)
+        )
+
+        # 額外的詳細日齡資訊欄位
+        df["day_ages_detail"] = df["date"].apply(
+            lambda x: [day_age(breed.breed_date, x) for breed in self.breeds]
+        )
+
+        return df
+
+    @property
+    def daily_pivot(self) -> pd.DataFrame:
+        """日報表"""
+        return self.sales_data.groupby("day_age").agg(
+            {
+                "male_count": "sum",
+                "female_count": "sum",
+                "total_weight": "sum",
+                "total_price": "sum",
+                "male_avg_weight": "mean",
+                "female_avg_weight": "mean",
+            }
+        )
+
+    @property
+    def customer_statistics(self) -> pd.DataFrame:
+        """客戶統計"""
+        return (
+            self.sales_data.groupby("customer")
+            .agg(
+                {
+                    "date": "count",
+                    "male_count": "sum",
+                    "female_count": "sum",
+                    "total_weight": "sum",
+                    "total_price": "sum",
+                }
+            )
+            .sort_values("total_weight", ascending=False)
+        )
 
     @property
     def total_transactions(self) -> int:
@@ -139,18 +192,88 @@ class SalesTrendData:
 
     def __str__(self) -> str:
         """銷售走勢資料"""
-        # TODO: 最終目的 print(BatchAggregate.SalesTrendData) 時，會 print 銷售走勢資料
         msg = []
         msg.append(f"總交易筆數: {self.total_transactions}")
-        msg.append(f"總營收: {self.total_revenue}")
-        msg.append(f"平均公雞單價: {self.avg_male_price}")
-        msg.append(f"平均母雞單價: {self.avg_female_price}")
+        msg.append(f"總營收: {format_currency(self.total_revenue, 0)}")
+        msg.append(f"平均公雞重量: {self.avg_male_weight}")
+        msg.append(f"平均母雞重量: {self.avg_female_weight}")
+        msg.append(f"平均公雞單價: {format_currency(self.avg_male_price, 2)}")
+        msg.append(f"平均母雞單價: {format_currency(self.avg_female_price, 2)}")
         msg.append(f"銷售率: {round(self.sales_percentage * 100, 2)} %")
         msg.append(f"銷售數量: {self.total_sales:,} 隻")
+        sales_table = tabulate(
+            self.sales_data[
+                [
+                    "date",
+                    "day_age",
+                    "customer",
+                    "male_count",
+                    "female_count",
+                    "male_avg_weight",
+                    "female_avg_weight",
+                    "total_weight",
+                    "total_price",
+                ]
+            ],
+            headers=[
+                "日期",
+                "日齡",
+                "客戶",
+                "公數",
+                "母數",
+                "公雞均重",
+                "母雞均重",
+                "總重量",
+                "總金額",
+            ],
+            tablefmt="simple",
+            stralign="left",
+            numalign="decimal",
+        )
+        msg.append("銷售紀錄:")
+        msg.append(sales_table)
+        msg.append("日報表:")
+        daily_table = tabulate(
+            self.daily_pivot,
+            headers=[
+                "日齡",
+                "公數",
+                "母數",
+                "總重量",
+                "總金額",
+                "公雞均重",
+                "母雞均重",
+            ],
+            tablefmt="simple",
+            stralign="left",
+            numalign="decimal",
+        )
+        msg.append(daily_table)
+        msg.append("客戶統計:")
+        customer_table = tabulate(
+            self.customer_statistics,
+            headers=["客戶", "交易次數", "公數", "母數", "總重量", "總金額"],
+            tablefmt="simple",
+            stralign="left",
+            numalign="decimal",
+        )
+        msg.append(customer_table)
         return "\n".join(msg)
 
 
 class BatchAggregate:
+    """批次資料彙整類別
+
+    將入雛記錄(BreedRecord)和銷售記錄(SaleRecord)整合在一起
+    提供完整的批次資訊查詢和管理功能
+
+    主要功能:
+    - 批次基本資訊管理
+    - 驗證資料一致性
+    - 計算批次狀態
+    - 提供銷售趨勢分析
+    """
+
     breeds: list[BreedRecord]
     sales: list[SaleRecord]
 
@@ -251,15 +374,11 @@ class BatchAggregate:
     @property
     def day_age(self) -> tuple[int, ...]:
         """日齡"""
-        day_age = lambda x: (datetime.now() - x).days + 1
         return tuple(day_age(breed.breed_date) for breed in self.breeds)
 
     @property
     def week_age(self) -> tuple[str, ...]:
         """週齡"""
-        day = [7, 1, 2, 3, 4, 5, 6]
-        day_age = lambda x: (datetime.now() - x).days + 1
-        week_age = lambda x: f"{x // 7 - 1 if x % 7 == 0 else x // 7}/{day[x % 7]}"
         return tuple(week_age(day_age(breed.breed_date)) for breed in self.breeds)
 
     @property
