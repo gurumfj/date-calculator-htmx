@@ -77,7 +77,8 @@ class BatchFilterService:
             result = [
                 aggr
                 for aggr in result
-                if aggr.chicken_breed and criteria.breed_type in aggr.chicken_breed
+                if aggr.chicken_breed
+                and criteria.breed_type in [breed.breed_type for breed in aggr.breeds]
             ]
 
         # 如果狀態列表為空或包含 "all"，則不進行狀態過濾
@@ -156,6 +157,7 @@ class QueryService:
         batch_name: str | None = None,
         breed_type: str | None = None,
         status: list[Literal["all", "completed", "breeding", "sale"]] | None = None,
+        batch_state: BatchState | None = None,
     ) -> list[BatchAggregate]:
         """獲取已過濾的批次聚合資料
 
@@ -164,6 +166,7 @@ class QueryService:
             batch_name: 批次名稱關鍵字
             breed_type: 品種類型關鍵字
             status: 批次狀態列表，None 或 ["all"] 表示不過濾狀態
+            batch_state: 批次狀態，None 表示不過濾狀態
         """
         try:
             aggregates = self.get_batch_aggregates(session)

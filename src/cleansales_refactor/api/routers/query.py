@@ -17,9 +17,9 @@
 
 import logging
 import traceback
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session
 
@@ -92,219 +92,44 @@ async def get_not_completed_batches(
         )
 
 
-# @router.get("/q/{batch_name}", response_model=List[BatchAggregateResponseModel])
-# async def get_batches_by_name(
-#     batch_name: str,
-#     state: Optional[str] = None,
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> List[BatchAggregateResponseModel]:
-#     """根據批次名稱和狀態查詢批次
+# api for query batch aggregate in specific batch name
+@router.get("/query/batch", response_model=List[BatchAggregateResponseModel])
+async def get_batch_aggregate_by_name(
+    batch_name: str | None = None,
+    breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = Query(
+        default=None,
+        description="雞種類型，可包含多個雞種(黑羽, 古早, 舍黑, 閹雞)。空列表或 None 表示不過濾雞種",
+    ),
+    status: list[Literal["all", "completed", "breeding", "sale"]] | None = Query(
+        default=["all"],
+        description="批次狀態，可包含多個狀態(all, completed, breeding, sale)。空列表或 ['all'] 表示不過濾狀態",
+    ),
+    session: Session = Depends(get_session),
+    query_service: QueryService = Depends(get_query_service),
+) -> List[BatchAggregateResponseModel]:
+    """獲取特定批次名稱的批次聚合列表
 
-#     Args:
-#         batch_name (str): 批次名稱
-#         state (Optional[str]): 批次狀態
-#         query_service (QueryService): 查詢服務實例
+    Args:
+        batch_name (str): 批次名稱
+        breed_type (Literal["黑羽", "古早", "舍黑", "閹雞"]): 雞種類型
+        status (list[Literal["all", "completed", "breeding", "sale"]]): 批次狀態
+        session (Session): 數據庫會話實例
+        query_service (QueryService): 查詢服務實例
 
-#     Returns:
-#         List[BatchAggregateResponseModel]: 符合條件的批次列表
-#     """
-#     try:
-#         batch_state = BatchState(state) if state else None
-#         batches = query_service.get_batch_aggregates_by_name_and_state(
-#             batch_name, batch_state
-#         )
-#         return [DTOService.batch_aggregate_to_dto(batch) for batch in batches]
-#     except ValueError as e:
-#         logger.error(f"查詢批次時發生錯誤: {str(e)}")
-#         raise HTTPException(
-#             status_code=400, detail={"error": str(e), "type": type(e).__name__}
-#         )
-#     except Exception as e:
-#         logger.error(f"查詢批次時發生錯誤: {str(e)}\n{traceback.format_exc()}")
-#         raise HTTPException(
-#             status_code=500, detail={"error": str(e), "type": type(e).__name__}
-#         )
-
-
-# @router.get("/q/state/{state}", response_model=List[BatchAggregateResponseModel])
-# async def get_batches_by_state(
-#     state: str,
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> List[BatchAggregateResponseModel]:
-#     """根據狀態查詢批次
-
-#     Args:
-#         state (str): 批次狀態
-#         query_service (QueryService): 查詢服務實例
-
-#     Returns:
-#         List[BatchAggregateResponseModel]: 符合狀態的批次列表
-#     """
-#     try:
-#         batch_state = BatchState(state)
-#         batches = query_service.get_batch_aggregates_by_state(batch_state)
-#         return [DTOService.batch_aggregate_to_dto(batch) for batch in batches]
-#     except ValueError as e:
-#         logger.error(f"查詢批次時發生錯誤: {str(e)}")
-#         raise HTTPException(
-#             status_code=400, detail={"error": str(e), "type": type(e).__name__}
-#         )
-#     except Exception as e:
-#         logger.error(f"查詢批次時發生錯誤: {str(e)}\n{traceback.format_exc()}")
-#         raise HTTPException(
-#             status_code=500, detail={"error": str(e), "type": type(e).__name__}
-#         )
-
-
-# @router.get("/sales", response_model=list[SalesRecordResponseModel])
-# async def get_sales_data(
-#     limit: int = Query(default=100, ge=1, le=300),
-#     offset: int = Query(default=0, ge=0),
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> list[SalesRecordResponseModel]:
-#     """
-#     獲取銷售記錄數據，支持分頁
-
-#     Args:
-#         limit (int): 每頁記錄數量，範圍 1-300
-#         offset (int): 起始位置，從 0 開始
-#         query_service (QueryService): 查詢服務實例
-
-#     Returns:
-#         list[SalesRecordResponseModel]: 銷售記錄列表
-
-#     Raises:
-#         HTTPException: 當查詢過程中出現錯誤時
-#     """
-#     try:
-#         # 執行分頁查詢
-#         query_result = query_service.get_sales_data(limit, offset)
-#         # 轉換為 DTO 並返回
-#         return [DTOService.sales_record_to_dto(sale) for sale in query_result]
-#     except Exception as e:
-#         # 詳細記錄錯誤信息
-#         error_msg = f"取得銷售資料時發生錯誤: {str(e)}\n"
-#         error_msg += f"錯誤類型: {type(e).__name__}\n"
-#         error_msg += f"堆疊追蹤:\n{traceback.format_exc()}"
-#         logger.error(error_msg)
-#         raise HTTPException(
-#             status_code=500,
-#             detail={
-#                 "error": str(e),
-#                 "type": type(e).__name__,
-#                 "traceback": traceback.format_exc(),
-#             },
-#         )
-
-
-# @router.get("/sales/statistics", response_model=SalesStatisticsResponseModel)
-# async def get_sales_statistics(
-#     start_date: Optional[datetime] = Query(None, description="開始日期 (YYYY-MM-DD)"),
-#     end_date: Optional[datetime] = Query(None, description="結束日期 (YYYY-MM-DD)"),
-#     location: Optional[str] = Query(None, description="場別"),
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> SalesStatisticsResponseModel:
-#     """
-#     獲取銷售統計數據
-
-#     Args:
-#         start_date (Optional[datetime]): 開始日期
-#         end_date (Optional[datetime]): 結束日期
-#         location (Optional[str]): 場別
-#         query_service (QueryService): 查詢服務實例
-
-#     Returns:
-#         SalesStatisticsResponseModel: 銷售統計數據
-#     """
-#     try:
-#         statistics = query_service.get_sales_statistics(
-#             start_date=start_date, end_date=end_date, location=location
-#         )
-#         return SalesStatisticsResponseModel(**statistics)
-#     except Exception as e:
-#         logger.error(f"獲取銷售統計數據時發生錯誤: {str(e)}\n{traceback.format_exc()}")
-#         raise HTTPException(
-#             status_code=500, detail={"error": str(e), "type": type(e).__name__}
-#         )
-
-
-# @router.get("/sales/trends", response_model=SalesTrendResponseModel)
-# async def get_sales_trends(
-#     days: int = Query(default=30, ge=1, le=365, description="要分析的天數"),
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> SalesTrendResponseModel:
-#     """
-#     獲取銷售趨勢數據
-
-#     Args:
-#         days (int): 要分析的天數（1-365天）
-#         query_service (QueryService): 查詢服務實例
-
-#     Returns:
-#         SalesTrendResponseModel: 銷售趨勢數據
-#     """
-#     try:
-#         trends = query_service.get_sales_trends(days)
-#         return SalesTrendResponseModel(**trends)
-#     except Exception as e:
-#         logger.error(f"獲取銷售趨勢數據時發生錯誤: {str(e)}\n{traceback.format_exc()}")
-#         raise HTTPException(
-#             status_code=500, detail={"error": str(e), "type": type(e).__name__}
-#         )
-
-
-# @router.get("/sales/unpaid", response_model=List[SalesRecordResponseModel])
-# async def get_unpaid_sales(
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> List[SalesRecordResponseModel]:
-#     """獲取未付款的銷售記錄
-
-#     Args:
-#         query_service (QueryService): 查詢服務實例
-
-#     Returns:
-#         List[SalesRecordResponseModel]: 未付款的銷售記錄列表
-#     """
-#     try:
-#         sales = query_service.get_unpaid_sales()
-#         return [DTOService.sales_record_to_dto(sale) for sale in sales]
-#     except Exception as e:
-#         logger.error(
-#             f"獲取未付款銷售記錄時發生錯誤: {str(e)}\n{traceback.format_exc()}"
-#         )
-#         raise HTTPException(
-#             status_code=500, detail={"error": str(e), "type": type(e).__name__}
-#         )
-
-
-# @router.get(
-#     "/sales/batch/{batch_name}/statistics", response_model=BatchStatisticsResponse
-# )
-# async def get_batch_sales_statistics(
-#     batch_name: str,
-#     query_service: QueryService = Depends(get_query_service),
-# ) -> BatchStatisticsResponse:
-#     """獲取批次銷售統計數據
-
-#     Args:
-#         batch_name (str): 批次名稱
-#         query_service (QueryService): 查詢服務實例
-
-#     Returns:
-#         BatchStatisticsResponse: 批次銷售統計數據
-#     """
-#     try:
-#         statistics = query_service.calculate_batch_sales_statistics(batch_name)
-#         return BatchStatisticsResponse(**statistics)
-#     except ValueError as e:
-#         logger.error(f"獲取批次銷售統計數據時發生錯誤: {str(e)}")
-#         raise HTTPException(
-#             status_code=400, detail={"error": str(e), "type": type(e).__name__}
-#         )
-#     except Exception as e:
-#         logger.error(
-#             f"獲取批次銷售統計數據時發生錯誤: {str(e)}\n{traceback.format_exc()}"
-#         )
-#         raise HTTPException(
-#             status_code=500, detail={"error": str(e), "type": type(e).__name__}
-#         )
+    Returns:
+        List[BatchAggregateResponseModel]: 特定批次名稱的批次聚合列表
+    """
+    try:
+        filtered_aggrs = query_service.get_filtered_aggregates(
+            session, batch_name=batch_name, breed_type=breed_type, status=status
+        )
+        logger.info(f"batch_name: {batch_name}")
+        logger.info(f"breed_type: {breed_type}")
+        logger.info(f"status: {status}")
+        logger.info(f"filtered_aggrs: {len(filtered_aggrs)}")
+        return [DTOService.batch_aggregate_to_dto(batch) for batch in filtered_aggrs]
+    except Exception as e:
+        logger.error(f"獲取特定批次名稱時發生錯誤: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500, detail={"error": str(e), "type": type(e).__name__}
+        )
