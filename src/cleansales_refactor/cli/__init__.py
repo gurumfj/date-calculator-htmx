@@ -1,12 +1,13 @@
 import argparse
 import logging
 
+import pandas as pd
+
 from cleansales_refactor import Database
 from cleansales_refactor.core import settings
 from cleansales_refactor.repositories import BreedRepository, SaleRepository
-from cleansales_refactor.services import QueryService
-
-from .cli_service import CLIService
+from cleansales_refactor.services import CleanSalesService, QueryService
+from cleansales_refactor.shared.models import SourceData
 
 # 設定根 logger
 logging.basicConfig(
@@ -66,9 +67,10 @@ def create_parser() -> argparse.ArgumentParser:
                     },
                     "-s": {
                         "dest": "status",
+                        "nargs": "+",
                         "choices": ["all", "completed", "breeding", "sale"],
-                        "default": "all",
-                        "help": "要查詢的批次狀態 (預設: 全部)",
+                        "default": ["all"],
+                        "help": "要查詢的批次狀態，可指定多個 (預設: all)",
                     },
                     "-t": {
                         "dest": "type",
@@ -125,29 +127,38 @@ def main() -> None:
     """
     args = parse_args()
     db = Database(str(args.db_path))
+    import_service = CleanSalesService()
     query_service = QueryService(BreedRepository(), SaleRepository())
-    cli_service = CLIService()
 
     try:
         if args.subcommand == "import":
             match args.type:
                 case "sales":
-                    print(
-                        cli_service.import_sales(
-                            args.input_file, check_md5=args.check_md5
-                        )
+                    source_data = SourceData(
+                        file_name=str(args.input_file),
+                        dataframe=pd.read_excel(args.input_file),
                     )
+                    with db.get_session() as session:
+                        print(
+                            import_service.execute_clean_sales(
+                                session, source_data, check_exists=args.check_md5
+                            ).msg
+                        )
                 case "breeds":
-                    print(
-                        cli_service.import_breeds(
-                            args.input_file, check_md5=args.check_md5
-                        )
+                    source_data = SourceData(
+                        file_name=str(args.input_file),
+                        dataframe=pd.read_excel(args.input_file),
                     )
+                    with db.get_session() as session:
+                        print(
+                            import_service.execute_clean_breeds(
+                                session, source_data, check_exists=args.check_md5
+                            ).msg
+                        )
         elif args.subcommand == "query":
             with db.get_session() as session:
-                batch_aggregates = query_service.get_batch_aggregates(session)
-                filtered_aggrs = cli_service.query_breeds(
-                    batch_aggregates,
+                filtered_aggrs = query_service.get_filtered_aggregates(
+                    session,
                     batch_name=args.batch_name,
                     breed_type=args.breed,
                     status=args.status,

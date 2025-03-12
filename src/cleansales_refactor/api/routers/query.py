@@ -23,7 +23,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from cleansales_refactor.domain.models import BatchState
 from cleansales_refactor.repositories import BreedRepository, SaleRepository
 from cleansales_refactor.services import QueryService
 
@@ -82,10 +81,9 @@ async def get_not_completed_batches(
         List[BatchAggregateResponseModel]: 未結案的批次列表
     """
     try:
-        aggrs = query_service.get_batch_aggregates(session)
-        filtered_aggrs = [
-            aggr for aggr in aggrs if aggr.batch_state != BatchState.COMPLETED
-        ]
+        filtered_aggrs = query_service.get_filtered_aggregates(
+            session, status=["breeding", "sale"]
+        )
         return [DTOService.batch_aggregate_to_dto(batch) for batch in filtered_aggrs]
     except Exception as e:
         logger.error(f"獲取未結案批次時發生錯誤: {str(e)}\n{traceback.format_exc()}")
