@@ -81,6 +81,9 @@
     "mypy-type-checker.args": [
         "--config-file=./pyproject.toml"
     ],
-    "postman.settings.dotenv-detection-notification-visibility": false
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
 }
     

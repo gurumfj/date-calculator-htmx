@@ -6,23 +6,19 @@
 # 1. 配置 FastAPI 應用程式
 # 2. 設置中間件
 # 3. 註冊路由
-# 4. 提供靜態文件服務
 #
 # 主要功能：
 # - 應用程式配置
 # - 中間件配置（CORS、日誌等）
 # - 路由註冊
-# - 靜態文件服務
+# - 健康檢查
 ################################################################################
 """
 
 import logging
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from .routers import query, upload
 
@@ -54,11 +50,20 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# 靜態文件服務配置
-# -----------------------------------------------------------------------------
-# 設定靜態文件目錄，用於服務前端資源和文檔
-static_path = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+# 註冊 API 路由
+app.include_router(query.router)  # 這會處理 /api/not-completed
+app.include_router(upload.router)  # 這會處理 /api/upload
+
+
+# 健康檢查端點
+@app.get("/")
+async def health_check():
+    """
+    健康檢查端點
+    返回服務狀態和版本信息
+    """
+    return {"status": "healthy", "service": "CleanSales API", "version": "1.0.0"}
+
 
 # CORS 中間件配置
 # -----------------------------------------------------------------------------
@@ -71,19 +76,3 @@ app.add_middleware(
     allow_methods=["*"],  # 允許所有 HTTP 方法
     allow_headers=["*"],  # 允許所有 HTTP 頭部
 )
-
-# 路由註冊
-# -----------------------------------------------------------------------------
-app.include_router(query.router)
-app.include_router(upload.router)
-
-
-@app.get("/")
-async def root() -> FileResponse:
-    """
-    服務根路徑，返回前端應用的主頁面
-
-    Returns:
-        FileResponse: 返回靜態目錄中的 index.html 文件
-    """
-    return FileResponse(str(static_path / "index.html"))
