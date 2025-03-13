@@ -84,6 +84,7 @@
     "postman.settings.dotenv-detection-notification-visibility": false,
     "[html]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
-    }
+    },
+    "basedpyright.analysis.useTypingExtensions": false
 }
     
