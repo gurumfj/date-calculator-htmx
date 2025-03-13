@@ -9,12 +9,8 @@ from cleansales_refactor.domain.models import (
     BatchAggregate,
     BatchState,
     BreedRecord,
+    SaleRecord,
 )
-
-# from cleansales_refactor.domain.services.batch_filter_service import (
-#     BatchFilterCriteria,
-#     BatchFilterService,
-# )
 from cleansales_refactor.repositories import (
     BreedRepositoryProtocol,
     SaleRepositoryProtocol,
@@ -178,3 +174,18 @@ class QueryService:
         except Exception as e:
             logger.error(f"過濾批次聚合資料時發生錯誤: {e}")
             raise ValueError(f"資料過濾失敗: {str(e)}")
+
+    def get_sales_data(
+        self, session: Session, limit: int = 30, offset: int = 0
+    ) -> list[SaleRecord]:
+        """獲取銷售記錄
+
+        Args:
+            session: 數據庫會話
+            limit: 限制返回的記錄數量
+            offset: 偏移量
+
+        Returns:
+            list[SaleRecord]: 銷售記錄列表
+        """
+        return self.sale_repository.get_sales_data(session, limit, offset)

@@ -7,11 +7,15 @@ from datetime import datetime
 from mcp.server import FastMCP
 
 from cleansales_refactor import Database, settings
+from cleansales_refactor.repositories import BreedRepository, SaleRepository
 from cleansales_refactor.services import QueryService
 
 mcp = FastMCP("cleansales-server")
 
 db = Database(settings.DB_PATH)
+sale_repository = SaleRepository()
+breed_repository = BreedRepository()
+query_service = QueryService(breed_repository, sale_repository)
 
 
 @mcp.tool(name="today", description="Get the current date in YYYY-MM-DD format")
@@ -27,8 +31,7 @@ def get_today() -> str:
 )
 def get_recently_sold() -> str:
     with db.get_session() as session:
-        query_service = QueryService(session)
-        sales = query_service.get_sales_data(limit=30, offset=0)
+        sales = query_service.get_sales_data(session, limit=30, offset=0)
         return json.dumps(
             [asdict(sale) for sale in sales], default=str, ensure_ascii=False
         )

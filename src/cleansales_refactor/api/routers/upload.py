@@ -15,10 +15,11 @@
 """
 
 import logging
-from typing import Set
+from typing import Any, Set
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel
 from sqlmodel import Session
 
 from cleansales_refactor.core import Event, EventBus
@@ -26,7 +27,17 @@ from cleansales_refactor.services import CleanSalesService
 from cleansales_refactor.shared.models import SourceData
 
 from .. import ProcessEvent, get_event_bus, get_session
-from ..models import ResponseModel
+
+# from ..models import ResponseModel
+
+
+class ResponseModel(BaseModel):
+    """TODO: 需要重構"""
+
+    status: str
+    msg: str
+    content: Any
+
 
 # 配置路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
@@ -102,7 +113,8 @@ async def process_breeds_file(
 
         # 讀取並轉換數據
         source_data = SourceData(
-            file_name=file_upload.filename,
+            # 使用空字符串作為默認值，確保文件名不為 None
+            file_name=file_upload.filename or "",
             dataframe=pd.read_excel(file_upload.file),
         )
 
@@ -153,7 +165,7 @@ async def process_breeds_file(
 
 @router.post("/sales", response_model=ResponseModel)
 async def process_sales_file(
-    file_upload: UploadFile,
+    file_upload: UploadFile = File(...),
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
     session: Session = Depends(get_session),
     event_bus: EventBus = Depends(get_event_bus),
@@ -181,7 +193,8 @@ async def process_sales_file(
 
         # 讀取並轉換數據
         source_data = SourceData(
-            file_name=file_upload.filename,
+            # 使用空字符串作為默認值，確保文件名不為 None
+            file_name=file_upload.filename or "",
             dataframe=pd.read_excel(file_upload.file),
         )
 

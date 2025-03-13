@@ -10,8 +10,18 @@ logger = logging.getLogger(__name__)
 
 
 class SaleRecordValidatorSchema(BaseModel):
-    """
-    for sales data from excel validate
+    """銷售記錄驗證模式
+
+    負責驗證和轉換銷售記錄的原始數據，確保數據的完整性和一致性。
+    主要功能包括：
+    1. 數據類型轉換（字符串轉數字等）
+    2. 空值處理（None, NaN等）
+    3. 數據清理（去除多餘空格、特殊字符等）
+    4. 數據驗證（必填字段、格式檢查等）
+
+    配置說明：
+    - populate_by_name=True：允許按字段名稱填充
+    - from_attributes=True：支持從對象屬性讀取
     """
 
     closed: str | None = Field(None, description="結案狀態", alias="結案")

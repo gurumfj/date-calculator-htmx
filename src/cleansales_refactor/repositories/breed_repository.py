@@ -16,7 +16,7 @@
 
 from typing import List, Literal, Protocol, runtime_checkable
 
-from sqlmodel import Session, and_, asc, or_, select
+from sqlmodel import Session, and_, asc, col, or_, select
 
 from cleansales_refactor.domain.models import BatchState, BreedRecord
 from cleansales_refactor.exporters import BreedRecordORM, ProcessingEvent
@@ -70,7 +70,7 @@ class BreedRepository:
         statement = select(BreedRecordORM).where(
             and_(
                 BreedRecordORM.event == ProcessingEvent.ADDED,
-                BreedRecordORM.batch_name != None,
+                col(BreedRecordORM.batch_name).is_not(None),
             )
         )
         breeds_orm = session.exec(statement).all()
@@ -94,7 +94,7 @@ class BreedRepository:
         Returns:
             List[BreedRecord]: 養殖記錄列表
         """
-        return self._get_by_criteria(session, None, batch_name, "eq")
+        return self._get_by_criteria(session, batch_name, "eq")
 
     def get_by_state(
         self, session: Session, state: BatchState | None
@@ -154,11 +154,11 @@ class BreedRepository:
             statement = statement.where(BreedRecordORM.batch_name == batch_name)
         elif batch_name and condition == "like":
             statement = statement.where(
-                BreedRecordORM.batch_name.like(f"%{batch_name}%")
+                col(BreedRecordORM.batch_name).contains(batch_name)
             )
         return [BreedRecord(**orm.__dict__) for orm in session.exec(statement).all()]
 
-    def get_not_completed_breeds(self) -> List[BreedRecord]:
+    def get_not_completed_breeds(self, session: Session) -> List[BreedRecord]:
         """獲取未結案的養殖記錄
 
         Returns:
@@ -170,15 +170,15 @@ class BreedRepository:
                 and_(
                     or_(
                         BreedRecordORM.is_completed != "結場",
-                        BreedRecordORM.is_completed == None,
+                        col(BreedRecordORM.is_completed).is_(None),
                     ),
-                    BreedRecordORM.batch_name != None,
+                    col(BreedRecordORM.batch_name).is_not(None),
                     BreedRecordORM.event == ProcessingEvent.ADDED,
                 )
             )
             .order_by(asc(BreedRecordORM.breed_date))
         )
-        breeds_orm = self.session.exec(stmt).all()
+        breeds_orm = session.exec(stmt).all()
 
         return [
             BreedRecord(
@@ -191,7 +191,9 @@ class BreedRepository:
             for orm in breeds_orm
         ]
 
-    def get_breeds_by_batch_name(self, batch_name: str) -> List[BreedRecord]:
+    def get_breeds_by_batch_name(
+        self, session: Session, batch_name: str
+    ) -> List[BreedRecord]:
         """根據批次名稱查詢養殖記錄
 
         Args:
@@ -202,11 +204,11 @@ class BreedRepository:
         """
         stmt = select(BreedRecordORM).where(
             and_(
-                BreedRecordORM.batch_name.like(f"%{batch_name}%"),
+                col(BreedRecordORM.batch_name).contains(batch_name),
                 BreedRecordORM.event == ProcessingEvent.ADDED,
             )
         )
-        breeds_orm = self.session.exec(stmt).all()
+        breeds_orm = session.exec(stmt).all()
         return [
             BreedRecord(
                 **{

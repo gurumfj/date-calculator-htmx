@@ -39,16 +39,6 @@ class SaleRecord:
     female_price: float | None
     unpaid: str | None
 
-    def _base_weight(self) -> float:
-        """計算基礎重量
-
-        使用總重量減去公雞額外重量(每隻0.8)後平均
-        用於計算公母雞的平均重量
-        """
-        return (self.total_weight - self.male_count * 0.8) / (
-            self.male_count + self.female_count
-        )
-
     @property
     def sale_state(self) -> BatchState:
         """取得銷售狀態
@@ -59,6 +49,23 @@ class SaleRecord:
         """
         return BatchState.COMPLETED if self.closed == "結案" else BatchState.SALE
 
+    def _base_weight(self) -> float | None:
+        """計算基礎重量
+
+        使用總重量減去公雞額外重量(每隻0.8)後平均
+        用於計算公母雞的平均重量
+
+        Returns:
+            float | None:
+                - 若總重量為空，返回 None
+                - 否則返回計算後的基礎重量
+        """
+        if self.total_weight is None:
+            return None
+        return (self.total_weight - self.male_count * 0.8) / (
+            self.male_count + self.female_count
+        )
+
     @property
     def male_avg_weight(self) -> float | None:
         """計算公雞平均重量
@@ -66,10 +73,11 @@ class SaleRecord:
         基礎重量加上0.8kg(公雞額外重量)
         若無公雞或總重量，回傳 None
         """
-        if self.male_count == 0 or self.total_weight is None:
+        if self.male_count == 0:
             return None
-        base = self._base_weight()
-        return base + 0.8 if base > 0 else None
+        if base := self._base_weight():
+            return base + 0.8
+        return None
 
     @property
     def female_avg_weight(self) -> float | None:
@@ -78,10 +86,11 @@ class SaleRecord:
         直接使用基礎重量
         若無母雞或總重量，回傳 None
         """
-        if self.female_count == 0 or self.total_weight is None:
+        if self.female_count == 0:
             return None
-        base = self._base_weight()
-        return base if base > 0 else None
+        if base := self._base_weight():
+            return base
+        return None
 
     def __str__(self) -> str:
         msg = []

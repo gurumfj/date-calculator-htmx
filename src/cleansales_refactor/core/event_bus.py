@@ -103,7 +103,7 @@ class TelegramNotifier:
             if not self.post_url:
                 return
             request = requests.post(
-                url=self.post_url,
+                url=self.post_url.unicode_string(),
                 json=event.content,
             )
             print(request)

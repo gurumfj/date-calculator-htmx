@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional, Protocol, runtime_checkable
 
-from sqlmodel import Session, and_, select
+from sqlmodel import Session, and_, col, select
 
 from cleansales_refactor.domain.models import SaleRecord
 from cleansales_refactor.exporters import ProcessingEvent, SaleRecordORM
@@ -15,6 +15,12 @@ class SaleRepositoryProtocol(Protocol):
         self, session: Session, location: str
     ) -> List[SaleRecord]:
         """根據場別查詢銷售記錄"""
+        ...
+
+    def get_sales_data(
+        self, session: Session, limit: int = 300, offset: int = 0
+    ) -> list[SaleRecord]:
+        """獲取銷售記錄"""
         ...
 
 
@@ -47,7 +53,7 @@ class SaleRepository:
         stmt = (
             select(SaleRecordORM)
             .where(SaleRecordORM.event == ProcessingEvent.ADDED)
-            .order_by(SaleRecordORM.date.desc())
+            .order_by(col(SaleRecordORM.date).desc())
             .offset(offset)
             .limit(limit)
         )
@@ -79,7 +85,7 @@ class SaleRepository:
         if end_date:
             stmt = stmt.where(SaleRecordORM.date <= end_date)
         if location and condition == "like":
-            stmt = stmt.where(SaleRecordORM.location.like(f"%{location}%"))
+            stmt = stmt.where(col(SaleRecordORM.location).contains(location))
         elif location and condition == "eq":
             stmt = stmt.where(SaleRecordORM.location == location)
 
@@ -95,7 +101,7 @@ class SaleRepository:
         stmt = select(SaleRecordORM).where(
             and_(
                 SaleRecordORM.event == ProcessingEvent.ADDED,
-                SaleRecordORM.unpaid.is_not(None),
+                col(SaleRecordORM.unpaid).is_not(None),
             )
         )
 

@@ -8,7 +8,7 @@ from .batch_state import BatchState
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
 
-wcwidth.WIDE_CHARS_MODE = True
+wcwidth.WIDE_CHARS_MODE = True  # type: ignore
 
 
 def format_currency(amount: float, round_to: int = 0) -> str:
@@ -17,12 +17,26 @@ def format_currency(amount: float, round_to: int = 0) -> str:
 
 
 def day_age(
-    breed_date: date | datetime, diff_date: date | datetime = datetime.now().date()
+    breed_date: date | datetime,
+    diff_date: date | datetime | pd.Timestamp = datetime.now().date(),
 ) -> int:
-    """日齡"""
+    """日齡計算函數
+
+    計算從養殖日期到指定日期的天數差異
+
+    Args:
+        breed_date (date | datetime): 養殖開始日期
+        diff_date (date | datetime | pd.Timestamp, optional):
+            計算日齡的目標日期，默認為當前日期
+            支持 pandas Timestamp 類型以兼容 DataFrame 操作
+
+    Returns:
+        int: 日齡天數（包含起始日，所以加1）
+    """
     if isinstance(breed_date, datetime):
         breed_date = breed_date.date()
-    if isinstance(diff_date, datetime):
+    # 增加對 pandas Timestamp 的支持
+    if isinstance(diff_date, (datetime, pd.Timestamp)):
         diff_date = diff_date.date()
     return (diff_date - breed_date).days + 1
 
@@ -188,7 +202,11 @@ class SalesTrendData:
             return 0
         return round(
             sum(sale.total_price for sale in self.sales if sale.total_price)
-            / sum(sale.total_weight for sale in self.sales if sale.total_price),
+            / sum(
+                sale.total_weight
+                for sale in self.sales
+                if sale.total_weight and sale.total_price
+            ),
             2,
         )
 
@@ -219,12 +237,17 @@ class SalesTrendData:
 
         # 主要日齡欄位（用於圖表）
         df["day_age"] = (
-            df["date"].apply(lambda x: day_age(earliest_breed_date, x)).astype(int)
+            df["date"]
+            .apply(lambda x: day_age(breed_date=earliest_breed_date, diff_date=x))  # type: ignore
+            .astype(int)
         )
 
         # 額外的詳細日齡資訊欄位
         df["day_ages_detail"] = df["date"].apply(
-            lambda x: [day_age(breed.breed_date, x) for breed in self.breeds]
+            lambda x: [
+                day_age(breed_date=breed.breed_date, diff_date=x)
+                for breed in self.breeds
+            ]  # type: ignore
         )
 
         return df
@@ -280,12 +303,15 @@ class SalesTrendData:
         msg.append(f"銷售數量: {self.total_sales:,} 隻")
         msg.append(f"銷售天數: {self.sales_duration} 天")
         msg.append(f"循環天數: {self.cycle_days} 天")
-        msg.append(f"開場最大日齡: {self.sales_open_close_dayage[0]}")
-        msg.append(f"結案最小日齡: {self.sales_open_close_dayage[1]}")
-        msg.append(f"循環日期: {self.cycle_date[0]} ~ {self.cycle_date[1]}")
-        msg.append(
-            f"銷售期間: {self.sales_period_date[0]} ~ {self.sales_period_date[1]}"
-        )
+        if self.sales_open_close_dayage:
+            msg.append(f"開場最大日齡: {self.sales_open_close_dayage[0]}")
+            msg.append(f"結案最小日齡: {self.sales_open_close_dayage[1]}")
+        if self.cycle_date:
+            msg.append(f"循環日期: {self.cycle_date[0]} ~ {self.cycle_date[1]}")
+        if self.sales_period_date:
+            msg.append(
+                f"銷售期間: {self.sales_period_date[0]} ~ {self.sales_period_date[1]}"
+            )
         sales_table = tabulate(
             self.sales_data[
                 [
@@ -299,7 +325,7 @@ class SalesTrendData:
                     "total_weight",
                     "total_price",
                 ]
-            ],
+            ].values.tolist(),
             headers=[
                 "日期",
                 "日齡",
@@ -319,7 +345,7 @@ class SalesTrendData:
         msg.append(sales_table)
         msg.append("日報表:")
         daily_table = tabulate(
-            self.daily_pivot,
+            self.daily_pivot.values.tolist(),
             headers=[
                 "日齡",
                 "公數",
@@ -336,7 +362,7 @@ class SalesTrendData:
         msg.append(daily_table)
         msg.append("客戶統計:")
         customer_table = tabulate(
-            self.customer_statistics,
+            self.customer_statistics.values.tolist(),
             headers=["客戶", "交易次數", "公數", "母數", "總重量", "總金額"],
             tablefmt="simple",
             stralign="left",

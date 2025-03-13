@@ -13,7 +13,7 @@ from .orm_models import BaseEventSource, ORMModel
 class SaleRecordORM(ORMModel, table=True):
     """銷售記錄資料表模型"""
 
-    __tablename__ = "sale_record"
+    __tablename__ = "sale_record"  # type: ignore
 
     closed: str | None
     handler: str | None
@@ -34,7 +34,7 @@ class SaleRecordORM(ORMModel, table=True):
 class SalesEventSource(BaseEventSource[SaleRecordORM], table=True):
     """銷售事件來源資料表模型"""
 
-    __tablename__ = "sales_event_source"
+    __tablename__ = "sales_event_source"  # type: ignore
     records: List[SaleRecordORM] = Relationship(back_populates="event_source")
 
 
