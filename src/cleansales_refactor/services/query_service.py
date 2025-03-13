@@ -11,7 +11,8 @@ from cleansales_refactor.domain.models import (
     BreedRecord,
     SaleRecord,
 )
-from cleansales_refactor.domain.models.batch_aggregate import BatchAggregate
+
+# from cleansales_refactor.domain.models.batch_aggregate import BatchAggregate
 from cleansales_refactor.repositories import (
     BreedRepositoryProtocol,
     SaleRepositoryProtocol,

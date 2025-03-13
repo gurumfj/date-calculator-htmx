@@ -15,13 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class CleanSalesService:
+    _breeds_processor: BreedsProcessor
+    _breeds_exporter: BreedSQLiteExporter
+    _sales_processor: SalesProcessor
+    _sales_exporter: SaleSQLiteExporter
+
     def __init__(
         self,
     ) -> None:
-        self.breeds_processor = BreedsProcessor()
-        self.breeds_exporter = BreedSQLiteExporter()
-        self.sales_processor = SalesProcessor()
-        self.sales_exporter = SaleSQLiteExporter()
+        self._breeds_processor = BreedsProcessor()
+        self._breeds_exporter = BreedSQLiteExporter()
+        self._sales_processor = SalesProcessor()
+        self._sales_exporter = SaleSQLiteExporter()
 
     def execute_clean_sales(
         self,
@@ -30,8 +35,8 @@ class CleanSalesService:
         check_exists: bool = True,
     ) -> Response:
         return self._base_process(
-            self.sales_processor,
-            self.sales_exporter,
+            self._sales_processor,
+            self._sales_exporter,
             session,
             source_data,
             "販售",
@@ -45,8 +50,8 @@ class CleanSalesService:
         check_exists: bool = True,
     ) -> Response:
         return self._base_process(
-            self.breeds_processor,
-            self.breeds_exporter,
+            self._breeds_processor,
+            self._breeds_exporter,
             session,
             source_data,
             "入雛",
@@ -71,10 +76,14 @@ class CleanSalesService:
             )
         else:
             result = exporter.execute(processor.execute(source_data), session)
-            msg = f"成功匯入 {pipeline_name} 資料 {result['added']} 筆資料，刪除 {result['deleted']} 筆資料，無法驗證資料 {result['unvalidated']} 筆"
-            logger.info(msg)
+            msg: list[str] = [
+                f"成功匯入 {pipeline_name} 資料 {result['added']} 筆資料",
+                f"刪除 {result['deleted']} 筆資料",
+                f"無法驗證資料 {result['unvalidated']} 筆",
+            ]
+            logger.info("\n".join(msg))
             return Response(
                 status="success",
-                msg=msg,
+                msg="\n".join(msg),
                 content=result,
             )

@@ -1,5 +1,6 @@
 import argparse
 import logging
+from typing import Any
 
 import pandas as pd
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_parser() -> argparse.ArgumentParser:
-    CLI_STRUCTURE = {
+    cli_structure: dict[Any, Any] = {
         "description": "清理銷售和品種資料的命令列工具",
         "global_args": {
             "-db": {
@@ -83,16 +84,16 @@ def create_parser() -> argparse.ArgumentParser:
         },
     }
 
-    parser = argparse.ArgumentParser(description=CLI_STRUCTURE["description"])
+    parser = argparse.ArgumentParser(description=cli_structure.get("description", ""))
 
     # 加入全域參數
-    for arg_name, arg_config in CLI_STRUCTURE.get("global_args", {}).items():
+    for arg_name, arg_config in cli_structure.get("global_args", {}).items():
         parser.add_argument(arg_name, **arg_config)
 
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
     # 建立主要命令
-    for cmd_name, cmd_config in CLI_STRUCTURE["commands"].items():
+    for cmd_name, cmd_config in cli_structure["commands"].items():
         cmd_parser = subparsers.add_parser(cmd_name, help=cmd_config["help"])
 
         # 處理子命令
