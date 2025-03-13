@@ -33,6 +33,13 @@ class DTOService:
         Returns:
             BatchAggregateResponseModel: 批次聚合 DTO
         """
+        sales_trend = batch.sales_trend_data
+
+        # 處理可能為 None 的屬性
+        sales_open_close_dayage = sales_trend.sales_open_close_dayage
+        cycle_date = sales_trend.cycle_date
+        sales_period_date = sales_trend.sales_period_date
+
         return BatchAggregateResponseModel(
             batch_name=batch.batch_name,
             farm_name=batch.farm_name,
@@ -49,7 +56,23 @@ class DTOService:
             female=batch.female,
             day_age=batch.day_age,
             week_age=batch.week_age,
-            sales_percentage=batch.sales_trend_data.sales_percentage,
+            sales_percentage=sales_trend.sales_percentage,
+            total_transactions=sales_trend.total_transactions,
+            sales_male=sales_trend.sales_male,
+            sales_female=sales_trend.sales_female,
+            total_sales=sales_trend.total_sales,
+            total_revenue=sales_trend.total_revenue,
+            avg_weight=sales_trend.avg_weight,
+            avg_male_weight=sales_trend.avg_male_weight,
+            avg_female_weight=sales_trend.avg_female_weight,
+            avg_male_price=sales_trend.avg_male_price,
+            avg_female_price=sales_trend.avg_female_price,
+            cycle_days=sales_trend.cycle_days,
+            sales_duration=sales_trend.sales_duration,
+            sales_open_close_dayage=sales_open_close_dayage,
+            cycle_date=cycle_date,
+            sales_period_date=sales_period_date,
+            avg_price_weight=sales_trend.avg_price_weight,
         )
 
     # @staticmethod

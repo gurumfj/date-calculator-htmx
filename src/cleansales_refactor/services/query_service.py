@@ -78,7 +78,8 @@ class BatchFilterService:
                 aggr
                 for aggr in result
                 if aggr.chicken_breed
-                and criteria.breed_type in [breed.breed_type for breed in aggr.breeds]
+                and criteria.breed_type
+                in [breed.chicken_breed for breed in aggr.breeds]
             ]
 
         # 如果狀態列表為空或包含 "all"，則不進行狀態過濾

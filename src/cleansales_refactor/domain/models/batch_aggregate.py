@@ -68,6 +68,68 @@ class SalesTrendData:
         return self.sales_male + self.sales_female
 
     @property
+    def avg_weight(self) -> float:
+        """平均重量"""
+        if not any(sale.total_weight for sale in self.sales):
+            return 0
+        vaild_count = sum(
+            sale.male_count + sale.female_count
+            for sale in self.sales
+            if sale.total_weight
+        )
+        return round(
+            sum(sale.total_weight for sale in self.sales if sale.total_weight)
+            / vaild_count,
+            2,
+        )
+
+    @property
+    def sales_open_close_dayage(self) -> tuple[int, int] | None:
+        """開場最大日齡, 結案最小日齡"""
+        if not self.sales:
+            return None
+        earliest_breed_date = min(breed.breed_date for breed in self.breeds)
+        latest_breed_date = max(breed.breed_date for breed in self.breeds)
+        return (
+            min(day_age(earliest_breed_date, sale.date) for sale in self.sales),
+            max(day_age(latest_breed_date, sale.date) for sale in self.sales),
+        )
+
+    @property
+    def cycle_date(self) -> tuple[date, date] | None:
+        """循環日期"""
+        if not self.sales:
+            return None
+        return (
+            min([breed.breed_date for breed in self.breeds]).date(),
+            max([sale.date for sale in self.sales]),
+        )
+
+    @property
+    def cycle_days(self) -> int:
+        """循環天數"""
+        if not self.cycle_date:
+            return 0
+        return (self.cycle_date[1] - self.cycle_date[0]).days + 1
+
+    @property
+    def sales_period_date(self) -> tuple[date, date] | None:
+        """銷售期間"""
+        if not self.sales:
+            return None
+        return (
+            min(sale.date for sale in self.sales),
+            max(sale.date for sale in self.sales),
+        )
+
+    @property
+    def sales_duration(self) -> int:
+        """銷售天數"""
+        if not self.sales_period_date:
+            return 0
+        return (self.sales_period_date[1] - self.sales_period_date[0]).days + 1
+
+    @property
     def sales_percentage(self) -> float:
         """銷售率"""
         if not self.sales:
@@ -116,6 +178,19 @@ class SalesTrendData:
             return 0
         valid_prices = [sale.female_price for sale in self.sales if sale.female_price]
         return round(sum(valid_prices) / len(valid_prices), 2)
+
+    @property
+    def avg_price_weight(self) -> float:
+        """平均單價"""
+        if not any(sale.total_price for sale in self.sales):
+            return 0
+        if not any(sale.total_weight for sale in self.sales):
+            return 0
+        return round(
+            sum(sale.total_price for sale in self.sales if sale.total_price)
+            / sum(sale.total_weight for sale in self.sales if sale.total_price),
+            2,
+        )
 
     """ DATA FRAME"""
 
@@ -195,12 +270,22 @@ class SalesTrendData:
         msg = []
         msg.append(f"總交易筆數: {self.total_transactions}")
         msg.append(f"總營收: {format_currency(self.total_revenue, 0)}")
+        msg.append(f"平均重量: {self.avg_weight}")
         msg.append(f"平均公雞重量: {self.avg_male_weight}")
         msg.append(f"平均母雞重量: {self.avg_female_weight}")
         msg.append(f"平均公雞單價: {format_currency(self.avg_male_price, 2)}")
         msg.append(f"平均母雞單價: {format_currency(self.avg_female_price, 2)}")
+        msg.append(f"平均單價: {format_currency(self.avg_price_weight, 2)}")
         msg.append(f"銷售率: {round(self.sales_percentage * 100, 2)} %")
         msg.append(f"銷售數量: {self.total_sales:,} 隻")
+        msg.append(f"銷售天數: {self.sales_duration} 天")
+        msg.append(f"循環天數: {self.cycle_days} 天")
+        msg.append(f"開場最大日齡: {self.sales_open_close_dayage[0]}")
+        msg.append(f"結案最小日齡: {self.sales_open_close_dayage[1]}")
+        msg.append(f"循環日期: {self.cycle_date[0]} ~ {self.cycle_date[1]}")
+        msg.append(
+            f"銷售期間: {self.sales_period_date[0]} ~ {self.sales_period_date[1]}"
+        )
         sales_table = tabulate(
             self.sales_data[
                 [
