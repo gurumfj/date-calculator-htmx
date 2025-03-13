@@ -32,6 +32,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "mypy>=1.15.0",
     "ruff>=0.9.6",
+    "basedpyright"
 ]
 
 [build-system]
@@ -69,6 +70,10 @@ mypy_path = ["src"]
 
 [[tool.mypy.overrides]]
 module = "numpy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "wcwidth"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
