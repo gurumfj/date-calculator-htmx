@@ -1,83 +1,71 @@
 import hashlib
-from dataclasses import asdict
-from datetime import datetime
-from typing import Optional, TypeVar
+from typing import TypeVar, override
 
 from sqlmodel import Field, Relationship
+from typing_extensions import Optional
 
-from ..domain.models import BreedRecord
+from cleansales_refactor.domain.models.breed_record import BreedRecordBase
+
 from .base_sqlite_exporter import BaseSQLiteExporter
-from .orm_models import BaseEventSource, ORMModel
+from .orm_models import BaseEventSource, ORMModel, ProcessingEvent
 
 T = TypeVar("T")
 
 
-class BreedRecordORM(ORMModel, table=True):
+class BreedRecordORM(ORMModel, BreedRecordBase, table=True):
     """入雛記錄資料表模型"""
 
-    __tablename__ = "breed_record"  # type: ignore
-    unique_id: str = Field(default=None, primary_key=True, index=True, unique=True)
-
-    # 基本資料
-    farm_name: str
-    address: str | None
-    farm_license: str | None
-
-    # 畜主資料
-    farmer_name: str | None
-    farmer_address: str | None
-
-    # 批次資料
-    batch_name: str | None
-    veterinarian: str | None
-    chicken_breed: str
-    male: int
-    female: int
-    breed_date: datetime
-    supplier: str | None
-    sub_location: str | None
-    is_completed: str | None
-
-    event_source_id: int = Field(foreign_key="breed_event_source.id")
+    event_source_id: int | None = Field(foreign_key="breedeventsource.id")
     event_source: Optional["BreedEventSource"] = Relationship(back_populates="records")
 
 
 class BreedEventSource(BaseEventSource[BreedRecordORM], table=True):
     """入雛事件來源資料表模型"""
 
-    __tablename__ = "breed_event_source"  # type: ignore
     records: list[BreedRecordORM] = Relationship(back_populates="event_source")
 
 
 class BreedSQLiteExporter(
-    BaseSQLiteExporter[BreedRecord, BreedRecordORM, BreedEventSource]
+    BaseSQLiteExporter[BreedRecordBase, BreedRecordORM, BreedEventSource]
 ):
     """入雛記錄匯出服務 (使用 SQLite)"""
 
-    def get_unique_key(self, record: BreedRecord) -> str:
+    @override
+    def get_unique_key(self, record: BreedRecordBase) -> str:
         """取得記錄的唯一識別碼"""
-        values = [str(value) for value in asdict(record).values() if value is not None]
-        key = "".join(values)
-        return hashlib.sha256(key.encode()).hexdigest()[:10]
+        # values: list[str] = [
+        #     str(value) for value in record.__dict__.values() if value is not None
+        # ]
+        # key = "".join(values)
+        return hashlib.sha256(str(record).encode()).hexdigest()[:10]
 
-    def _record_to_orm(self, record: BreedRecord) -> BreedRecordORM:
+    @override
+    def _record_to_orm(self, record: BreedRecordBase) -> BreedRecordORM:
         """將入雛記錄轉換為資料表模型"""
-        record_orm = BreedRecordORM(**asdict(record))
-        record_orm.unique_id = self.get_unique_key(record)
+        # 創建 ORM 實例，使用枚舉的字串值
+        record_orm = BreedRecordORM(
+            **record.model_dump(),
+            event=ProcessingEvent.ADDED.value,  # 使用 .value 獲取字串值
+            unique_id=self.get_unique_key(record),
+        )
         return record_orm
 
+    @override
     def _get_event_source_class(self) -> type[BreedEventSource]:
         """取得事件來源類別"""
         return BreedEventSource
 
+    @override
     def _get_orm_class(self) -> type[BreedRecordORM]:
         """取得 ORM 類別"""
         return BreedRecordORM
 
+    @override
     def _get_primary_key_field(self) -> str:
         """取得主鍵欄位名稱"""
         return "unique_id"
 
-    def _orm_to_record(self, orm: BreedRecordORM) -> BreedRecord:
-        """將資料表模型轉換為入雛記錄"""
-        return BreedRecord(**orm.__dict__)
+    # @override
+    # def _orm_to_record(self, orm: BreedRecordORM) -> BreedRecordBase:
+    #     """將資料表模型轉換為入雛記錄"""
+    #     return BreedRecordBase.model_validate(orm)

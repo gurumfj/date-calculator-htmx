@@ -11,6 +11,7 @@ from cleansales_refactor.domain.models import (
     BreedRecord,
     SaleRecord,
 )
+from cleansales_refactor.domain.models.batch_aggregate import BatchAggregate
 from cleansales_refactor.repositories import (
     BreedRepositoryProtocol,
     SaleRepositoryProtocol,
@@ -60,7 +61,7 @@ class BatchFilterService:
         Returns:
             符合準則的批次聚合資料列表
         """
-        result = aggregates
+        result: list[BatchAggregate] = aggregates
 
         if criteria.batch_name:
             result = [
@@ -102,15 +103,19 @@ class QueryService:
     3. 協調過濾服務進行資料過濾
     """
 
+    _breed_repository: BreedRepositoryProtocol
+    _sale_repository: SaleRepositoryProtocol
+    _filter_service: BatchFilterService
+
     def __init__(
         self,
         breed_repository: BreedRepositoryProtocol,
         sale_repository: SaleRepositoryProtocol,
-        filter_service: BatchFilterService = BatchFilterService(),
-    ):
-        self.breed_repository = breed_repository
-        self.sale_repository = sale_repository
-        self.filter_service = filter_service
+        filter_service: BatchFilterService | None = None,
+    ) -> None:
+        self._breed_repository = breed_repository
+        self._sale_repository = sale_repository
+        self._filter_service = filter_service or BatchFilterService()
 
     def get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
         """獲取所有批次聚合
@@ -125,7 +130,7 @@ class QueryService:
         """
         try:
             # 使用海象運算符簡化代碼流程
-            if not (breeds := self.breed_repository.get_all(session)):
+            if not (breeds := self._breed_repository.get_all(session)):
                 return []
 
             # 使用 defaultdict 進行分組
@@ -138,7 +143,7 @@ class QueryService:
             return [
                 BatchAggregate(
                     breeds=breeds,
-                    sales=self.sale_repository.get_sales_by_location(
+                    sales=self._sale_repository.get_sales_by_location(
                         session, batch_name
                     ),
                 )
@@ -170,7 +175,7 @@ class QueryService:
             criteria = BatchFilterCriteria(
                 batch_name=batch_name, breed_type=breed_type, status=status or ["all"]
             )
-            return self.filter_service.filter_batches(aggregates, criteria)
+            return self._filter_service.filter_batches(aggregates, criteria)
         except Exception as e:
             logger.error(f"過濾批次聚合資料時發生錯誤: {e}")
             raise ValueError(f"資料過濾失敗: {str(e)}")
@@ -188,4 +193,4 @@ class QueryService:
         Returns:
             list[SaleRecord]: 銷售記錄列表
         """
-        return self.sale_repository.get_sales_data(session, limit, offset)
+        return self._sale_repository.get_sales_data(session, limit, offset)

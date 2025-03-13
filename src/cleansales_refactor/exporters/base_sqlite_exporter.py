@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar, override
 
 from sqlmodel import Session, desc, select
 
@@ -19,9 +19,10 @@ ES = TypeVar("ES", bound=BaseEventSource[Any])
 class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
     """基礎 SQLite 匯出服務"""
 
+    @override
     def execute(
         self,
-        processed_result: ProcessingResult[T],
+        result: ProcessingResult[T],
         session: Session | None = None,
     ) -> dict[str, int]:
         """執行匯出服務"""
@@ -30,10 +31,10 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
         try:
             added_event_source, deleted_event_source = self.export_data(
                 session=session,
-                source_data=processed_result.source_data,
-                data=processed_result,
+                source_data=result.source_data,
+                data=result,
             )
-            error_records = self.export_errors(session=session, data=processed_result)
+            error_records = self.export_errors(session=session, data=result)
             session.commit()
             return {
                 "added": added_event_source.count if added_event_source else 0,
@@ -67,7 +68,7 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
             event_value=ProcessingEvent.ADDED,
             source_data=source_data,
         )
-        session.merge(added_event_source)
+        _ = session.merge(added_event_source)
         # 處理刪除記錄
         deleted_event_source = self._handle_save_event(
             keys=keys_to_delete,
@@ -75,7 +76,7 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
             event_value=ProcessingEvent.DELETED,
             source_data=source_data,
         )
-        session.merge(deleted_event_source)
+        _ = session.merge(deleted_event_source)
 
         return added_event_source, deleted_event_source
 
@@ -95,13 +96,16 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
         session.add_all(error_records)
         return error_records
 
+    @override
     def is_source_md5_exists_in_latest_record(
         self, session: Session, source_data: SourceData
     ) -> bool:
         # 最新的md5
         stmt = (
             select(self._get_event_source_class().source_md5)
-            .where(self._get_event_source_class().event == ProcessingEvent.NEW_MD5)
+            .where(
+                self._get_event_source_class().event == ProcessingEvent.NEW_MD5.value
+            )
             .order_by(desc(self._get_event_source_class().id))
             .limit(1)
         )
@@ -130,20 +134,26 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
         event_value: ProcessingEvent,
         source_data: SourceData,
     ) -> ES:
+        """處理儲存事件，確保正確設置外鍵關係"""
+        # 先創建事件來源
+        event_source = self._get_event_source_class()(
+            source_name=source_data.file_name,
+            source_md5=source_data.md5,
+            event=event_value.value,
+            count=len(keys),
+        )
+
+        # 處理記錄
         models_to_process: list[ORMModel] = []
         for key in keys:
             model_to_process = get_data_func(key)
             if model_to_process is None:
                 continue
-            model_to_process.event = event_value
+            model_to_process.event = event_value.value
             model_to_process.updated_at = datetime.now()
             models_to_process.append(model_to_process)
-        event_source = self._get_event_source_class()(
-            source_name=source_data.file_name,
-            source_md5=source_data.md5,
-            event=event_value,
-            count=len(models_to_process),
-        )
+
+        # 設置關聯關係
         event_source.records = models_to_process
         return event_source
 
@@ -151,7 +161,7 @@ class BaseSQLiteExporter(Generic[T, M, ES], IExporter[T], ABC):
         """取得所有已存在的唯一識別碼"""
         orm_class = self._get_orm_class()
         primary_key = self._get_primary_key_field()
-        stmt = select(orm_class).where(orm_class.event == ProcessingEvent.ADDED)
+        stmt = select(orm_class).where(orm_class.event == ProcessingEvent.ADDED.value)
         models = session.exec(stmt).all()
         return set(getattr(model, primary_key) for model in models)
 

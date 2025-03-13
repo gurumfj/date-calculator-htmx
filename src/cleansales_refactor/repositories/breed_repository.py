@@ -14,12 +14,16 @@
 ################################################################################
 """
 
-from typing import List, Literal, Protocol, runtime_checkable
+from typing import Literal, Protocol, override, runtime_checkable
 
 from sqlmodel import Session, and_, asc, col, or_, select
 
-from cleansales_refactor.domain.models import BatchState, BreedRecord
-from cleansales_refactor.exporters import BreedRecordORM, ProcessingEvent
+from cleansales_refactor.domain.models import (
+    BatchState,
+    BreedRecord,
+)
+from cleansales_refactor.exporters import ProcessingEvent
+from cleansales_refactor.exporters.breed_exporter import BreedRecordORM
 
 
 @runtime_checkable
@@ -32,44 +36,45 @@ class BreedRepositoryProtocol(Protocol):
     2. 根據批次名稱查詢
     """
 
-    def get_all(self, session: Session) -> List[BreedRecord]:
+    def get_all(self, session: Session) -> list[BreedRecord]:
         """獲取所有養殖記錄
 
         Args:
             session (Session): 數據庫會話
 
         Returns:
-            List[BreedRecord]: 所有養殖記錄列表
+            list[BreedRecord]: 所有養殖記錄列表
         """
         ...
 
-    def get_by_batch_name(self, session: Session, batch_name: str) -> List[BreedRecord]:
+    def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
         """根據批次名稱查詢養殖記錄
 
         Args:
             batch_name (str): 批次名稱（支持模糊匹配）
 
         Returns:
-            List[BreedRecord]: 符合條件的養殖記錄列表
+            list[BreedRecord]: 符合條件的養殖記錄列表
         """
         ...
 
 
-class BreedRepository:
+class BreedRepository(BreedRepositoryProtocol):
     """養殖記錄倉儲實現"""
 
-    def get_all(self, session: Session) -> List[BreedRecord]:
+    @override
+    def get_all(self, session: Session) -> list[BreedRecord]:
         """獲取所有養殖記錄
 
         Args:
             session (Session): 數據庫會話
 
         Returns:
-            List[BreedRecord]: 所有養殖記錄列表
+            list[BreedRecord]: 所有養殖記錄列表
         """
         statement = select(BreedRecordORM).where(
             and_(
-                BreedRecordORM.event == ProcessingEvent.ADDED,
+                BreedRecordORM.event == ProcessingEvent.ADDED.value,
                 col(BreedRecordORM.batch_name).is_not(None),
             )
         )
@@ -85,20 +90,21 @@ class BreedRepository:
             for orm in breeds_orm
         ]
 
-    def get_by_batch_name(self, session: Session, batch_name: str) -> List[BreedRecord]:
+    @override
+    def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
         """根據批次名稱獲取養殖記錄
 
         Args:
             batch_name (str): 批次名稱
 
         Returns:
-            List[BreedRecord]: 養殖記錄列表
+            list[BreedRecord]: 養殖記錄列表
         """
         return self._get_by_criteria(session, batch_name, "eq")
 
     def get_by_state(
         self, session: Session, state: BatchState | None
-    ) -> List[BreedRecord]:
+    ) -> list[BreedRecord]:
         """根據狀態獲取養殖記錄
 
         Args:
@@ -106,7 +112,7 @@ class BreedRepository:
             state (BatchState | None): 批次狀態
 
         Returns:
-            List[BreedRecord]: 養殖記錄列表
+            list[BreedRecord]: 養殖記錄列表
         """
         if state is None:
             statement = select(BreedRecordORM).where(
@@ -137,7 +143,7 @@ class BreedRepository:
         session: Session,
         batch_name: str | None = None,
         condition: Literal["like", "eq"] = "like",
-    ) -> List[BreedRecord]:
+    ) -> list[BreedRecord]:
         """根據條件獲取養殖記錄
 
         Args:
@@ -145,7 +151,7 @@ class BreedRepository:
             batch_name (str | None): 批次名稱
 
         Returns:
-            List[BreedRecord]: 養殖記錄列表
+            list[BreedRecord]: 養殖記錄列表
         """
         statement = select(BreedRecordORM).where(
             BreedRecordORM.event == ProcessingEvent.ADDED
@@ -158,11 +164,11 @@ class BreedRepository:
             )
         return [BreedRecord(**orm.__dict__) for orm in session.exec(statement).all()]
 
-    def get_not_completed_breeds(self, session: Session) -> List[BreedRecord]:
+    def get_not_completed_breeds(self, session: Session) -> list[BreedRecord]:
         """獲取未結案的養殖記錄
 
         Returns:
-            List[BreedRecord]: 未結案的養殖記錄列表
+            list[BreedRecord]: 未結案的養殖記錄列表
         """
         stmt = (
             select(BreedRecordORM)
@@ -193,14 +199,14 @@ class BreedRepository:
 
     def get_breeds_by_batch_name(
         self, session: Session, batch_name: str
-    ) -> List[BreedRecord]:
+    ) -> list[BreedRecord]:
         """根據批次名稱查詢養殖記錄
 
         Args:
             batch_name (str): 批次名稱（支持模糊匹配）
 
         Returns:
-            List[BreedRecord]: 符合條件的養殖記錄列表
+            list[BreedRecord]: 符合條件的養殖記錄列表
         """
         stmt = select(BreedRecordORM).where(
             and_(

@@ -5,19 +5,20 @@ from typing import Hashable, TypeAlias
 
 import pandas as pd
 
-from ..domain.models import BreedRecord
+from ..domain.models import BreedRecordBase
 from ..shared.models import ErrorMessage, ProcessingResult, SourceData
 from .processor_interface import IProcessor
 from .validator_schema import BreedRecordValidatorSchema
+
 logger = logging.getLogger(__name__)
 
 
-PreRecords: TypeAlias = tuple[BreedRecord, ...]
+PreRecords: TypeAlias = tuple[BreedRecordBase, ...]
 
 
 @dataclass(frozen=True)
 class ProcessState:
-    records: tuple[BreedRecord, ...]
+    records: tuple[BreedRecordBase, ...]
     errors: tuple[ErrorMessage, ...]
 
     def __add__(self, other: "ProcessState") -> "ProcessState":
@@ -27,11 +28,11 @@ class ProcessState:
         )
 
 
-class BreedsProcessor(IProcessor[BreedRecord]):
+class BreedsProcessor(IProcessor[BreedRecordBase]):
     """入雛記錄處理服務"""
 
     @staticmethod
-    def execute(source_data: SourceData) -> ProcessingResult[BreedRecord]:
+    def execute(source_data: SourceData) -> ProcessingResult[BreedRecordBase]:
         """處理資料並返回結果"""
 
         result = reduce(
@@ -76,12 +77,8 @@ class BreedsProcessor(IProcessor[BreedRecord]):
             )
 
     @staticmethod
-    def __transform_records(model: BreedRecordValidatorSchema) -> BreedRecord:
-        return BreedRecord(**{
-            k: v
-            for k, v in model.model_dump().items()
-            if k in BreedRecord.__annotations__
-        })
+    def __transform_records(model: BreedRecordValidatorSchema) -> BreedRecordBase:
+        return BreedRecordBase.model_validate(model)
 
     # @staticmethod
     # def _generate_validated_df(df: pd.DataFrame) -> pd.DataFrame:

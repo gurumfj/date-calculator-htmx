@@ -1,41 +1,25 @@
 import hashlib
 from dataclasses import asdict
-from datetime import date
-from typing import List, Optional
+from typing import Optional, override
 
 from sqlmodel import Field, Relationship
 
-from ..domain.models import SaleRecord
+from ..domain.models import SaleRecord, SaleRecordBase
 from .base_sqlite_exporter import BaseSQLiteExporter
-from .orm_models import BaseEventSource, ORMModel
+from .orm_models import BaseEventSource, ORMModel, ProcessingEvent
 
 
-class SaleRecordORM(ORMModel, table=True):
+class SaleRecordORM(ORMModel, SaleRecordBase, table=True):
     """銷售記錄資料表模型"""
 
-    __tablename__ = "sale_record"  # type: ignore
-
-    closed: str | None
-    handler: str | None
-    date: date
-    location: str
-    customer: str
-    male_count: int
-    female_count: int
-    total_weight: float | None
-    total_price: float | None
-    male_price: float | None
-    female_price: float | None
-    unpaid: str | None
-    event_source_id: int = Field(foreign_key="sales_event_source.id")
+    event_source_id: int | None = Field(default=None, foreign_key="saleseventsource.id")
     event_source: Optional["SalesEventSource"] = Relationship(back_populates="records")
 
 
 class SalesEventSource(BaseEventSource[SaleRecordORM], table=True):
     """銷售事件來源資料表模型"""
 
-    __tablename__ = "sales_event_source"  # type: ignore
-    records: List[SaleRecordORM] = Relationship(back_populates="event_source")
+    records: list[SaleRecordORM] = Relationship(back_populates="event_source")
 
 
 class SaleSQLiteExporter(
@@ -43,26 +27,35 @@ class SaleSQLiteExporter(
 ):
     """銷售記錄匯出服務 (使用 SQLite)"""
 
+    @override
     def get_unique_key(self, record: SaleRecord) -> str:
-        """取得記錄的唯一識別碼"""
-        values = [str(value) for value in asdict(record).values() if value is not None]
-        key = "".join(values)
-        return hashlib.sha256(key.encode()).hexdigest()[:10]
+        # """取得記錄的唯一識別碼"""
+        # values = [str(value) for value in asdict(record).values() if value is not None]
+        # key = "".join(values)
+        return hashlib.sha256(str(record).encode()).hexdigest()[:10]
 
+    @override
     def _record_to_orm(self, record: SaleRecord) -> SaleRecordORM:
         """將銷售記錄轉換為資料表模型"""
-        record_orm = SaleRecordORM(**asdict(record))
+        record_orm = SaleRecordORM(
+            **asdict(record),
+            event=ProcessingEvent.ADDED.value,  # 使用 .value 獲取字串值
+            event_source_id=0,
+        )
         record_orm.unique_id = self.get_unique_key(record)
         return record_orm
 
+    @override
     def _get_orm_class(self) -> type[SaleRecordORM]:
         """取得 ORM 類別"""
         return SaleRecordORM
 
+    @override
     def _get_event_source_class(self) -> type[SalesEventSource]:
         """取得事件來源類別"""
         return SalesEventSource
 
+    @override
     def _get_primary_key_field(self) -> str:
         """取得主鍵欄位名稱"""
         return "unique_id"

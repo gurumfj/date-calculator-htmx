@@ -1,14 +1,14 @@
 from datetime import date, datetime
 
 import pandas as pd
-import wcwidth
+import wcwidth  # keep it for tabulate
 from tabulate import tabulate
 
 from .batch_state import BatchState
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
 
-wcwidth.WIDE_CHARS_MODE = True  # type: ignore
+_ = wcwidth.WIDE_EASTASIAN
 
 
 def format_currency(amount: float, round_to: int = 0) -> str:
@@ -105,8 +105,8 @@ class SalesTrendData:
         earliest_breed_date = min(breed.breed_date for breed in self.breeds)
         latest_breed_date = max(breed.breed_date for breed in self.breeds)
         return (
-            min(day_age(earliest_breed_date, sale.date) for sale in self.sales),
-            max(day_age(latest_breed_date, sale.date) for sale in self.sales),
+            min(day_age(earliest_breed_date, sale.sale_date) for sale in self.sales),
+            max(day_age(latest_breed_date, sale.sale_date) for sale in self.sales),
         )
 
     @property
@@ -115,8 +115,8 @@ class SalesTrendData:
         if not self.sales:
             return None
         return (
-            min([breed.breed_date for breed in self.breeds]).date(),
-            max([sale.date for sale in self.sales]),
+            min(breed.breed_date for breed in self.breeds),
+            max(sale.sale_date for sale in self.sales),
         )
 
     @property
@@ -132,8 +132,8 @@ class SalesTrendData:
         if not self.sales:
             return None
         return (
-            min(sale.date for sale in self.sales),
-            max(sale.date for sale in self.sales),
+            min(sale.sale_date for sale in self.sales),
+            max(sale.sale_date for sale in self.sales),
         )
 
     @property
@@ -216,9 +216,9 @@ class SalesTrendData:
     def sales_data(self) -> pd.DataFrame:
         """銷售資料"""
         # 先創建基本的銷售資料 DataFrame
-        base_data = [
+        base_data: list[dict[str, datetime | str | int | float | None]] = [
             {
-                "date": sale.date,
+                "sale_date": sale.sale_date,
                 "customer": sale.customer,
                 "male_count": sale.male_count,
                 "female_count": sale.female_count,
@@ -230,24 +230,28 @@ class SalesTrendData:
             for sale in self.sales
         ]
 
-        df = pd.DataFrame(base_data).sort_values("date")
+        df = pd.DataFrame(base_data).sort_values("sale_date")
 
         # 取得最早的入雛日期
         earliest_breed_date = min(breed.breed_date for breed in self.breeds)
 
         # 主要日齡欄位（用於圖表）
         df["day_age"] = (
-            df["date"]
-            .apply(lambda x: day_age(breed_date=earliest_breed_date, diff_date=x))  # type: ignore
+            df["sale_date"]
+            .apply(
+                lambda x: day_age(
+                    breed_date=earliest_breed_date, diff_date=pd.Timestamp(x)
+                )
+            )
             .astype(int)
         )
 
         # 額外的詳細日齡資訊欄位
-        df["day_ages_detail"] = df["date"].apply(
+        df["day_ages_detail"] = df["sale_date"].apply(
             lambda x: [
-                day_age(breed_date=breed.breed_date, diff_date=x)
+                day_age(breed_date=breed.breed_date, diff_date=pd.Timestamp(x))
                 for breed in self.breeds
-            ]  # type: ignore
+            ]
         )
 
         return df
@@ -273,7 +277,7 @@ class SalesTrendData:
             self.sales_data.groupby("customer")
             .agg(
                 {
-                    "date": "count",
+                    "sale_date": "count",
                     "male_count": "sum",
                     "female_count": "sum",
                     "total_weight": "sum",
@@ -281,7 +285,7 @@ class SalesTrendData:
                 }
             )
             .sort_values("total_weight", ascending=False)
-        )
+        ).reset_index()
 
     @property
     def total_transactions(self) -> int:
@@ -290,7 +294,7 @@ class SalesTrendData:
 
     def __str__(self) -> str:
         """銷售走勢資料"""
-        msg = []
+        msg: list[str] = []
         msg.append(f"總交易筆數: {self.total_transactions}")
         msg.append(f"總營收: {format_currency(self.total_revenue, 0)}")
         msg.append(f"平均重量: {self.avg_weight}")
@@ -312,10 +316,11 @@ class SalesTrendData:
             msg.append(
                 f"銷售期間: {self.sales_period_date[0]} ~ {self.sales_period_date[1]}"
             )
-        sales_table = tabulate(
+
+        sales_table: str = tabulate(
             self.sales_data[
                 [
-                    "date",
+                    "sale_date",
                     "day_age",
                     "customer",
                     "male_count",
@@ -387,6 +392,7 @@ class BatchAggregate:
 
     breeds: list[BreedRecord]
     sales: list[SaleRecord]
+    _sales_trend_data: SalesTrendData
 
     def __init__(
         self,
@@ -498,7 +504,7 @@ class BatchAggregate:
 
     def __str__(self) -> str:
         """批次彙整資料"""
-        result = []
+        result: list[str] = []
         result.append(f"批次: {self.batch_name}")
         result.append(f"飼養戶: {self.farmer_name}")
         result.append(f"場址: {self.address}")

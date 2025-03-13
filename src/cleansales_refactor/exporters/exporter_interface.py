@@ -22,8 +22,8 @@ class IExporter(Protocol, Generic[T]):
         """
         ...
 
-
-
-    def is_source_md5_exists_in_latest_record(self, session: Session, source_data: SourceData) -> bool:
+    def is_source_md5_exists_in_latest_record(
+        self, session: Session, source_data: SourceData
+    ) -> bool:
         """檢查 md5 是否存在"""
         ...
