@@ -2,18 +2,27 @@ import logging
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import reduce
-from typing import Any, Callable, Hashable, TypeAlias, TypeVar
+from typing import Any, Callable, Hashable, TypeAlias, TypeVar, override
 
 import pandas as pd
 
 from ..domain.models import SaleRecord
 from ..shared.models import ErrorMessage, ProcessingResult, SourceData
 from .processor_interface import IProcessor
-from .validator_schema import SaleRecordValidatorSchema
+
+# from .validator_schema import SaleRecordBase as SaleRecordValidatorSchema, SaleRecordORM
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
 # logger.setLevel(logging.DEBUG)
+class SaleRecordValidatorSchema:
+    pass
+
+
+class SaleRecordORM:
+    pass
 
 
 @dataclass(frozen=True)
@@ -115,11 +124,12 @@ class SaleUtil:
             return error_callback(e)
 
 
-class SalesProcessor(IProcessor[SaleRecord]):
+class SalesProcessor(IProcessor[SaleRecordORM]):
     """銷售記錄處理服務"""
 
+    @override
     @staticmethod
-    def execute(source_data: SourceData) -> ProcessingResult[SaleRecord]:
+    def execute(source_data: SourceData) -> ProcessingResult[SaleRecordORM]:
         """執行處理服務"""
         # 驗證和清理銷售記錄
         cleaned_records, errors = SalesProcessor._validate_and_clean_records(

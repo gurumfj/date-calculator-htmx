@@ -1,29 +1,32 @@
 import logging
 import re
 from datetime import date, datetime
-from hashlib import sha256
-from typing import Any
+from typing import Any, override
 
 import pandas as pd
 from pydantic import (
-    BaseModel,
     ConfigDict,
     Field,
-    computed_field,
     field_validator,
 )
 
 # from sqlmodel import Field, SQLModel
 # from pydantic import BaseModel
 from sqlmodel import Field as SQLModelField
-from sqlmodel import SQLModel
+
+from .interface.processors_interface import (
+    IBaseModel,
+    IORMModel,
+    IProcessor,
+    IResponse,
+)
 
 # from sqlmodel import SQLModel
 
 logger = logging.getLogger(__name__)
 
 
-class SaleRecordBase(BaseModel):
+class SaleRecordBase(IBaseModel):
     """銷售記錄驗證模式
 
     負責驗證和轉換銷售記錄的原始數據，確保數據的完整性和一致性。
@@ -59,51 +62,89 @@ class SaleRecordBase(BaseModel):
 
     @field_validator("sale_date", mode="before")
     @classmethod
-    def clean_sale_date(cls, v: date | datetime) -> date:
-        if isinstance(v, datetime):
-            return v.date()
-        return v
+    def clean_sale_date(cls, v: date | datetime | pd.Timestamp | None) -> date | None:
+        try:
+            if pd.isna(v):
+                return None
+            if isinstance(v, (datetime, pd.Timestamp)):
+                return v.date()
+            return v
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為日期，使用預設值 None")
+            return None
 
     @field_validator("location", mode="before")
     @classmethod
-    def clean_location(cls, v: str) -> str:
-        if "'" not in v:
-            raise ValueError("場別中必須包含單引號")
-        # 使用正規表達式進行多重替換
-        v = re.sub(r"--", "-", v)  # 將 "--" 替換為 "-"
-        v = re.sub(r"\s+", "", v)  # 去除所有空格
-        v = re.sub(r"-N", "", v)  # 移除 "-N"
-        return v.strip()
+    def clean_location(cls, v: Any) -> str | None:
+        try:
+            if pd.isna(v):
+                return None
+            if isinstance(v, str):
+                v = re.sub(r"--", "-", v)  # 將 "--" 替換為 "-"
+                v = re.sub(r"\s+", "", v)  # 去除所有空格
+                v = re.sub(r"-N", "", v)  # 移除 "-N"
+                return v.strip()
+            return None
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為字串，使用預設值 None")
+            return None
 
     @field_validator("male_count", "female_count", mode="before")
     @classmethod
     def clean_count(cls, v: Any) -> int:
-        if pd.isna(v):
+        try:
+            if pd.isna(v):
+                return 0
+            return int(float(v))
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為整數，使用預設值 None")
             return 0
-        return int(v)
 
     @field_validator("closed", mode="before")
     @classmethod
     def clean_closed(cls, v: str) -> bool:
-        return v == "結案"
+        try:
+            return v == "結案"
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 True")
+            return True
 
     @field_validator("unpaid", mode="before")
     @classmethod
-    def clean_unpaid(cls, v: str) -> bool:
-        return v == "未付"
+    def clean_unpaid(cls, v: str) -> bool:  # type: ignore
+        try:
+            return v == "未付"
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 True")
+            return True
 
-    @computed_field(description="內容比對唯一值", return_type=str)
-    @property
-    def unique_id(self) -> str:
-        return sha256(self.model_dump_json(exclude={"unique_id"}).encode()).hexdigest()[
-            :10
-        ]
+    @field_validator("handler", mode="before")
+    @classmethod
+    def clean_handler(cls, v: str | None) -> str | None:  # type: ignore
+        try:
+            if pd.isna(v):
+                return None
+            return v
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為字串，使用預設值 None")
+            return None
+
+    # all float field
+    @field_validator(
+        "male_price", "female_price", "total_price", "total_weight", mode="before"
+    )
+    @classmethod
+    def clean_float(cls, v: Any) -> float | None:  # type: ignore
+        try:
+            if pd.isna(v):
+                return None
+            return float(v)
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為浮點數，使用預設值 None")
+            return None
 
 
-# class SaleRecordBase(SQLModel):
-
-
-class SaleRecordORM(SQLModel, table=True):
+class SaleRecordORM(IORMModel, table=True):
     unique_id: str = SQLModelField(..., primary_key=True, description="內容比對唯一值")
     closed: bool = Field(False, description="結案狀態")
     handler: str | None = Field(None, description="會磅狀態")
@@ -117,14 +158,25 @@ class SaleRecordORM(SQLModel, table=True):
     male_price: float | None = Field(None, description="公雞單價")
     female_price: float | None = Field(None, description="母雞單價")
     unpaid: bool = Field(True, description="未付款狀態")
-    updated_at: datetime | None = Field(
-        default_factory=datetime.now, description="更新時間", alias="更新時間"
-    )
 
 
-# class SaleRecordResponse(SaleRecordBase):
-#     pass
+class SaleRecordResponse(IResponse):
+    pass
 
 
 class SaleRecordValidatorSchema(SaleRecordBase):
     pass
+
+
+class SaleRecordProcessor(IProcessor):
+    @override
+    def set_validator_schema(self) -> type[IBaseModel]:
+        return SaleRecordBase
+
+    @override
+    def set_orm_schema(self) -> type[IORMModel]:
+        return SaleRecordORM
+
+    @override
+    def set_response_schema(self) -> type[IResponse]:
+        return SaleRecordResponse

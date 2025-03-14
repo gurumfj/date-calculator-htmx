@@ -1,15 +1,16 @@
 from .breeds_schema import BreedRecordValidatorSchema
-from .sales_schema import (
-    SaleRecordBase,
-    # SaleRecordORM,
-    # SaleRecordResponse,
-    SaleRecordValidatorSchema,
-)
+
+# from .sales_schema import (
+# SaleRecordBase,
+# SaleRecordORM,
+# SaleRecordResponse,
+# SaleRecordValidatorSchema,
+# )
 
 __all__ = [
     "BreedRecordValidatorSchema",
-    # "SaleRecordORM",
-    # "SaleRecordBase",
+    "SaleRecordORM",
+    "SaleRecordBase",
     # "SaleRecordResponse",
-    "SaleRecordValidatorSchema",
+    # "SaleRecordValidatorSchema",
 ]
