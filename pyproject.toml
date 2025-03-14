@@ -152,6 +152,7 @@ typeCheckingMode = "recommended"  # 推荐的类型检查模式
 reportAny = false
 reportMissingTypeStubs = false
 reportUnknownVariableType = false
+reportUnknownMemberType = false
 # useLibraryCodeForTypes = true  # 使用庫代碼作為類型來源
 
 # executionEnvironments = [
