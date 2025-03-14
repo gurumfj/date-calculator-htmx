@@ -4,7 +4,7 @@ from .core import Database, event_bus, settings
 # def run_mcp_server() -> None:
 #     import asyncio
 
-#     from cleansales_refactor.mcp import mcp_server
+#     from cleansales_backend.mcp import mcp_server
 
 #     asyncio.run(mcp_server.main())
 

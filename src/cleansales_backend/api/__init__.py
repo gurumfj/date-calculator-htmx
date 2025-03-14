@@ -20,7 +20,7 @@ from enum import Enum
 
 from sqlmodel import Session
 
-from cleansales_refactor.core import Database, EventBus, TelegramNotifier, settings
+from cleansales_backend.core import Database, EventBus, TelegramNotifier, settings
 
 logger = logging.getLogger(__name__)
 # 設定根 logger
@@ -83,11 +83,11 @@ def main() -> None:
     import uvicorn
 
     uvicorn.run(
-        "cleansales_refactor.api.app:app",
+        "cleansales_backend.api.app:app",
         host=settings.API_HOST,
         port=settings.API_PORT,
         reload=settings.API_RELOAD,
-        reload_dirs=["src/cleansales_refactor"],
+        reload_dirs=["src/cleansales_backend"],
     )
 
 

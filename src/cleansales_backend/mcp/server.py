@@ -6,9 +6,9 @@ from datetime import datetime
 
 from mcp.server import FastMCP
 
-from cleansales_refactor import Database, settings
-from cleansales_refactor.repositories import BreedRepository, SaleRepository
-from cleansales_refactor.services import QueryService
+from cleansales_backend import Database, settings
+from cleansales_backend.repositories import BreedRepository, SaleRepository
+from cleansales_backend.services import QueryService
 
 mcp = FastMCP("cleansales-server")
 

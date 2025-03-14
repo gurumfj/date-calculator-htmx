@@ -19,7 +19,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from cleansales_refactor.domain.models import BatchState
+from cleansales_backend.domain.models import BatchState
 
 
 class BatchAggregateResponseModel(BaseModel):

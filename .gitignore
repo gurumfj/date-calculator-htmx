@@ -20,3 +20,5 @@ wheels/
 
 # 資料庫
 data/
+
+/out

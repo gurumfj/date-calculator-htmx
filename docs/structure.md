@@ -3,7 +3,7 @@
 ## 目錄結構
 ```
 src/
-├── cleansales_refactor/     # 核心業務邏輯
+├── cleansales_backend/     # 核心業務邏輯
 │   ├── domain/             # 領域模型
 │   ├── processors/         # 業務處理器
 │   ├── exporters/          # 資料持久化
@@ -18,21 +18,21 @@ src/
 ## 分層架構說明
 
 1. **領域層 (Domain Layer)**
-   - 位置: `src/cleansales_refactor/domain/`
+   - 位置: `src/cleansales_backend/domain/`
    - 職責:
      - 定義核心業務模型
      - 實作領域邏輯與規則
      - 維護業務不變量
 
 2. **應用服務層 (Application Layer)**
-   - 位置: `src/cleansales_refactor/cleansales_service.py`
+   - 位置: `src/cleansales_backend/cleansales_service.py`
    - 職責:
      - 協調領域物件與基礎設施
      - 處理交易邊界
      - 實作使用案例流程
 
 3. **基礎設施層 (Infrastructure Layer)**
-   - 位置: `src/cleansales_refactor/exporters/`
+   - 位置: `src/cleansales_backend/exporters/`
    - 職責:
      - 實作資料持久化
      - 提供外部系統整合
@@ -46,7 +46,7 @@ src/
      - 實作路由邏輯
 
 5. **共用核心 (Shared Kernel)**
-   - 位置: `src/cleansales_refactor/shared/`
+   - 位置: `src/cleansales_backend/shared/`
    - 職責:
      - 提供共用工具類別
      - 定義跨層級介面

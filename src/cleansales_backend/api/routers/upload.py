@@ -22,9 +22,9 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from cleansales_refactor.core import Event, EventBus
-from cleansales_refactor.services import CleanSalesService
-from cleansales_refactor.shared.models import SourceData
+from cleansales_backend.core import Event, EventBus
+from cleansales_backend.services import CleanSalesService
+from cleansales_backend.shared.models import SourceData
 
 from .. import ProcessEvent, get_event_bus, get_session
 

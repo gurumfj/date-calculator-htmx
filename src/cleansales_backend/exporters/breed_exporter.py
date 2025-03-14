@@ -4,7 +4,7 @@ from typing import TypeVar, override
 from sqlmodel import Field, Relationship
 from typing_extensions import Optional
 
-from cleansales_refactor.domain.models.breed_record import BreedRecordBase
+from cleansales_backend.domain.models.breed_record import BreedRecordBase
 
 from .base_sqlite_exporter import BaseSQLiteExporter
 from .orm_models import BaseEventSource, ORMModel, ProcessingEvent

@@ -4,11 +4,11 @@ from typing import Any
 
 import pandas as pd
 
-from cleansales_refactor import Database
-from cleansales_refactor.core import settings
-from cleansales_refactor.repositories import BreedRepository, SaleRepository
-from cleansales_refactor.services import CleanSalesService, QueryService
-from cleansales_refactor.shared.models import SourceData
+from cleansales_backend import Database
+from cleansales_backend.core import settings
+from cleansales_backend.repositories import BreedRepository, SaleRepository
+from cleansales_backend.services import CleanSalesService, QueryService
+from cleansales_backend.shared.models import SourceData
 
 # 設定根 logger
 logging.basicConfig(
@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 確保其他模組的 logger 也設定為 DEBUG 級別
-# logging.getLogger("cleansales_refactor").setLevel(settings.LOG_LEVEL)
+# logging.getLogger("cleansales_backend").setLevel(settings.LOG_LEVEL)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -122,9 +122,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """
     主程式入口點。可以通過以下方式執行：
-    1. python -m cleansales_refactor
+    1. python -m cleansales_backend
     2. uv run cleansales
-    3. 從其他程式中導入：from cleansales_refactor import main
+    3. 從其他程式中導入：from cleansales_backend import main
     """
     args = parse_args()
     db = Database(str(args.db_path))

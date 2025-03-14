@@ -82,7 +82,7 @@ wheels = [
 ]
 
 [[package]]
-name = "cleansales-refactor"
+name = "cleansales-backend"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -4,8 +4,8 @@ from typing import Literal, Protocol, runtime_checkable
 from sqlmodel import Session, and_, col, select
 from typing_extensions import override
 
-from cleansales_refactor.domain.models import SaleRecord
-from cleansales_refactor.exporters import ProcessingEvent, SaleRecordORM
+from cleansales_backend.domain.models import SaleRecord
+from cleansales_backend.exporters import ProcessingEvent, SaleRecordORM
 
 
 @runtime_checkable

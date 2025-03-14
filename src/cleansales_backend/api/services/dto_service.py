@@ -14,10 +14,10 @@
 ################################################################################
 """
 
-from cleansales_refactor.api.models import (
+from cleansales_backend.api.models import (
     BatchAggregateResponseModel,
 )
-from cleansales_refactor.domain.models import BatchAggregate
+from cleansales_backend.domain.models import BatchAggregate
 
 
 class DTOService:

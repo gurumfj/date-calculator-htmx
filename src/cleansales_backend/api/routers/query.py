@@ -17,14 +17,14 @@
 
 import logging
 import traceback
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from cleansales_refactor.repositories import BreedRepository, SaleRepository
-from cleansales_refactor.services import QueryService
+from cleansales_backend.repositories import BreedRepository, SaleRepository
+from cleansales_backend.services import QueryService
 
 from .. import get_session
 from ..models import (
@@ -61,24 +61,24 @@ def get_query_service() -> QueryService:
 class BatchStatisticsResponse(BaseModel):
     """批次統計響應模型"""
 
-    batch_info: Dict[str, Any]
-    totals: Dict[str, Any]
-    customer_statistics: Dict[str, Dict[str, float]]
-    sales_trends: Dict[str, List[Dict[str, Any]]]
+    batch_info: dict[str, Any]
+    totals: dict[str, Any]
+    customer_statistics: dict[str, dict[str, float]]
+    sales_trends: dict[str, list[dict[str, Any]]]
 
 
-@router.get("/not-completed", response_model=List[BatchAggregateResponseModel])
+@router.get("/not-completed", response_model=list[BatchAggregateResponseModel])
 async def get_not_completed_batches(
     session: Session = Depends(get_session),
     query_service: QueryService = Depends(get_query_service),
-) -> List[BatchAggregateResponseModel]:
+) -> list[BatchAggregateResponseModel]:
     """獲取未結案的批次列表
 
     Args:
         query_service (QueryService): 查詢服務實例
 
     Returns:
-        List[BatchAggregateResponseModel]: 未結案的批次列表
+        list[BatchAggregateResponseModel]: 未結案的批次列表
     """
     try:
         filtered_aggrs = query_service.get_filtered_aggregates(
@@ -93,7 +93,7 @@ async def get_not_completed_batches(
 
 
 # api for query batch aggregate in specific batch name
-@router.get("/query/batch", response_model=List[BatchAggregateResponseModel])
+@router.get("/query/batch", response_model=list[BatchAggregateResponseModel])
 async def get_batch_aggregate_by_name(
     batch_name: str | None = None,
     breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = Query(
@@ -106,7 +106,7 @@ async def get_batch_aggregate_by_name(
     ),
     session: Session = Depends(get_session),
     query_service: QueryService = Depends(get_query_service),
-) -> List[BatchAggregateResponseModel]:
+) -> list[BatchAggregateResponseModel]:
     """獲取特定批次名稱的批次聚合列表
 
     Args:
@@ -117,7 +117,7 @@ async def get_batch_aggregate_by_name(
         query_service (QueryService): 查詢服務實例
 
     Returns:
-        List[BatchAggregateResponseModel]: 特定批次名稱的批次聚合列表
+        list[BatchAggregateResponseModel]: 特定批次名稱的批次聚合列表
     """
     try:
         filtered_aggrs = query_service.get_filtered_aggregates(
