@@ -155,7 +155,7 @@ class SalesProcessor(IProcessor[SaleRecord]):
         if current.location != next_record.location:
             # logger.debug(f"位置改變: {current.location} -> {next_record.location}")
             return True
-        if over_threshold(next_record.date, current.date):
+        if over_threshold(next_record.sale_date, current.sale_date):
             # logger.debug(f"日期差異超過閾值: {current.date} -> {next_record.date}")
             return True
         return False
@@ -248,7 +248,7 @@ class SalesProcessor(IProcessor[SaleRecord]):
         min_date_record = group[0]
         max_date_record = group[-1]
         median_date = SalesProcessor._calculate_date_median(
-            max_date_record.date, min_date_record.date
+            max_date_record.sale_date, min_date_record.sale_date
         )
 
         def update_location(record: SaleRecordUpdate) -> SaleRecordUpdate:

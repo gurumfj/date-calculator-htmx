@@ -15,13 +15,12 @@
 """
 
 import logging
+from collections.abc import Generator
 from enum import Enum
-from typing import Generator
 
 from sqlmodel import Session
 
-from cleansales_refactor import Database, settings
-from cleansales_refactor.core import EventBus, TelegramNotifier
+from cleansales_refactor.core import Database, EventBus, TelegramNotifier, settings
 
 logger = logging.getLogger(__name__)
 # 設定根 logger

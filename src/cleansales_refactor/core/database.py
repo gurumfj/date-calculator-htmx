@@ -1,21 +1,40 @@
-import logging
-from contextlib import contextmanager
-from typing import Generator
+"""
+################################################################################
+# 數據庫模組
+#
+# 這個模組提供了數據庫的初始化和管理功能，包括：
+# 1. 數據庫引擎創建
+# 2. 會話管理
+# 3. 數據庫創建
+#
+# 主要功能：
+# - 提供數據庫引擎
+# - 提供數據庫會話管理
+# - 提供數據庫創建功能
+################################################################################
+"""
 
+import logging
+from collections.abc import Generator
+from contextlib import contextmanager
+
+from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 logger = logging.getLogger(__name__)
 
 
 class Database:
+    _engine: Engine
+
     def __init__(self, db_path: str) -> None:
-        self.engine = create_engine(f"sqlite:///{db_path}", echo=False)
-        SQLModel.metadata.create_all(self.engine)
+        self._engine = create_engine(f"sqlite:///{db_path}", echo=False)
+        SQLModel.metadata.create_all(self._engine)
         logger.info(f"Database created at {db_path}")
 
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:
-        with Session(self.engine) as session:
+        with Session(self._engine) as session:
             try:
                 yield session
                 session.commit()

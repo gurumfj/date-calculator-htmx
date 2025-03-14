@@ -26,7 +26,7 @@ class SaleRecordValidatorSchema(BaseModel):
 
     closed: str | None = Field(None, description="結案狀態", alias="結案")
     handler: str | None = Field(None, description="會磅狀態", alias="會磅")
-    date: datetime = Field(..., description="銷售日期", alias="日期")
+    sale_date: datetime = Field(..., description="銷售日期", alias="日期")
     location: str = Field(..., description="場別", alias="場別")
     customer: str = Field(..., description="客戶名稱", alias="客戶名稱")
     male_count: int = Field(..., description="公豬數量", alias="公-隻數")
@@ -37,7 +37,7 @@ class SaleRecordValidatorSchema(BaseModel):
     female_price: float | None = Field(None, alias="母-單價", description="母雞單價")
     unpaid: str | None = Field(None, description="未付款狀態", alias="未收")
 
-    @field_validator("date", mode="before")
+    @field_validator("sale_date", mode="before")
     @classmethod
     def parse_date(cls, v: Any) -> datetime:
         if pd.isna(v) or v is None:

@@ -116,13 +116,13 @@ class BreedRepository(BreedRepositoryProtocol):
         """
         if state is None:
             statement = select(BreedRecordORM).where(
-                BreedRecordORM.event == ProcessingEvent.ADDED
+                BreedRecordORM.event == ProcessingEvent.ADDED.value
             )
         else:
             statement = select(BreedRecordORM).where(
                 and_(
                     BreedRecordORM.is_completed == state.value,
-                    BreedRecordORM.event == ProcessingEvent.ADDED,
+                    BreedRecordORM.event == ProcessingEvent.ADDED.value,
                 )
             )
 
@@ -154,7 +154,7 @@ class BreedRepository(BreedRepositoryProtocol):
             list[BreedRecord]: 養殖記錄列表
         """
         statement = select(BreedRecordORM).where(
-            BreedRecordORM.event == ProcessingEvent.ADDED
+            BreedRecordORM.event == ProcessingEvent.ADDED.value
         )
         if batch_name and condition == "eq":
             statement = statement.where(BreedRecordORM.batch_name == batch_name)
@@ -179,7 +179,7 @@ class BreedRepository(BreedRepositoryProtocol):
                         col(BreedRecordORM.is_completed).is_(None),
                     ),
                     col(BreedRecordORM.batch_name).is_not(None),
-                    BreedRecordORM.event == ProcessingEvent.ADDED,
+                    BreedRecordORM.event == ProcessingEvent.ADDED.value,
                 )
             )
             .order_by(asc(BreedRecordORM.breed_date))
@@ -211,7 +211,7 @@ class BreedRepository(BreedRepositoryProtocol):
         stmt = select(BreedRecordORM).where(
             and_(
                 col(BreedRecordORM.batch_name).contains(batch_name),
-                BreedRecordORM.event == ProcessingEvent.ADDED,
+                BreedRecordORM.event == ProcessingEvent.ADDED.value,
             )
         )
         breeds_orm = session.exec(stmt).all()

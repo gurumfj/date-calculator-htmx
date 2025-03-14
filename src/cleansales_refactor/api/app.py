@@ -57,7 +57,7 @@ app.include_router(upload.router)  # 這會處理 /api/upload
 
 # 健康檢查端點
 @app.get("/")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """
     健康檢查端點
     返回服務狀態和版本信息

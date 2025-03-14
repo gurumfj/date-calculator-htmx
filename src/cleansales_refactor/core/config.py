@@ -14,10 +14,8 @@
 ################################################################################
 """
 
-import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,8 +39,8 @@ class Settings(BaseSettings):
     API_RELOAD: bool = Field(default=True)
 
     # 上傳文件配置
-    MAX_UPLOAD_SIZE: int = Field(default=10 * 1024 * 1024)  # 10MB
-    ALLOWED_EXTENSIONS: set[str] = Field(default={".xlsx", ".xls"})
+    MAX_UPLOAD_SIZE: int = Field(default=10 * 1024 * 1024)  # 10MB TODO: 取消
+    ALLOWED_EXTENSIONS: set[str] = Field(default={".xlsx", ".xls"})  # TODO: 取消
 
     # 日誌配置
     LOG_LEVEL: str = Field(default="INFO")
@@ -51,9 +49,9 @@ class Settings(BaseSettings):
     )
 
     # Telegram 通知配置
-    TELEGRAM_BOT_TOKEN: str = Field(default="")
-    TELEGRAM_CHAT_ID: str = Field(default="")
-    TELEGRAM_WEBHOOK_URL: Optional[AnyHttpUrl] = Field(default=None)
+    TELEGRAM_BOT_TOKEN: str | None = Field(default=None)
+    TELEGRAM_CHAT_ID: str | None = Field(default=None)
+    CUSTOM_TELEGRAM_WEBHOOK_URL: AnyHttpUrl | None = Field(default=None)
 
     model_config = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
@@ -61,20 +59,21 @@ class Settings(BaseSettings):
         case_sensitive=True,
     )
 
-    def model_post_init(self, _) -> None:
+    def model_post_init(self, __: None) -> None:
         """模型初始化後的處理
 
         在這裡處理目錄創建和 Telegram 配置
         """
         # 確保必要的目錄存在
         self.DATA_DIR.mkdir(exist_ok=True)
-        # self.STATIC_DIR.mkdir(exist_ok=True)
 
-        # 從環境變量加載 Telegram 配置
-        if os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"):
-            self.TELEGRAM_WEBHOOK_URL = AnyHttpUrl(
-                f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={self.TELEGRAM_CHAT_ID}"
-            )
+    #     # self.STATIC_DIR.mkdir(exist_ok=True)
+
+    #     # 從環境變量加載 Telegram 配置
+    #     if self.TELEGRAM_BOT_TOKEN and self.TELEGRAM_CHAT_ID:
+    #         self.telegram_webhook_url = AnyHttpUrl(
+    #             f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={self.TELEGRAM_CHAT_ID}"
+    #         )
 
 
 @lru_cache
@@ -87,4 +86,4 @@ def get_settings() -> Settings:
     return Settings()
 
 
-settings = get_settings()
+settings: Settings = get_settings()

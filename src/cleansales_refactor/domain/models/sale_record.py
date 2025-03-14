@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import override
 
-from sqlmodel import Field, SQLModel  # type: ignore
+from sqlmodel import Field, SQLModel
 
 from .batch_state import BatchState
 
@@ -95,6 +95,7 @@ class SaleRecord:
             return base
         return None
 
+    @override
     def __str__(self) -> str:
         msg: list[str] = []
         for k, v in self.__dict__.items():
