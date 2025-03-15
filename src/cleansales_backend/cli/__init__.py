@@ -6,7 +6,7 @@ import pandas as pd
 
 from cleansales_backend import Database
 from cleansales_backend.core import settings
-from cleansales_backend.repositories import BreedRepository, SaleRepository
+from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.services import CleanSalesService, QueryService
 from cleansales_backend.shared.models import SourceData
 
@@ -127,9 +127,9 @@ def main() -> None:
     3. 從其他程式中導入：from cleansales_backend import main
     """
     args = parse_args()
-    db = Database(str(args.db_path))
+    db = Database(args.db_path)
     import_service = CleanSalesService()
-    query_service = QueryService(BreedRepository(), SaleRepository())
+    query_service = QueryService(BreedRecordProcessor(), SaleRecordProcessor())
 
     try:
         if args.subcommand == "import":

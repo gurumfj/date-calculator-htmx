@@ -9,10 +9,10 @@ from pydantic import (
     Field,
     field_validator,
 )
-
-# from sqlmodel import Field, SQLModel
-# from pydantic import BaseModel
 from sqlmodel import Field as SQLModelField
+from sqlmodel import Session, select
+
+from cleansales_backend.domain.models import SaleRecord
 
 from .interface.processors_interface import (
     IBaseModel,
@@ -20,6 +20,7 @@ from .interface.processors_interface import (
     IProcessor,
     IResponse,
 )
+from .interface.sale_repository_protocol import SaleRepositoryProtocol
 
 # from sqlmodel import SQLModel
 
@@ -111,7 +112,7 @@ class SaleRecordBase(IBaseModel):
 
     @field_validator("unpaid", mode="before")
     @classmethod
-    def clean_unpaid(cls, v: str) -> bool:  # type: ignore
+    def clean_unpaid(cls, v: str) -> bool:
         try:
             return v == "未付"
         except (ValueError, TypeError):
@@ -120,7 +121,7 @@ class SaleRecordBase(IBaseModel):
 
     @field_validator("handler", mode="before")
     @classmethod
-    def clean_handler(cls, v: str | None) -> str | None:  # type: ignore
+    def clean_handler(cls, v: str | None) -> str | None:
         try:
             if pd.isna(v):
                 return None
@@ -134,7 +135,7 @@ class SaleRecordBase(IBaseModel):
         "male_price", "female_price", "total_price", "total_weight", mode="before"
     )
     @classmethod
-    def clean_float(cls, v: Any) -> float | None:  # type: ignore
+    def clean_float(cls, v: Any) -> float | None:
         try:
             if pd.isna(v):
                 return None
@@ -164,11 +165,7 @@ class SaleRecordResponse(IResponse):
     pass
 
 
-class SaleRecordValidatorSchema(SaleRecordBase):
-    pass
-
-
-class SaleRecordProcessor(IProcessor):
+class SaleRecordProcessor(IProcessor, SaleRepositoryProtocol):
     @override
     def set_validator_schema(self) -> type[IBaseModel]:
         return SaleRecordBase
@@ -180,3 +177,35 @@ class SaleRecordProcessor(IProcessor):
     @override
     def set_response_schema(self) -> type[IResponse]:
         return SaleRecordResponse
+
+    @override
+    def get_sales_by_location(
+        self, session: Session, location: str
+    ) -> list[SaleRecord]:
+        stmt = select(SaleRecordORM).where(SaleRecordORM.location == location)
+        sales_orm = session.exec(stmt).all()
+        return [self.orm_to_domain(orm) for orm in sales_orm]
+
+    @override
+    def get_sales_data(
+        self, session: Session, limit: int = 300, offset: int = 0
+    ) -> list[SaleRecord]:
+        stmt = select(SaleRecordORM).limit(limit).offset(offset)
+        sales_orm = session.exec(stmt).all()
+        return [self.orm_to_domain(orm) for orm in sales_orm]
+
+    def orm_to_domain(self, orm: SaleRecordORM) -> SaleRecord:
+        return SaleRecord(
+            closed="結案" if orm.closed else None,
+            handler=orm.handler,
+            sale_date=datetime.combine(orm.sale_date, datetime.min.time()),
+            location=orm.location,
+            customer=orm.customer,
+            male_count=orm.male_count,
+            female_count=orm.female_count,
+            total_weight=orm.total_weight,
+            total_price=orm.total_price,
+            male_price=orm.male_price,
+            female_price=orm.female_price,
+            unpaid="未付" if orm.unpaid else None,
+        )

@@ -11,9 +11,7 @@ from cleansales_backend.domain.models import (
     BreedRecord,
     SaleRecord,
 )
-
-# from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
-from cleansales_backend.repositories import (
+from cleansales_backend.processors import (
     BreedRepositoryProtocol,
     SaleRepositoryProtocol,
 )

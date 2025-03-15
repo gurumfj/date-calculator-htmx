@@ -1,6 +1,17 @@
 # from .breeds_processor import BreedsProcessor
 from .breeds_schema import BreedRecordProcessor
-from .processor_interface import IProcessor
-from .sales_processor import SalesProcessor
+from .interface.breed_repository_protocol import BreedRepositoryProtocol
+from .interface.processors_interface import IBaseModel, IORMModel, IProcessor, IResponse
+from .interface.sale_repository_protocol import SaleRepositoryProtocol
+from .sales_schema import SaleRecordProcessor
 
-__all__ = ["IProcessor", "BreedRecordProcessor", "SalesProcessor"]
+__all__ = [
+    "IProcessor",
+    "BreedRecordProcessor",
+    "SaleRecordProcessor",
+    "IBaseModel",
+    "IORMModel",
+    "IResponse",
+    "BreedRepositoryProtocol",
+    "SaleRepositoryProtocol",
+]

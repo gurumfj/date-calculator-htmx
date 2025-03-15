@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # 數據庫配置
     DB_PATH: str = Field(default_factory=lambda: str(ROOT_DIR / "data" / "main.db"))
+    DB_ECHO: bool = Field(default=False)
 
     # API 服務配置
     API_HOST: str = Field(default="0.0.0.0")
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
     CUSTOM_TELEGRAM_WEBHOOK_URL: AnyHttpUrl | None = Field(default=None)
 
     model_config = SettingsConfigDict(
-        env_file=str(ROOT_DIR / ".env"),
+        env_file=str(ROOT_DIR / ".env-testing"),
         env_file_encoding="utf-8",
         case_sensitive=True,
     )

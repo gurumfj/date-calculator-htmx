@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, override
 
 import pandas as pd
@@ -10,12 +10,17 @@ from pydantic import (
     model_validator,
 )
 from sqlmodel import Field as SQLModelField
+from sqlmodel import Session
 
+from cleansales_backend.domain.models import BreedRecord
+
+from .interface.breed_repository_protocol import BreedRepositoryProtocol
 from .interface.processors_interface import (
     IBaseModel,
     IORMModel,
     IProcessor,
     IResponse,
+    RecordEvent,
 )
 
 
@@ -145,7 +150,6 @@ class BreedRecordORM(IORMModel, table=True):
     """入雛記錄資料模型
 
     記錄每批雞隻的入雛基本資料，包含農場資訊、畜主資料及批次詳細資訊
-    frozen=True 確保資料不可變性
 
     屬性說明:
     - farm_name: 養殖場名稱
@@ -191,7 +195,7 @@ class BreedRecordResponse(IResponse):
     pass
 
 
-class BreedRecordProcessor(IProcessor):
+class BreedRecordProcessor(IProcessor, BreedRepositoryProtocol):
     @override
     def set_response_schema(self) -> type[IResponse]:
         return BreedRecordResponse
@@ -203,3 +207,31 @@ class BreedRecordProcessor(IProcessor):
     @override
     def set_orm_schema(self) -> type[IORMModel]:
         return BreedRecordORM
+
+    @override
+    def get_all(self, session: Session) -> list[BreedRecord]:
+        result = self._get_by_criteria(session, {"event": RecordEvent.ADDED})
+        return [self.orm_to_domain(orm) for orm in result]
+
+    @override
+    def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
+        result = self._get_by_criteria(session, {"batch_name": batch_name})
+        return [self.orm_to_domain(orm) for orm in result]
+
+    def orm_to_domain(self, orm: BreedRecordORM) -> BreedRecord:
+        return BreedRecord(
+            farm_name=orm.farm_name,
+            address=orm.address,
+            farm_license=orm.farm_license,
+            farmer_name=orm.farmer_name,
+            farmer_address=orm.farmer_address,
+            batch_name=orm.batch_name,
+            veterinarian=orm.veterinarian,
+            chicken_breed=orm.chicken_breed,
+            male=orm.breed_male,
+            female=orm.breed_female,
+            breed_date=datetime.combine(orm.breed_date, datetime.min.time()),
+            supplier=orm.supplier,
+            sub_location=orm.sub_location,
+            is_completed="結場" if orm.is_completed else None,
+        )

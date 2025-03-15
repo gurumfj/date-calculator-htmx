@@ -7,14 +7,14 @@ from datetime import datetime
 from mcp.server import FastMCP
 
 from cleansales_backend import Database, settings
-from cleansales_backend.repositories import BreedRepository, SaleRepository
+from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.services import QueryService
 
 mcp = FastMCP("cleansales-server")
 
 db = Database(settings.DB_PATH)
-sale_repository = SaleRepository()
-breed_repository = BreedRepository()
+sale_repository = SaleRecordProcessor()
+breed_repository = BreedRecordProcessor()
 query_service = QueryService(breed_repository, sale_repository)
 
 

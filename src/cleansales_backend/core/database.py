@@ -17,18 +17,32 @@
 import logging
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
+
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class Database:
     _engine: Engine
+    _db_path: Path
 
-    def __init__(self, db_path: str) -> None:
-        self._engine = create_engine(f"sqlite:///{db_path}", echo=False)
+    def __init__(self, db_path: Path | str) -> None:
+        if isinstance(db_path, str):
+            self._db_path = Path(db_path)
+        else:
+            self._db_path = db_path
+        db_dir = self._db_path.parent
+        if not db_dir.exists():
+            db_dir.mkdir(parents=True)
+
+        self._engine = create_engine(
+            f"sqlite:///{self._db_path}", echo=settings.DB_ECHO
+        )
         SQLModel.metadata.create_all(self._engine)
         logger.info(f"Database created at {db_path}")
 
