@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     CUSTOM_TELEGRAM_WEBHOOK_URL: AnyHttpUrl | None = Field(default=None)
 
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_file=str(ROOT_DIR / ".env-testing"),
+        env_file=str(ROOT_DIR / ".env-dev"),
         env_file_encoding="utf-8",
         case_sensitive=True,
     )
