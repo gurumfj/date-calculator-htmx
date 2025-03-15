@@ -16,6 +16,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import ClassVar, override
 
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,12 +27,8 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 class Settings(BaseSettings):
     """應用程序設置模型"""
 
-    # 基礎路徑配置
-    BASE_DIR: Path = Field(default=ROOT_DIR)
-    DATA_DIR: Path = Field(default_factory=lambda: ROOT_DIR / "data")
-
     # 數據庫配置
-    DB_PATH: str = Field(default_factory=lambda: str(ROOT_DIR / "data" / "main.db"))
+    DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")
     DB_ECHO: bool = Field(default=False)
 
     # API 服務配置
@@ -54,27 +51,20 @@ class Settings(BaseSettings):
     TELEGRAM_CHAT_ID: str | None = Field(default=None)
     CUSTOM_TELEGRAM_WEBHOOK_URL: AnyHttpUrl | None = Field(default=None)
 
-    model_config = SettingsConfigDict(
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env-testing"),
         env_file_encoding="utf-8",
         case_sensitive=True,
     )
 
+    @override
     def model_post_init(self, __: None) -> None:
         """模型初始化後的處理
 
         在這裡處理目錄創建和 Telegram 配置
         """
         # 確保必要的目錄存在
-        self.DATA_DIR.mkdir(exist_ok=True)
-
-    #     # self.STATIC_DIR.mkdir(exist_ok=True)
-
-    #     # 從環境變量加載 Telegram 配置
-    #     if self.TELEGRAM_BOT_TOKEN and self.TELEGRAM_CHAT_ID:
-    #         self.telegram_webhook_url = AnyHttpUrl(
-    #             f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={self.TELEGRAM_CHAT_ID}"
-    #         )
+        self.DB_PATH.parent.mkdir(exist_ok=True)
 
 
 @lru_cache

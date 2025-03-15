@@ -32,13 +32,8 @@ class Database:
     _db_path: Path
 
     def __init__(self, db_path: Path | str) -> None:
-        if isinstance(db_path, str):
-            self._db_path = Path(db_path)
-        else:
-            self._db_path = db_path
-        db_dir = self._db_path.parent
-        if not db_dir.exists():
-            db_dir.mkdir(parents=True)
+        self._db_path = Path(db_path) if isinstance(db_path, str) else db_path
+        self._db_path.parent.mkdir(exist_ok=True)
 
         self._engine = create_engine(
             f"sqlite:///{self._db_path}", echo=settings.DB_ECHO

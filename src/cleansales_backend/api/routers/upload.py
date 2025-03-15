@@ -15,7 +15,7 @@
 """
 
 import logging
-from typing import Any, Set
+from typing import Annotated, Any
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -23,7 +23,12 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from cleansales_backend.core import Event, EventBus
-from cleansales_backend.services import CleanSalesService
+from cleansales_backend.processors import (
+    BreedRecordProcessor,
+    SaleRecordProcessor,
+)
+
+# from cleansales_backend.services import CleanSalesService
 from cleansales_backend.shared.models import SourceData
 
 from .. import ProcessEvent, get_event_bus, get_session
@@ -42,23 +47,19 @@ class ResponseModel(BaseModel):
 # 配置路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
 
-# 添加允許的MIME類型
-ALLOWED_MIME_TYPES: Set[str] = {
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # xlsx
-    "application/vnd.ms-excel",  # xls
-}
 
-_clean_sales_service = CleanSalesService()
+_sales_processor = SaleRecordProcessor()
 
 
-def get_clean_sales_service() -> CleanSalesService:
-    """
-    依賴注入：獲取清理銷售數據的服務實例
+def get_sales_processor() -> SaleRecordProcessor:
+    return _sales_processor
 
-    Returns:
-        CleanSalesService: 用於處理銷售和入雛數據的服務實例
-    """
-    return _clean_sales_service
+
+_breeds_processor = BreedRecordProcessor()
+
+
+def get_breeds_processor() -> BreedRecordProcessor:
+    return _breeds_processor
 
 
 # 創建路由器實例，設置前綴和標籤
@@ -75,31 +76,35 @@ def validate_excel_file(file: UploadFile) -> None:
     Raises:
         ValueError: 當文件無效時拋出異常
     """
+    allowed_mime_types: set[str] = {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # xlsx
+        "application/vnd.ms-excel",  # xls
+    }
     if file.filename is None:
         raise ValueError("未提供檔案名稱")
 
     content_type = file.content_type
-    if content_type not in ALLOWED_MIME_TYPES:
+    if content_type not in allowed_mime_types:
         raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
 
 
 @router.post("/breeds", response_model=ResponseModel)
 async def process_breeds_file(
-    file_upload: UploadFile,
+    file_upload: Annotated[UploadFile, File(...)],
+    session: Annotated[Session, Depends(get_session)],
+    processor: Annotated[BreedRecordProcessor, Depends(get_breeds_processor)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
-    session: Session = Depends(get_session),
-    service: CleanSalesService = Depends(get_clean_sales_service),
-    event_bus: EventBus = Depends(get_event_bus),
 ) -> ResponseModel:
     """
     處理入雛資料 Excel 文件的上傳端點
 
     Args:
         file_upload (UploadFile): 上傳的 Excel 文件
-        check_exists (bool): 是否檢查數據是否已存在
         session (Session): 數據庫會話實例
-        service (CleanSalesService): 數據處理服務實例
+        processor (BreedRecordProcessor): 數據處理服務實例
         event_bus (EventBus): 事件總線實例
+        check_exists (bool): 是否檢查數據是否已存在
 
     Returns:
         ResponseModel: 包含處理結果的響應模型
@@ -119,23 +124,21 @@ async def process_breeds_file(
         )
 
         # 執行數據處理
-        result = service.execute_clean_breeds(
-            session, source_data, check_exists=check_exists
-        )
+        result = processor.execute(session, source_data, check_md5=check_exists)
 
         # 處理成功時發布事件
-        if result.status == "success":
+        if result.success:
             event_bus.publish(
                 Event(
                     event=ProcessEvent.BREEDS_PROCESSING_COMPLETED,
-                    content={"msg": result.msg},
+                    content={"msg": result.message},
                 )
             )
 
         return ResponseModel(
-            status=result.status,
-            msg=result.msg,
-            content=result.content,
+            status="success" if result.success else "error",
+            msg=result.message,
+            content=result.data,
         )
 
     except ValueError as ve:
@@ -165,21 +168,21 @@ async def process_breeds_file(
 
 @router.post("/sales", response_model=ResponseModel)
 async def process_sales_file(
-    file_upload: UploadFile = File(...),
+    file_upload: Annotated[UploadFile, File(...)],
+    session: Annotated[Session, Depends(get_session)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    processor: Annotated[SaleRecordProcessor, Depends(get_sales_processor)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
-    session: Session = Depends(get_session),
-    event_bus: EventBus = Depends(get_event_bus),
-    service: CleanSalesService = Depends(get_clean_sales_service),
 ) -> ResponseModel:
     """
     處理銷售資料 Excel 文件的上傳端點
 
     Args:
-        file_upload (UploadFile): 上傳的 Excel 文件
-        check_exists (bool): 是否檢查數據是否已存在
         session (Session): 數據庫會話實例
         event_bus (EventBus): 事件總線實例
-        service (CleanSalesService): 數據處理服務實例
+        processor (SaleRecordProcessor): 數據處理服務實例
+        file_upload (UploadFile): 上傳的 Excel 文件
+        check_exists (bool): 是否檢查數據是否已存在
 
     Returns:
         ResponseModel: 包含處理結果的響應模型
@@ -199,23 +202,21 @@ async def process_sales_file(
         )
 
         # 執行數據處理
-        result = service.execute_clean_sales(
-            session, source_data, check_exists=check_exists
-        )
+        result = processor.execute(session, source_data, check_md5=check_exists)
 
         # 處理成功時發布事件
-        if result.status == "success":
+        if result.success:
             event_bus.publish(
                 Event(
                     event=ProcessEvent.SALES_PROCESSING_COMPLETED,
-                    content={"msg": result.msg},
+                    content={"msg": result.message},
                 )
             )
 
         return ResponseModel(
-            status=result.status,
-            msg=result.msg,
-            content=result.content,
+            status="success" if result.success else "error",
+            msg=result.message,
+            content=result.data,
         )
 
     except ValueError as ve:

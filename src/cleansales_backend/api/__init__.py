@@ -59,12 +59,12 @@ def get_event_bus() -> EventBus:
 class ProcessEvent(str, Enum):
     """處理事件枚舉"""
 
-    SALES_PROCESSING_STARTED = "sales_processing_started"
-    SALES_PROCESSING_COMPLETED = "sales_processing_completed"
-    SALES_PROCESSING_FAILED = "sales_processing_failed"
-    BREEDS_PROCESSING_STARTED = "breeds_processing_started"
-    BREEDS_PROCESSING_COMPLETED = "breeds_processing_completed"
-    BREEDS_PROCESSING_FAILED = "breeds_processing_failed"
+    SALES_PROCESSING_STARTED = "販售資料上傳開始"
+    SALES_PROCESSING_COMPLETED = "販售資料上傳完成"
+    SALES_PROCESSING_FAILED = "販售資料上傳失敗"
+    BREEDS_PROCESSING_STARTED = "入雛資料上傳開始"
+    BREEDS_PROCESSING_COMPLETED = "入雛資料上傳完成"
+    BREEDS_PROCESSING_FAILED = "入雛資料上傳失敗"
 
 
 _telegram_notifier = TelegramNotifier(

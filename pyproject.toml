@@ -153,6 +153,7 @@ reportAny = false
 reportMissingTypeStubs = false
 reportUnknownVariableType = false
 reportUnknownMemberType = false
+reportCallInDefaultInitializer = false
 # useLibraryCodeForTypes = true  # 使用庫代碼作為類型來源
 
 # executionEnvironments = [

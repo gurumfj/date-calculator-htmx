@@ -5,7 +5,6 @@ from pathlib import Path
 from cleansales_backend.core.config import settings
 from cleansales_backend.core.database import Database
 from cleansales_backend.processors.breeds_schema import BreedRecordProcessor
-from cleansales_backend.processors.interface.processors_interface import IProcessor
 from cleansales_backend.processors.sales_schema import SaleRecordProcessor
 
 logger = logging.getLogger(__name__)
@@ -49,13 +48,22 @@ if __name__ == "__main__":
     db = Database(db_path)
     # 測試讀取 Excel 檔案
     file: Path = Path(args.file)
-    processor: IProcessor
     match args.subcommand:
         case "import":
             match args.type:
                 case "sales":
-                    processor = SaleRecordProcessor()
+                    with db.get_session() as session:
+                        sales_processor = SaleRecordProcessor()
+                        logger.info(
+                            sales_processor.execute(
+                                session, file, check_md5=args.check_md5
+                            )
+                        )
                 case "breeds":
-                    processor = BreedRecordProcessor()
-    with db.get_session() as session:
-        logger.info(processor.execute(session, file, check_md5=args.check_md5))
+                    with db.get_session() as session:
+                        breed_processor = BreedRecordProcessor()
+                        logger.info(
+                            breed_processor.execute(
+                                session, file, check_md5=args.check_md5
+                            )
+                        )

@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -7,7 +8,7 @@ import pandas as pd
 from cleansales_backend import Database
 from cleansales_backend.core import settings
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
-from cleansales_backend.services import CleanSalesService, QueryService
+from cleansales_backend.services import QueryService
 from cleansales_backend.shared.models import SourceData
 
 # 設定根 logger
@@ -29,7 +30,7 @@ def create_parser() -> argparse.ArgumentParser:
         "global_args": {
             "-db": {
                 "dest": "db_path",
-                "default": settings.DB_PATH,
+                "type": Path,
                 "help": f"資料庫檔案路徑 (預設: {settings.DB_PATH})",
             },
         },
@@ -127,9 +128,13 @@ def main() -> None:
     3. 從其他程式中導入：from cleansales_backend import main
     """
     args = parse_args()
-    db = Database(args.db_path)
-    import_service = CleanSalesService()
-    query_service = QueryService(BreedRecordProcessor(), SaleRecordProcessor())
+    if _db := args.db_path:
+        db = Database(_db)
+    else:
+        db = Database(settings.DB_PATH)
+    breed_processor = BreedRecordProcessor()
+    sale_processor = SaleRecordProcessor()
+    query_service = QueryService(breed_processor, sale_processor)
 
     try:
         if args.subcommand == "import":
@@ -141,9 +146,9 @@ def main() -> None:
                     )
                     with db.get_session() as session:
                         print(
-                            import_service.execute_clean_sales(
-                                session, source_data, check_exists=args.check_md5
-                            ).msg
+                            sale_processor.execute(
+                                session, source_data, check_md5=args.check_md5
+                            ).message
                         )
                 case "breeds":
                     source_data = SourceData(
@@ -152,10 +157,12 @@ def main() -> None:
                     )
                     with db.get_session() as session:
                         print(
-                            import_service.execute_clean_breeds(
-                                session, source_data, check_exists=args.check_md5
-                            ).msg
+                            breed_processor.execute(
+                                session, source_data, check_md5=args.check_md5
+                            ).message
                         )
+                case _:
+                    pass
         elif args.subcommand == "query":
             with db.get_session() as session:
                 filtered_aggrs = query_service.get_filtered_aggregates(

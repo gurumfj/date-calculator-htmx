@@ -117,7 +117,7 @@ class TelegramNotifier:
                 return
 
             # 將事件內容轉換為格式化的文字訊息
-            message = f"事件類型: {event.event.name}\n"
+            message = f"事件類型: {event.event.value}\n"
             message += "內容:\n"
             for key, value in event.content.items():
                 message += f"- {key}: {value}\n"

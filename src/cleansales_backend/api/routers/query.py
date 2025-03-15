@@ -17,13 +17,15 @@
 
 import logging
 import traceback
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from cleansales_backend.repositories import BreedRepository, SaleRepository
+from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
+
+# from cleansales_backend.repositories import BreedRepository, SaleRepository
 from cleansales_backend.services import QueryService
 
 from .. import get_session
@@ -38,8 +40,8 @@ logger = logging.getLogger(__name__)
 # 創建路由器實例，設置前綴和標籤
 router = APIRouter(prefix="/api", tags=["api"])
 
-_breed_repository = BreedRepository()
-_sale_repository = SaleRepository()
+_breed_repository = BreedRecordProcessor()
+_sale_repository = SaleRecordProcessor()
 _query_service = QueryService(
     _breed_repository,
     _sale_repository,
@@ -69,12 +71,13 @@ class BatchStatisticsResponse(BaseModel):
 
 @router.get("/not-completed", response_model=list[BatchAggregateResponseModel])
 async def get_not_completed_batches(
-    session: Session = Depends(get_session),
-    query_service: QueryService = Depends(get_query_service),
+    session: Annotated[Session, Depends(get_session)],
+    query_service: Annotated[QueryService, Depends(get_query_service)],
 ) -> list[BatchAggregateResponseModel]:
     """獲取未結案的批次列表
 
     Args:
+        session (Session): 數據庫會話實例
         query_service (QueryService): 查詢服務實例
 
     Returns:
@@ -93,19 +96,21 @@ async def get_not_completed_batches(
 
 
 # api for query batch aggregate in specific batch name
-@router.get("/query/batch", response_model=list[BatchAggregateResponseModel])
+@router.get(
+    "/batch-aggregate/{batch_name}", response_model=list[BatchAggregateResponseModel]
+)
 async def get_batch_aggregate_by_name(
-    batch_name: str | None = None,
+    batch_name: str,
+    session: Annotated[Session, Depends(get_session)],
+    query_service: Annotated[QueryService, Depends(get_query_service)],
     breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = Query(
         default=None,
-        description="雞種類型，可包含多個雞種(黑羽, 古早, 舍黑, 閹雞)。空列表或 None 表示不過濾雞種",
+        description="可包含多個雞種。空列表或 None 表示不過濾雞種",
     ),
     status: list[Literal["all", "completed", "breeding", "sale"]] | None = Query(
         default=["all"],
-        description="批次狀態，可包含多個狀態(all, completed, breeding, sale)。空列表或 ['all'] 表示不過濾狀態",
+        description="可包含多個狀態。空列表或 ['all'] 表示不過濾狀態",
     ),
-    session: Session = Depends(get_session),
-    query_service: QueryService = Depends(get_query_service),
 ) -> list[BatchAggregateResponseModel]:
     """獲取特定批次名稱的批次聚合列表
 
