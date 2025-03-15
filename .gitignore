@@ -16,7 +16,8 @@ wheels/
 .DS_Store
 *.xlsx
 *.db
-.env*
+*.env*
+# .env-testing
 
 # 資料庫
 data/
