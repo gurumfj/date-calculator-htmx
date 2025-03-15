@@ -39,7 +39,7 @@ class Database:
             f"sqlite:///{self._db_path}", echo=settings.DB_ECHO
         )
         SQLModel.metadata.create_all(self._engine)
-        logger.info(f"Database created at {db_path}")
+        logger.info(f"Database created at {self._db_path}")
 
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:

@@ -26,6 +26,8 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 
 class Settings(BaseSettings):
     """應用程序設置模型"""
+    
+    BRANCH: str
 
     # 數據庫配置
     DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")

@@ -19,6 +19,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from cleansales_backend.core import settings
 
 from .routers import query, upload
 
@@ -62,7 +63,7 @@ async def health_check() -> dict[str, str]:
     健康檢查端點
     返回服務狀態和版本信息
     """
-    return {"status": "healthy", "service": "CleanSales API", "version": "1.0.0"}
+    return {"status": "healthy", "branch": settings.BRANCH}
 
 
 # CORS 中間件配置
