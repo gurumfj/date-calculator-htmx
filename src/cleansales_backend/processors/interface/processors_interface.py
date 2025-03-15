@@ -41,6 +41,7 @@ class IResponse(SQLModel):
     data: dict[str, Any]
 
 
+<<<<<<< HEAD
 ORMT = TypeVar("ORMT", bound=IORMModel)
 VT = TypeVar("VT", bound=IBaseModel)
 RT = TypeVar("RT", bound=IResponse)
@@ -63,6 +64,25 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
     def set_response_schema(self) -> type[RT]:
         pass
 
+=======
+class IProcessor(ABC):
+    _orm_schema: type[IORMModel]
+    _validator_schema: type[IBaseModel]
+    _response_schema: type[IResponse]
+
+    @abstractmethod
+    def set_validator_schema(self) -> type[IBaseModel]:
+        pass
+
+    @abstractmethod
+    def set_orm_schema(self) -> type[IORMModel]:
+        pass
+
+    @abstractmethod
+    def set_response_schema(self) -> type[IResponse]:
+        pass
+
+>>>>>>> 8f947bb (重構數據處理邏輯，將資料庫操作整合至處理器中，並更新測試腳本以使用新的 BreedRecordProcessor 和 SaleRecordProcessor。刪除不再使用的匯出服務和驗證器，簡化代碼結構，並改善日誌記錄以增強錯誤追蹤能力。)
     def __init__(self) -> None:
         self._orm_schema = self.set_orm_schema()
         self._validator_schema = self.set_validator_schema()
@@ -73,7 +93,11 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
         session: Session,
         source: SourceData | Path | pd.DataFrame,
         check_md5: bool = True,
+<<<<<<< HEAD
     ) -> RT:
+=======
+    ) -> IResponse:
+>>>>>>> 8f947bb (重構數據處理邏輯，將資料庫操作整合至處理器中，並更新測試腳本以使用新的 BreedRecordProcessor 和 SaleRecordProcessor。刪除不再使用的匯出服務和驗證器，簡化代碼結構，並改善日誌記錄以增強錯誤追蹤能力。)
         try:
             df = None
             if isinstance(source, SourceData):
@@ -210,7 +234,11 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
 
     def _get_by_criteria(
         self, session: Session, criteria: dict[str, Any] | None = None
+<<<<<<< HEAD
     ) -> Sequence[ORMT]:
+=======
+    ) -> Sequence[IORMModel]:
+>>>>>>> 8f947bb (重構數據處理邏輯，將資料庫操作整合至處理器中，並更新測試腳本以使用新的 BreedRecordProcessor 和 SaleRecordProcessor。刪除不再使用的匯出服務和驗證器，簡化代碼結構，並改善日誌記錄以增強錯誤追蹤能力。)
         stmt = select(self._orm_schema)
         if criteria:
             for key, value in criteria.items():
