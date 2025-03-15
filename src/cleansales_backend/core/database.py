@@ -21,11 +21,12 @@ from pathlib import Path
 
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
-
 from .config import settings
+from cleansales_backend.processors import BreedRecordORM, SaleRecordORM
+
+_, _ = BreedRecordORM, SaleRecordORM
 
 logger = logging.getLogger(__name__)
-
 
 class Database:
     _engine: Engine
