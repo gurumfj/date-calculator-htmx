@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -41,21 +41,26 @@ class IResponse(SQLModel):
     data: dict[str, Any]
 
 
-class IProcessor(ABC):
-    _orm_schema: type[IORMModel]
-    _validator_schema: type[IBaseModel]
-    _response_schema: type[IResponse]
+ORMT = TypeVar("ORMT", bound=IORMModel)
+VT = TypeVar("VT", bound=IBaseModel)
+RT = TypeVar("RT", bound=IResponse)
+
+
+class IProcessor(ABC, Generic[ORMT, VT, RT]):
+    _orm_schema: type[ORMT]
+    _validator_schema: type[VT]
+    _response_schema: type[RT]
 
     @abstractmethod
-    def set_validator_schema(self) -> type[IBaseModel]:
+    def set_validator_schema(self) -> type[VT]:
         pass
 
     @abstractmethod
-    def set_orm_schema(self) -> type[IORMModel]:
+    def set_orm_schema(self) -> type[ORMT]:
         pass
 
     @abstractmethod
-    def set_response_schema(self) -> type[IResponse]:
+    def set_response_schema(self) -> type[RT]:
         pass
 
     def __init__(self) -> None:
@@ -68,7 +73,7 @@ class IProcessor(ABC):
         session: Session,
         source: SourceData | Path | pd.DataFrame,
         check_md5: bool = True,
-    ) -> IResponse:
+    ) -> RT:
         try:
             df = None
             if isinstance(source, SourceData):
@@ -82,13 +87,15 @@ class IProcessor(ABC):
 
             if check_md5 and self._is_md5_exist(session, md5):
                 logger.info("MD5 already exists, skipping execution")
-                return IResponse(success=True, message="MD5 already exists", data={})
+                return self._response_schema(
+                    success=True, message="MD5 already exists", data={}
+                )
 
             validated_records, error_records = self._validate_data(df)
 
             self._infrastructure(session, validated_records, error_records, md5)
 
-            return IResponse(
+            return self._response_schema(
                 success=True,
                 message=f"{len(validated_records)} records validated, {len(error_records)} records failed validation",
                 data={},
@@ -203,7 +210,7 @@ class IProcessor(ABC):
 
     def _get_by_criteria(
         self, session: Session, criteria: dict[str, Any] | None = None
-    ) -> Sequence[IORMModel]:
+    ) -> Sequence[ORMT]:
         stmt = select(self._orm_schema)
         if criteria:
             for key, value in criteria.items():

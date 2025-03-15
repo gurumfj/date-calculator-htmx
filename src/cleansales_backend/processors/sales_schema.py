@@ -165,17 +165,20 @@ class SaleRecordResponse(IResponse):
     pass
 
 
-class SaleRecordProcessor(IProcessor, SaleRepositoryProtocol):
+class SaleRecordProcessor(
+    IProcessor[SaleRecordORM, SaleRecordBase, SaleRecordResponse],
+    SaleRepositoryProtocol,
+):
     @override
-    def set_validator_schema(self) -> type[IBaseModel]:
+    def set_validator_schema(self) -> type[SaleRecordBase]:
         return SaleRecordBase
 
     @override
-    def set_orm_schema(self) -> type[IORMModel]:
+    def set_orm_schema(self) -> type[SaleRecordORM]:
         return SaleRecordORM
 
     @override
-    def set_response_schema(self) -> type[IResponse]:
+    def set_response_schema(self) -> type[SaleRecordResponse]:
         return SaleRecordResponse
 
     @override

@@ -195,17 +195,20 @@ class BreedRecordResponse(IResponse):
     pass
 
 
-class BreedRecordProcessor(IProcessor, BreedRepositoryProtocol):
+class BreedRecordProcessor(
+    IProcessor[BreedRecordORM, BreedRecordBase, BreedRecordResponse],
+    BreedRepositoryProtocol,
+):
     @override
-    def set_response_schema(self) -> type[IResponse]:
+    def set_response_schema(self) -> type[BreedRecordResponse]:
         return BreedRecordResponse
 
     @override
-    def set_validator_schema(self) -> type[IBaseModel]:
+    def set_validator_schema(self) -> type[BreedRecordBase]:
         return BreedRecordBase
 
     @override
-    def set_orm_schema(self) -> type[IORMModel]:
+    def set_orm_schema(self) -> type[BreedRecordORM]:
         return BreedRecordORM
 
     @override
