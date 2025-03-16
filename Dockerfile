@@ -1,25 +1,63 @@
-# 使用 Python 3.12 作為基礎映像
-FROM python:3.12-slim
-
-# 設置工作目錄
+# 基礎階段：安裝 uv
+FROM python:3.12-slim-bookworm AS base
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
-# 安裝 uv 包管理器
-RUN pip install uv
+# 定義環境文件參數
+ARG ENV_FILE=.env-dev
 
-# 複製專案文件
+# 開發階段：包含所有開發工具和依賴
+FROM base AS development
+
+ARG ENV_FILE
+# 安裝開發工具
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 複製依賴文件
 COPY pyproject.toml README.md ./
-COPY src/ src/
 
-# 使用 uv 安裝依賴
-RUN uv pip install --system -e .
+# 安裝所有依賴（包括開發依賴）
+RUN uv sync --dev
 
-# 暴露端口
-EXPOSE 8000
+# 複製環境文件
+COPY ${ENV_FILE} ./.env
 
-# 設置環境變數
+# 複製源代碼
+COPY . .
+
+# 設置開發環境變數
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=development
 
-# 運行應用
-CMD ["python", "src/api.py"] 
+# 默認開發命令
+CMD ["uv", "run", "cleansales-api"]
+
+# 生產階段：只包含運行必需的文件
+FROM base AS production
+# 繼承 ARG
+ARG ENV_FILE
+
+# 複製依賴文件
+COPY pyproject.toml README.md ./
+
+# 只安裝生產依賴
+RUN uv sync
+
+# 複製環境文件
+COPY ${ENV_FILE} ./.env
+
+# 複製源代碼
+COPY ./src /app/src
+COPY ./data /app/data
+
+# 設置生產環境變數
+ENV PYTHONPATH=/app/src
+ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
+
+# 生產環境命令
+CMD ["uv", "run", "cleansales-api"]

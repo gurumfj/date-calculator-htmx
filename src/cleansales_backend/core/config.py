@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # API 服務配置
     API_HOST: str = Field(default="0.0.0.0")
     API_PORT: int = Field(default=8000)
-    API_RELOAD: bool = Field(default=True)
+    API_RELOAD: bool = Field(default=False)
 
     # 上傳文件配置
     MAX_UPLOAD_SIZE: int = Field(default=10 * 1024 * 1024)  # 10MB TODO: 取消
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     CUSTOM_TELEGRAM_WEBHOOK_URL: AnyHttpUrl | None = Field(default=None)
 
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_file=str(ROOT_DIR / ".env-dev"),
+        env_file=str(ROOT_DIR / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
     )
