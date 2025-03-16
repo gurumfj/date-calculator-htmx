@@ -13,14 +13,11 @@
 ################################################################################
 """
 
-from .data_models import (
-    BatchAggregateResponseModel,
-)
-from .response import PaginationResponseModel, ResponseModel
+from .response import ContextModel, PaginationResponseModel, ResponseModel
 
 __all__ = [
     # 數據模型
-    "BatchAggregateResponseModel",
+    "ContextModel",
     # 響應模型
     "ResponseModel",
     "PaginationResponseModel",

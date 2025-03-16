@@ -24,8 +24,9 @@ class SaleRecord:
     - female_count: 母雞銷售數量
     - total_weight: 總重量
     - total_price: 總金額
-    - male_price: 公雞單價
-    - female_price: 母雞單價
+    - avg_price: 平均單價
+    - male_avg_weight: 公雞平均重量
+    - female_avg_weight: 母雞平均重量
     - unpaid: 未付款狀態
     """
 
@@ -94,6 +95,12 @@ class SaleRecord:
         if base := self._base_weight():
             return base
         return None
+
+    @property
+    def avg_price(self) -> float | None:
+        if self.total_price is None or (self.male_count + self.female_count) == 0:
+            return None
+        return self.total_price / (self.male_count + self.female_count)
 
     @override
     def __str__(self) -> str:

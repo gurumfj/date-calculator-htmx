@@ -14,27 +14,40 @@
 ################################################################################
 """
 
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Dict, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
 # from .data_models import BatchAggregateModel
 
 T = TypeVar("T")
+D = TypeVar("D", bound=BaseModel)
 
 
-class ResponseModel(BaseModel, Generic[T]):
-    """通用響應模型"""
+class ContextModel(BaseModel, Generic[D]):
+    """包含資料列表的上下文模型"""
+
+    data: list[D]
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True, json_schema_extra={"example": {"data": []}}
+    )
+
+
+class ResponseModel(BaseModel, Generic[D]):
+    """標準響應模型
+
+    包含成功狀態、訊息和資料內容
+    """
 
     success: bool = True
     message: str = "操作成功"
-    data: Optional[T] = None
-    errors: Optional[List[Dict[str, Any]]] = None
-
+    content: ContextModel[D]
+    errors: list[Dict[str, Any]] | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
-class PaginationResponseModel(ResponseModel[List[T]], Generic[T]):
+class PaginationResponseModel(ResponseModel[ContextModel[D]], Generic[D]):
     """分頁響應模型"""
 
     total: int = 0

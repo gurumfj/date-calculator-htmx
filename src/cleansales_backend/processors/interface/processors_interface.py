@@ -38,7 +38,7 @@ class IORMModel(SQLModel):
 class IResponse(SQLModel):
     success: bool
     message: str
-    content: dict[str, Any] | None = Field(default=None)
+    content: dict[str, Any] = Field(default_factory=dict)
 
 
 ORMT = TypeVar("ORMT", bound=IORMModel)

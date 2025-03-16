@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from typing import Literal
 
 from sqlmodel import Session
 
@@ -7,86 +8,13 @@ from cleansales_backend.domain.models import (
     BatchAggregate,
     BreedRecord,
 )
+from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.processors import (
     BreedRepositoryProtocol,
     SaleRepositoryProtocol,
 )
 
 logger = logging.getLogger(__name__)
-
-
-# @dataclass
-# class BatchFilterCriteria:
-#     """批次過濾準則
-
-#     封裝批次過濾的業務規則參數
-
-#     Attributes:
-#         batch_name: 批次名稱關鍵字
-#         breed_type: 品種類型關鍵字
-#         status: 批次狀態列表，可包含多個狀態。空列表或 ["all"] 表示不過濾狀態
-#     """
-
-#     batch_name: str | None = None
-#     breed_type: str | None = None
-#     status: list[Literal["all", "completed", "breeding", "sale"]] = field(
-#         default_factory=lambda: ["all"]
-#     )
-
-
-# class BatchFilterService:
-#     """批次過濾服務
-
-#     提供純函數方式的批次資料過濾功能
-#     不包含任何副作用，專注於過濾邏輯的處理
-#     """
-
-#     @staticmethod
-#     def filter_batches(
-#         aggregates: list[BatchAggregate], criteria: BatchFilterCriteria
-#     ) -> list[BatchAggregate]:
-#         """根據過濾準則過濾批次資料
-
-#         純函數：根據給定的準則過濾批次聚合資料
-
-#         Args:
-#             aggregates: 原始批次聚合資料
-#             criteria: 過濾準則
-
-#         Returns:
-#             符合準則的批次聚合資料列表
-#         """
-#         result: list[BatchAggregate] = aggregates
-
-#         if criteria.batch_name:
-#             result = [
-#                 aggr
-#                 for aggr in result
-#                 if aggr.batch_name and criteria.batch_name in aggr.batch_name
-#             ]
-
-#         if criteria.breed_type:
-#             result = [
-#                 aggr
-#                 for aggr in result
-#                 if aggr.chicken_breed
-#                 and criteria.breed_type
-#                 in [breed.chicken_breed for breed in aggr.breeds]
-#             ]
-
-#         # 如果狀態列表為空或包含 "all"，則不進行狀態過濾
-#         if criteria.status and "all" not in criteria.status:
-#             state_map = {
-#                 "completed": BatchState.COMPLETED,
-#                 "breeding": BatchState.BREEDING,
-#                 "sale": BatchState.SALE,
-#             }
-#             # 將文字狀態轉換為 BatchState 列舉值
-#             states = [state_map[s] for s in criteria.status if s in state_map]
-#             # 過濾出符合任一指定狀態的批次
-#             result = [aggr for aggr in result if aggr.batch_state in states]
-
-#         return result
 
 
 class QueryService:
@@ -149,35 +77,63 @@ class QueryService:
             logger.error(f"獲取批次聚合數據時發生錯誤: {e}")
             raise ValueError(f"獲取批次聚合數據時發生錯誤: {str(e)}")
 
-    # def get_filtered_aggregates(
-    #     self,
-    #     session: Session,
-    #     batch_name: str | None = None,
-    #     breed_type: str | None = None,
-    #     status: list[Literal["all", "completed", "breeding", "sale"]] | None = None,
-    #     batch_state: BatchState | None = None,
-    # ) -> list[BatchAggregate]:
-    #     """獲取已過濾的批次聚合資料
+    def get_batch_aggregates_by_criteria(
+        self,
+        all_aggrs: list[BatchAggregate],
+        batch_name: str | None = None,
+        breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
+        batch_status: list[Literal["completed", "breeding", "sale"]] | None = None,
+    ) -> list[BatchAggregate]:
+        """獲取特定批次名稱的批次聚合列表
 
-    #     Args:
-    #         session: 數據庫會話
-    #         batch_name: 批次名稱關鍵字
-    #         breed_type: 品種類型關鍵字
-    #         status: 批次狀態列表，None 或 ["all"] 表示不過濾狀態
-    #         batch_state: 批次狀態，None 表示不過濾狀態
-    #     """
-    #     try:
-    #         aggregates = self.get_batch_aggregates(session)
-    #         criteria = BatchFilterCriteria(
-    #             batch_name=batch_name, breed_type=breed_type, status=status or ["all"]
-    #         )
-    #         return self._filter_service.filter_batches(aggregates, criteria)
-    #     except Exception as e:
-    #         logger.error(f"過濾批次聚合資料時發生錯誤: {e}")
-    #         raise ValueError(f"資料過濾失敗: {str(e)}")
+        Args:
+            batch_name (str): 批次名稱
+            breed_type (Literal["黑羽", "古早", "舍黑", "閹雞"]): 雏種類型
+            batch_status (list[Literal["completed", "breeding", "sale"]]): 批次狀態
 
-    # def get_sales_data_by_batch_name(
-    #     self, session: Session, batch_name: str
-    # ) -> list[SaleRecord]:
-    #     aggr = self.get_filtered_aggregates(session, batch_name=batch_name)
-    #     return aggr[0].sales
+        Returns:
+            list[BatchAggregate]: 包含特定批次名稱的批次聚合列表
+        """
+        logger.info(f"criteria: {batch_status, batch_name, breed_type}")
+        return [
+            aggr
+            for aggr in all_aggrs
+            if (
+                (
+                    batch_name is None
+                    or aggr.batch_name is not None
+                    and batch_name in aggr.batch_name
+                )
+                and (
+                    batch_status is None
+                    or aggr.batch_state in [BatchState(s) for s in batch_status]
+                )
+                and (
+                    breed_type is None
+                    or any(breed_type in breed.chicken_breed for breed in aggr.breeds)
+                )
+            )
+        ]
+
+    def get_not_completed_batches_summary(
+        self,
+        all_aggrs: list[BatchAggregate],
+    ) -> list[BatchAggregate]:
+        """獲取未結案的批次列表
+
+        Args:
+            all_aggrs (list[BatchAggregate]): 所有批次聚合
+
+        Returns:
+            list[BatchAggregate]: 未結案批次列表
+        """
+        try:
+            filtered_aggrs = [
+                aggr
+                for aggr in all_aggrs
+                if aggr.batch_state in [BatchState.BREEDING, BatchState.SALE]
+            ]
+            return filtered_aggrs
+        except Exception as e:
+            logger.error(f"獲取未結案批次時發生錯誤: {e}")
+            raise ValueError(f"獲取未結案批次時發生錯誤: {str(e)}")
