@@ -26,8 +26,8 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 
 class Settings(BaseSettings):
     """應用程序設置模型"""
-    
-    BRANCH: str
+
+    BRANCH: str = Field(default="unset in env")
 
     # 數據庫配置
     DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: set[str] = Field(default={".xlsx", ".xls"})  # TODO: 取消
 
     # 日誌配置
-    LOG_LEVEL: str = Field(default="INFO")
+    LOG_LEVEL: str = Field(default="DEBUG")
     LOG_FORMAT: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     )
 
     @override
-    def model_post_init(self, __: None) -> None:
+    def model_post_init(self, _: None) -> None:
         """模型初始化後的處理
 
         在這裡處理目錄創建和 Telegram 配置

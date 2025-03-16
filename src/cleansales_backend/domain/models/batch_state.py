@@ -10,6 +10,6 @@ class BatchState(Enum):
     - COMPLETED: 結案階段，該批次已完成所有銷售
     """
 
-    BREEDING = "養殖中"
-    SALE = "銷售中"
-    COMPLETED = "結案"
+    BREEDING = "breeding"
+    SALE = "sale"
+    COMPLETED = "completed"

@@ -127,7 +127,7 @@ class SalesTrendData:
         return (self.cycle_date[1] - self.cycle_date[0]).days + 1
 
     @property
-    def sales_period_date(self) -> tuple[date, date] | None:
+    def sales_period_date(self) -> tuple[datetime, datetime] | None:
         """銷售期間"""
         if not self.sales:
             return None

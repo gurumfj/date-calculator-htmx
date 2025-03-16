@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 from sqlmodel import Field as SQLModelField
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from cleansales_backend.domain.models import BreedRecord
 
@@ -180,7 +180,7 @@ class BreedRecordORM(IORMModel, table=True):
     farmer_address: str | None = Field(default=None, description="畜主地址")
 
     # 批次資料
-    batch_name: str | None = Field(default=None, description="場別")
+    batch_name: str | None = SQLModelField(default=None, description="場別", index=True)
     veterinarian: str | None = Field(default=None, description="獸醫名稱")
     chicken_breed: str = Field(default="", description="雞種")
     breed_male: int = Field(default=0, description="入雛公雞數量")
@@ -213,12 +213,15 @@ class BreedRecordProcessor(
 
     @override
     def get_all(self, session: Session) -> list[BreedRecord]:
-        result = self._get_by_criteria(session, {"event": RecordEvent.ADDED})
+        stmt = select(self._orm_schema).where(
+            self._orm_schema.event == RecordEvent.ADDED
+        )
+        result = session.exec(stmt).all()
         return [self.orm_to_domain(orm) for orm in result]
 
     @override
     def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
-        result = self._get_by_criteria(session, {"batch_name": batch_name})
+        result = self._get_by_criteria(session, {"batch_name": (batch_name, "eq")})
         return [self.orm_to_domain(orm) for orm in result]
 
     def orm_to_domain(self, orm: BreedRecordORM) -> BreedRecord:

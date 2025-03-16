@@ -15,12 +15,10 @@
 """
 
 import logging
-from collections.abc import Generator
 from enum import Enum
 
-from sqlmodel import Session
-
-from cleansales_backend.core import Database, EventBus, TelegramNotifier, settings
+from cleansales_backend.core import core_db, get_event_bus, settings
+from cleansales_backend.core.event_bus import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 # 設定根 logger
@@ -29,31 +27,6 @@ logging.basicConfig(
     format=settings.LOG_FORMAT,
     handlers=[logging.StreamHandler()],
 )
-
-
-db = Database(settings.DB_PATH)
-
-
-def get_session() -> Generator[Session, None, None]:
-    """獲取數據庫會話
-
-    Yields:
-        Generator[Session, None, None]: 數據庫會話生成器
-    """
-    with db.get_session() as session:
-        yield session
-
-
-_event_bus = EventBus()
-
-
-def get_event_bus() -> EventBus:
-    """獲取事件總線實例
-
-    Returns:
-        EventBus: 事件總線實例
-    """
-    return _event_bus
 
 
 class ProcessEvent(str, Enum):
@@ -91,4 +64,4 @@ def main() -> None:
     )
 
 
-__all__ = ["get_session", "main", "get_event_bus", "ProcessEvent"]
+__all__ = ["core_db", "main", "get_event_bus", "ProcessEvent"]

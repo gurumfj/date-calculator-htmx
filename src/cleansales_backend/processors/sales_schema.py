@@ -7,6 +7,7 @@ import pandas as pd
 from pydantic import (
     ConfigDict,
     Field,
+    computed_field,
     field_validator,
 )
 from sqlmodel import Field as SQLModelField
@@ -53,7 +54,8 @@ class SaleRecordBase(IBaseModel):
     total_price: float | None = Field(None, description="總價格", alias="總價")
     male_price: float | None = Field(None, alias="公-單價", description="公雞單價")
     female_price: float | None = Field(None, alias="母-單價", description="母雞單價")
-    unpaid: bool = Field(True, description="未付款狀態", alias="未收")
+    b_unpaid: bool = Field(True, description="未付款狀態", alias="未收")
+    b_paid: bool = Field(False, description="已付款狀態", alias="實收")
 
     model_config = ConfigDict(
         str_strip_whitespace=True,
@@ -63,7 +65,7 @@ class SaleRecordBase(IBaseModel):
 
     @field_validator("sale_date", mode="before")
     @classmethod
-    def clean_sale_date(cls, v: date | datetime | pd.Timestamp | None) -> date | None:
+    def clean_sale_date(cls, v: Any) -> date | None:
         try:
             if pd.isna(v):
                 return None
@@ -103,25 +105,50 @@ class SaleRecordBase(IBaseModel):
 
     @field_validator("closed", mode="before")
     @classmethod
-    def clean_closed(cls, v: str) -> bool:
+    def clean_closed(cls, v: Any) -> bool:
         try:
-            return v == "結案"
+            if pd.isna(v):
+                return False
+            if isinstance(v, str):
+                return v == "結案"
+            return bool(v)
         except (ValueError, TypeError):
-            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 True")
+            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 False")
+            return False
+
+    @field_validator("b_unpaid", mode="before")
+    @classmethod
+    def clean_unpaid(cls, v: Any) -> bool:
+        try:
+            if pd.isna(v):
+                return False
+            if isinstance(v, str):
+                return v == "未付"
+            return bool(v)
+        except (ValueError, TypeError):
+            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 False")
             return True
 
-    @field_validator("unpaid", mode="before")
+    @field_validator("b_paid", mode="before")
     @classmethod
-    def clean_unpaid(cls, v: str) -> bool:
+    def clean_paid(cls, v: Any) -> bool:
         try:
-            return v == "未付"
+            if pd.isna(v):
+                return False
+            if isinstance(v, str):
+                return True
+            return bool(v)
         except (ValueError, TypeError):
-            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 True")
-            return True
+            logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 False")
+            return False
+
+    @computed_field
+    def unpaid(self) -> bool:
+        return self.b_unpaid and not self.b_paid
 
     @field_validator("handler", mode="before")
     @classmethod
-    def clean_handler(cls, v: str | None) -> str | None:
+    def clean_handler(cls, v: Any) -> str | None:
         try:
             if pd.isna(v):
                 return None

@@ -5,11 +5,11 @@ from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 import pandas as pd
 from pydantic import BaseModel, Field
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, SQLModel, col, select
 
 from cleansales_backend.shared.models import SourceData
 
@@ -38,7 +38,7 @@ class IORMModel(SQLModel):
 class IResponse(SQLModel):
     success: bool
     message: str
-    data: dict[str, Any]
+    content: dict[str, Any] | None = Field(default=None)
 
 
 ORMT = TypeVar("ORMT", bound=IORMModel)
@@ -88,7 +88,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             if check_md5 and self._is_md5_exist(session, md5):
                 logger.info("MD5 already exists, skipping execution")
                 return self._response_schema(
-                    success=True, message="MD5 already exists", data={}
+                    success=False, message="MD5 already exists", content={}
                 )
 
             validated_records, error_records = self._validate_data(df)
@@ -98,7 +98,9 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             return self._response_schema(
                 success=True,
                 message=f"{len(validated_records)} records validated, {len(error_records)} records failed validation",
-                data={},
+                content={
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
         except FileNotFoundError:
             logger.error(f"File not found: {source}")
@@ -108,7 +110,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             raise e
 
     def _is_md5_exist(self, session: Session, md5: str) -> bool:
-        result = self._get_by_criteria(session, {"md5": md5})
+        result = self._get_by_criteria(session, {"md5": (md5, "eq")})
         return len(result) > 0
 
     def _calculate_unique_id(self, record: IBaseModel) -> str:
@@ -209,11 +211,16 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             raise
 
     def _get_by_criteria(
-        self, session: Session, criteria: dict[str, Any] | None = None
+        self,
+        session: Session,
+        criteria: dict[str, tuple[Any, Literal["eq", "in"]]] | None = None,
     ) -> Sequence[ORMT]:
         stmt = select(self._orm_schema)
         if criteria:
-            for key, value in criteria.items():
-                stmt = stmt.where(getattr(self._orm_schema, key) == value)
+            for key, (value, operator) in criteria.items():
+                if operator == "eq":
+                    stmt = stmt.where(getattr(self._orm_schema, key) == value)
+                elif operator == "in":
+                    stmt = stmt.where(col(getattr(self._orm_schema, key)).in_(value))
         result = session.exec(stmt).all()
         return result

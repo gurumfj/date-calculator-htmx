@@ -19,6 +19,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from cleansales_backend.core import settings
 
 from .routers import query, upload

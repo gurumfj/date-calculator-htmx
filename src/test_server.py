@@ -1,12 +1,5 @@
-"""
-TODO: query location sales data from the database
-"""
-
 import json
 from datetime import datetime, timedelta
-
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.prompts.base import AssistantMessage, Message, UserMessage
 
 from cleansales_backend import Database, settings
 from cleansales_backend.domain.models import BatchAggregate
@@ -14,30 +7,12 @@ from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.services import QueryService
 
-mcp = FastMCP("cleansales-server")
-
 db = Database(settings.DB_PATH)
 sale_repository = SaleRecordProcessor()
 breed_repository = BreedRecordProcessor()
 query_service = QueryService(breed_repository, sale_repository)
 
 
-@mcp.tool(name="today", description="Get the current date in YYYY-MM-DD format")
-def get_today() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
-
-
-def get_current_time() -> datetime:
-    """獲取當前時間
-
-    這個函數用於方便測試時 mock 當前時間
-    """
-    return datetime.now()
-
-
-@mcp.tool(
-    name="get_recently_active_location", description="最近 x 天內活躍的雞場銷售資料"
-)
 def get_recently_active_location(days: int = 14) -> str:
     with db.get_session() as session:
         all_aggregates: list[BatchAggregate] = query_service.get_batch_aggregates(
@@ -62,15 +37,9 @@ def get_recently_active_location(days: int = 14) -> str:
         return json.dumps(response, ensure_ascii=False)
 
 
-@mcp.prompt()
-def sales_manager() -> list[Message]:
-    return [
-        UserMessage(
-            "用 get_recently_active_location 工具取得最近 5 天的銷售資料並分析。"
-        ),
-        AssistantMessage("你是專業的銷售管理員，專長是將銷售資料做分析。"),
-    ]
+def main() -> None:
+    print(get_recently_active_location())
 
 
 if __name__ == "__main__":
-    mcp.run()
+    main()

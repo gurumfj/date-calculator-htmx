@@ -15,33 +15,33 @@
 """
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from pydantic import BaseModel
 from sqlmodel import Session
 
 from cleansales_backend.core import Event, EventBus
 from cleansales_backend.processors import (
     BreedRecordProcessor,
+    IResponse,
     SaleRecordProcessor,
 )
 
 # from cleansales_backend.services import CleanSalesService
 from cleansales_backend.shared.models import SourceData
 
-from .. import ProcessEvent, get_event_bus, get_session
+from .. import ProcessEvent, core_db, get_event_bus
 
 # from ..models import ResponseModel
 
 
-class ResponseModel(BaseModel):
-    """TODO: 需要重構"""
+# class ResponseModel(BaseModel):
+#     """TODO: 需要重構"""
 
-    status: str
-    msg: str
-    content: Any
+#     status: str
+#     msg: str
+#     content: Any
 
 
 # 配置路由器專用的日誌記錄器
@@ -88,14 +88,14 @@ def validate_excel_file(file: UploadFile) -> None:
         raise ValueError("只接受 Excel 檔案 (.xlsx, .xls)")
 
 
-@router.post("/breeds", response_model=ResponseModel)
+@router.post("/breeds", response_model=IResponse)
 async def process_breeds_file(
     file_upload: Annotated[UploadFile, File(...)],
-    session: Annotated[Session, Depends(get_session)],
+    session: Annotated[Session, Depends(core_db.get_session)],
     processor: Annotated[BreedRecordProcessor, Depends(get_breeds_processor)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
-) -> ResponseModel:
+) -> IResponse:
     """
     處理入雛資料 Excel 文件的上傳端點
 
@@ -135,11 +135,7 @@ async def process_breeds_file(
                 )
             )
 
-        return ResponseModel(
-            status="success" if result.success else "error",
-            msg=result.message,
-            content=result.data,
-        )
+        return result
 
     except ValueError as ve:
         # 處理驗證錯誤
@@ -166,14 +162,14 @@ async def process_breeds_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/sales", response_model=ResponseModel)
+@router.post("/sales", response_model=IResponse)
 async def process_sales_file(
     file_upload: Annotated[UploadFile, File(...)],
-    session: Annotated[Session, Depends(get_session)],
+    session: Annotated[Session, Depends(core_db.get_session)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     processor: Annotated[SaleRecordProcessor, Depends(get_sales_processor)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
-) -> ResponseModel:
+) -> IResponse:
     """
     處理銷售資料 Excel 文件的上傳端點
 
@@ -213,11 +209,7 @@ async def process_sales_file(
                 )
             )
 
-        return ResponseModel(
-            status="success" if result.success else "error",
-            msg=result.message,
-            content=result.data,
-        )
+        return result
 
     except ValueError as ve:
         # 處理驗證錯誤

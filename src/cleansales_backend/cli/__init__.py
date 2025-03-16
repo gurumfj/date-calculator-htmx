@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from fastapi import Depends
 
-from cleansales_backend import Database
-from cleansales_backend.core import settings
+from cleansales_backend.core import core_db, settings
+from cleansales_backend.core.database import Database
+from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.services import QueryService
 from cleansales_backend.shared.models import SourceData
@@ -15,7 +17,7 @@ from cleansales_backend.shared.models import SourceData
 logging.basicConfig(
     level=settings.LOG_LEVEL,
     format=settings.LOG_FORMAT,
-    handlers=[logging.StreamHandler()],
+    # handlers=[logging.StreamHandler()],
 )
 
 logger = logging.getLogger(__name__)
@@ -59,23 +61,26 @@ def create_parser() -> argparse.ArgumentParser:
                 "args": {
                     "-b": {
                         "dest": "breed",
-                        "type": str,
+                        "choices": ["黑羽", "古早", "舍黑", "閹雞"],
+                        "action": "append",
+                        "default": None,
                         "help": "要查詢的品種類型 (預設: 全部)",
                     },
                     "-n": {
-                        "dest": "batch_name",
+                        "dest": "name",
                         "type": str,
+                        "default": None,
                         "help": "要查詢的批次名稱",
                     },
                     "-s": {
                         "dest": "status",
-                        "nargs": "+",
-                        "choices": ["all", "completed", "breeding", "sale"],
-                        "default": ["all"],
-                        "help": "要查詢的批次狀態，可指定多個 (預設: all)",
+                        "action": "append",
+                        "choices": ["completed", "breeding", "sale"],
+                        "default": None,
+                        "help": "要查詢的批次狀態，可指定多個",
                     },
-                    "-t": {
-                        "dest": "type",
+                    "-o": {
+                        "dest": "output",
                         "choices": ["sales", "breeds"],
                         "default": "breeds",
                         "help": "要查詢的資料類型 (預設: 品種資料)",
@@ -128,10 +133,11 @@ def main() -> None:
     3. 從其他程式中導入：from cleansales_backend import main
     """
     args = parse_args()
-    if _db := args.db_path:
-        db = Database(_db)
-    else:
-        db = Database(settings.DB_PATH)
+    _db = (
+        Database(args.db_path)
+        if args.db_path and args.db_path != settings.DB_PATH
+        else core_db
+    )
     breed_processor = BreedRecordProcessor()
     sale_processor = SaleRecordProcessor()
     query_service = QueryService(breed_processor, sale_processor)
@@ -144,10 +150,12 @@ def main() -> None:
                         file_name=str(args.input_file),
                         dataframe=pd.read_excel(args.input_file),
                     )
-                    with db.get_session() as session:
+                    with _db.with_session() as session:
                         print(
                             sale_processor.execute(
-                                session, source_data, check_md5=args.check_md5
+                                session,
+                                source_data,
+                                check_md5=args.check_md5,
                             ).message
                         )
                 case "breeds":
@@ -155,37 +163,54 @@ def main() -> None:
                         file_name=str(args.input_file),
                         dataframe=pd.read_excel(args.input_file),
                     )
-                    with db.get_session() as session:
+                    with _db.with_session() as session:
                         print(
                             breed_processor.execute(
-                                session, source_data, check_md5=args.check_md5
+                                session,
+                                source_data,
+                                check_md5=args.check_md5,
                             ).message
                         )
                 case _:
                     pass
         elif args.subcommand == "query":
-            with db.get_session() as session:
-                filtered_aggrs = query_service.get_filtered_aggregates(
-                    session,
-                    batch_name=args.batch_name,
-                    breed_type=args.breed,
-                    status=args.status,
-                )
-                if not filtered_aggrs:
-                    print("找不到符合條件的批次")
-                    return
-                msg = ["批次彙整資料"]
-                msg.append("=" * 88)
-                for aggr in filtered_aggrs:
-                    msg.append(str(aggr))
-                    if aggr.sales:
-                        msg.append("-" * 40)
-                        msg.append(str(aggr.sales_trend_data))
-                    msg.append("-" * 60)
+            with _db.with_session() as session:
+                all_aggrs = query_service.get_batch_aggregates(session)
+            search_name = args.name or None
+            search_breed: list[str] = args.breed or [
+                "黑羽",
+                "古早",
+                "舍黑",
+                "閹雞",
+            ]
+            search_status: list[BatchState] = [
+                BatchState(status) for status in (args.status) or ["breeding", "sale"]
+            ]
+            print(f"查詢狀態: {[s.value for s in search_status]}")
+            print(f"查詢品種: {search_breed}")
+            print(f"查詢批次名稱: {search_name}")
+            filtered_aggrs = [
+                aggr
+                for aggr in all_aggrs
+                if (aggr.batch_state in search_status)
+                and (search_name is None or search_name in aggr.batch_name)
+                and any(breed in aggr.chicken_breed for breed in search_breed)
+            ]
+            if not filtered_aggrs:
+                print("找不到符合條件的批次")
+                return
+            msg = ["批次彙整資料"]
+            msg.append("=" * 88)
+            for aggr in filtered_aggrs:
+                msg.append(str(aggr))
+                if aggr.sales:
+                    msg.append("-" * 40)
+                    msg.append(str(aggr.sales_trend_data))
+                msg.append("-" * 60)
 
-                msg.append("=" * 88)
-                msg.append(f"共 {len(filtered_aggrs)} 筆記錄")
-                print("\n".join(msg))
+            msg.append("=" * 88)
+            msg.append(f"共 {len(filtered_aggrs)} 筆記錄")
+            print("\n".join(msg))
 
     except Exception as e:
         logger.error(f"處理資料時發生錯誤: {str(e)}")
