@@ -62,6 +62,7 @@ class BreedRecordBase(IBaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     @model_validator(mode="before")
+    @classmethod
     def pdna_to_none(cls, values: dict[str, Any]) -> dict[str, Any]:
         """將 pd.NA 轉換為 None"""
         try:

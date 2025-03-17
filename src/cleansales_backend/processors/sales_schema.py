@@ -11,7 +11,7 @@ from pydantic import (
     field_validator,
 )
 from sqlmodel import Field as SQLModelField
-from sqlmodel import Session, select
+from sqlmodel import Session, select, and_
 
 from cleansales_backend.domain.models import SaleRecord
 
@@ -214,8 +214,10 @@ class SaleRecordProcessor(
         self, session: Session, location: str
     ) -> list[SaleRecord]:
         stmt = select(SaleRecordORM).where(
-            SaleRecordORM.location == location
-            and SaleRecordORM.event == RecordEvent.ADDED
+            and_(
+                SaleRecordORM.location == location,
+                SaleRecordORM.event == RecordEvent.ADDED
+            )
         )
         sales_orm = session.exec(stmt).all()
         return [self.orm_to_domain(orm) for orm in sales_orm]

@@ -168,7 +168,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
         try:
             # orm_schema = self.set_orm_schema()
             # 查詢資料庫中所有的記錄
-            all_db_obj = self._get_by_criteria(session)
+            all_db_obj = session.exec(select(self._orm_schema)).all()
 
             # 從完整對象中提取 unique_id
             db_keys: set[str] = set(r.unique_id for r in all_db_obj)
