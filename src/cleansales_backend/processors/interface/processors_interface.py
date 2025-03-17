@@ -157,9 +157,6 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             f"{len(validated_records)} records validated, {len(error_records)} records failed validation"
         )
         return validated_records, error_records
-        # except Exception as e:
-        #     logger.error(f"資料驗證失敗: {e}")
-        #     raise e
 
     def _infrastructure(
         self,
