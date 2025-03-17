@@ -20,6 +20,7 @@ from .interface.processors_interface import (
     IORMModel,
     IProcessor,
     IResponse,
+    RecordEvent,
 )
 from .interface.sale_repository_protocol import SaleRepositoryProtocol
 
@@ -212,7 +213,10 @@ class SaleRecordProcessor(
     def get_sales_by_location(
         self, session: Session, location: str
     ) -> list[SaleRecord]:
-        stmt = select(SaleRecordORM).where(SaleRecordORM.location == location)
+        stmt = select(SaleRecordORM).where(
+            SaleRecordORM.location == location
+            and SaleRecordORM.event == RecordEvent.ADDED
+        )
         sales_orm = session.exec(stmt).all()
         return [self.orm_to_domain(orm) for orm in sales_orm]
 
