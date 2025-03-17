@@ -52,7 +52,6 @@ COPY ${ENV_FILE} ./.env
 
 # 複製源代碼
 COPY ./src /app/src
-COPY ./data /app/data
 
 # 設置生產環境變數
 ENV PYTHONPATH=/app/src
