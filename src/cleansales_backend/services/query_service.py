@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, Field
 from datetime import datetime
 import logging
 from collections import defaultdict
@@ -16,13 +16,9 @@ from cleansales_backend.processors import (
     BreedRepositoryProtocol,
     SaleRepositoryProtocol,
 )
+from cleansales_backend.domain.utils import BatchAggrsCache
 
 logger = logging.getLogger(__name__)
-
-@dataclass
-class BatchAggrsCache:
-    timestamp: datetime
-    aggrs: list[BatchAggregate]
 
 
 class QueryService:
@@ -42,10 +38,11 @@ class QueryService:
         self,
         breed_repository: BreedRepositoryProtocol,
         sale_repository: SaleRepositoryProtocol,
+        batch_aggrs_cache: BatchAggrsCache[BatchAggregate],
     ) -> None:
         self._breed_repository = breed_repository
         self._sale_repository = sale_repository
-        self._aggr_cache = None
+        self._aggr_cache = batch_aggrs_cache
 
     @log_execution_time
     def get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
@@ -60,10 +57,8 @@ class QueryService:
             list[BatchAggregate]: 批次聚合列表，包含每個批次的養殖和銷售記錄
         """
         try:
-            if self._aggr_cache is not None:
-                if (datetime.now() - self._aggr_cache.timestamp).total_seconds() < 300:
-                    logger.info("使用緩存的批次聚合數據")
-                    return self._aggr_cache.aggrs
+            if self._aggr_cache.valid:
+                return self._aggr_cache.content
 
             if not (breeds := self._breed_repository.get_all(session)):
                 return []
@@ -84,10 +79,7 @@ class QueryService:
                 )
                 for batch_name, breeds in breed_groups.items()
             ]
-            self._aggr_cache = BatchAggrsCache(
-                timestamp=datetime.now(),
-                aggrs=aggrs,
-            )
+            self._aggr_cache.set_content(aggrs)
             logger.info("使用資料庫獲取批次聚合數據")
             return aggrs
         except Exception as e:

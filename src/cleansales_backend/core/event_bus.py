@@ -34,11 +34,12 @@ class Event:
     """事件數據類"""
 
     event: Enum
+    message: str
     content: dict[str, Any]
-    metadata: dict[str, Any] = field(default_factory=dict)
+    # metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        self.metadata["timestamp"] = datetime.now()
+    # def __post_init__(self) -> None:
+    #     self.metadata["timestamp"] = datetime.now()
 
 
 class EventBus:
@@ -117,11 +118,12 @@ class TelegramNotifier:
                 return
 
             # 將事件內容轉換為格式化的文字訊息
-            message = f"事件類型: {event.event.value}\n"
-            message += "內容:\n"
+            message = f"事件: {event.event.value}\n"
+            message += f"\n訊息: {event.message}\n"
+            message += "\n內容:\n" 
             for key, value in event.content.items():
                 message += f"- {key}: {value}\n"
-            message += f"\n時間: {event.metadata['timestamp']}"
+            # message += f"\n時間: {event.content['timestamp']}"
 
             # 準備 Telegram API 所需的資料
             payload = {

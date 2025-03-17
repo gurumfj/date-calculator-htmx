@@ -27,9 +27,10 @@ from cleansales_backend.domain.models.sales_summary import SalesSummaryModel
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.services import QueryService
 
-from .. import core_db
-from ..models import ContextModel, ResponseModel
 
+from .. import core_db
+from .. import batch_aggrs_cache
+from ..models import ContextModel, ResponseModel
 # 配置查詢路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ _sale_repository = SaleRecordProcessor()
 _query_service = QueryService(
     _breed_repository,
     _sale_repository,
+    batch_aggrs_cache,
 )
 
 

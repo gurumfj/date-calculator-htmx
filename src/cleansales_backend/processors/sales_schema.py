@@ -210,7 +210,6 @@ class SaleRecordProcessor(
     def set_response_schema(self) -> type[SaleRecordResponse]:
         return SaleRecordResponse
 
-    @log_execution_time
     @override
     def get_sales_by_location(
         self, session: Session, location: str
@@ -224,7 +223,6 @@ class SaleRecordProcessor(
         sales_orm = session.exec(stmt).all()
         return [SaleRecordProcessor.orm_to_domain(orm) for orm in sales_orm]
 
-    @log_execution_time
     @override
     def get_sales_data(
         self, session: Session, limit: int = 300, offset: int = 0

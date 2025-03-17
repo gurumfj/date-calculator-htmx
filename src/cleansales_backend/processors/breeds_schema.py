@@ -213,7 +213,6 @@ class BreedRecordProcessor(
     def set_orm_schema(self) -> type[BreedRecordORM]:
         return BreedRecordORM
 
-    @log_execution_time
     @override
     def get_all(self, session: Session) -> list[BreedRecord]:
         stmt = select(self._orm_schema).where(
@@ -222,7 +221,6 @@ class BreedRecordProcessor(
         result = session.exec(stmt).all()
         return [BreedRecordProcessor.orm_to_domain(orm) for orm in result]
 
-    @log_execution_time
     @override
     def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
         result = self._get_by_criteria(session, {"batch_name": (batch_name, "eq")})

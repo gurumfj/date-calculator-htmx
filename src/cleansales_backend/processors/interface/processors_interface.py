@@ -93,13 +93,23 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
 
             validated_records, error_records = self._validate_data(df)
 
-            self._infrastructure(session, validated_records, error_records, md5)
+            new_keys, delete_keys = self._infrastructure(session, validated_records, error_records, md5)
 
             return self._response_schema(
                 success=True,
-                message=f"{len(validated_records)} records validated, {len(error_records)} records failed validation",
+                message="\n".join([
+                    f"{len(validated_records)} records validated",
+                    f"{len(error_records)} records failed validation",
+                    f"{len(new_keys)} records to be added" if new_keys else "no records to be added",
+                    f"{len(delete_keys)} records to be deleted" if delete_keys else "no records to be deleted",
+                ]),
                 content={
                     "timestamp": datetime.now().isoformat(),
+                    "file": source.file_name or source.name or source.absolute() or "Unknown",
+                    "validated_records": len(validated_records),
+                    "error_records": len(error_records),
+                    "new_keys": len(new_keys),
+                    "delete_keys": len(delete_keys),
                 },
             )
         except FileNotFoundError:
@@ -139,10 +149,11 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             try:
                 # print(row)
                 record = self._validator_schema.model_validate(row)
+                # validated_records.setdefault(record.unique_id or self._calculate_unique_id(record), record)
                 record.unique_id = (
-                    self._calculate_unique_id(record)
-                    if record.unique_id is None
-                    else record.unique_id
+                    self._calculate_unique_id(record) or record.unique_id
+                    # if record.unique_id is None
+                    # else record.unique_id
                 )
                 validated_records[record.unique_id] = record
             except ValueError:
@@ -164,11 +175,15 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
         validated_records: dict[str, IBaseModel],
         error_records: list[dict[str, Any]],
         md5: str,
-    ) -> None:
+    ) -> tuple[set[str], set[str]]:
         try:
-            # orm_schema = self.set_orm_schema()
+            if not validated_records:
+                logger.info("沒有有效記錄")
+                return set(), set()
             # 查詢資料庫中所有的記錄
-            all_db_obj = session.exec(select(self._orm_schema)).all()
+            all_db_obj: list[ORMT] = session.exec(select(self._orm_schema).where(
+                self._orm_schema.event == RecordEvent.ADDED
+            )).all()
 
             # 從完整對象中提取 unique_id
             db_keys: set[str] = set(r.unique_id for r in all_db_obj)
@@ -191,7 +206,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             if not new_keys:
                 logger.info("沒有新記錄需要添加")
                 session.commit()
-                return
+                return set(), set()
 
             # 只添加不在資料庫中的記錄
             for new_key in new_keys:
@@ -201,6 +216,8 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
                 _ = session.merge(orm_record)
             session.commit()
             logger.info(f"成功添加 {len(new_keys)} 條記錄")
+
+            return new_keys, delete_keys
 
         except Exception as e:
             session.rollback()

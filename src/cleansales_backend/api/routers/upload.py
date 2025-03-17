@@ -31,7 +31,7 @@ from cleansales_backend.processors import (
 # from cleansales_backend.services import CleanSalesService
 from cleansales_backend.shared.models import SourceData
 
-from .. import ProcessEvent, core_db, get_event_bus
+from .. import ProcessEvent, core_db, get_event_bus, batch_aggrs_cache
 
 # from ..models import ResponseModel
 
@@ -128,10 +128,12 @@ async def process_breeds_file(
 
         # 處理成功時發布事件
         if result.success:
+            batch_aggrs_cache.invalidate()
             event_bus.publish(
                 Event(
                     event=ProcessEvent.BREEDS_PROCESSING_COMPLETED,
-                    content={"msg": result.message},
+                    message="處理入雛資料檔案成功",
+                    content=result.content,
                 )
             )
 
@@ -143,7 +145,8 @@ async def process_breeds_file(
         event_bus.publish(
             Event(
                 event=ProcessEvent.BREEDS_PROCESSING_FAILED,
-                content={"msg": str(ve)},
+                message="處理入雛資料檔案時發生錯誤",
+                content={"error": str(ve)},
             )
         )
         raise HTTPException(status_code=400, detail=str(ve))
@@ -154,8 +157,9 @@ async def process_breeds_file(
         event_bus.publish(
             Event(
                 event=ProcessEvent.BREEDS_PROCESSING_FAILED,
+                message="處理入雛資料檔案時發生錯誤",
                 content={
-                    "msg": str(e),
+                    "error": str(e),
                 },
             )
         )
@@ -202,10 +206,12 @@ async def process_sales_file(
 
         # 處理成功時發布事件
         if result.success:
+            batch_aggrs_cache.invalidate()
             event_bus.publish(
                 Event(
                     event=ProcessEvent.SALES_PROCESSING_COMPLETED,
-                    content={"msg": result.message},
+                    message="處理販售資料檔案成功",
+                    content=result.content,
                 )
             )
 
@@ -217,7 +223,8 @@ async def process_sales_file(
         event_bus.publish(
             Event(
                 event=ProcessEvent.SALES_PROCESSING_FAILED,
-                content={"msg": str(ve)},
+                message="處理販售資料檔案時發生錯誤",
+                content={"error": str(ve)},
             )
         )
         raise HTTPException(status_code=400, detail=str(ve))
@@ -228,8 +235,9 @@ async def process_sales_file(
         event_bus.publish(
             Event(
                 event=ProcessEvent.SALES_PROCESSING_FAILED,
+                message="處理販售資料檔案時發生錯誤",
                 content={
-                    "msg": str(e),
+                    "error": str(e),
                 },
             )
         )
