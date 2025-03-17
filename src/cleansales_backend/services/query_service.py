@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from datetime import datetime
 import logging
 from collections import defaultdict
 from typing import Literal
@@ -16,6 +18,11 @@ from cleansales_backend.processors import (
 
 logger = logging.getLogger(__name__)
 
+@dataclass
+class BatchAggrsCache:
+    timestamp: datetime
+    aggrs: list[BatchAggregate]
+
 
 class QueryService:
     """查詢服務
@@ -28,17 +35,16 @@ class QueryService:
 
     _breed_repository: BreedRepositoryProtocol
     _sale_repository: SaleRepositoryProtocol
-    # _filter_service: BatchFilterService
+    _aggr_cache: BatchAggrsCache
 
     def __init__(
         self,
         breed_repository: BreedRepositoryProtocol,
         sale_repository: SaleRepositoryProtocol,
-        # filter_service: BatchFilterService | None = None,
     ) -> None:
         self._breed_repository = breed_repository
         self._sale_repository = sale_repository
-        # self._filter_service = filter_service or BatchFilterService()
+        self._aggr_cache = None
 
     def get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
         """獲取所有批次聚合
@@ -52,7 +58,10 @@ class QueryService:
             list[BatchAggregate]: 批次聚合列表，包含每個批次的養殖和銷售記錄
         """
         try:
-            # 使用海象運算符簡化代碼流程
+            if self._aggr_cache is not None:
+                if (datetime.now() - self._aggr_cache.timestamp).total_seconds() < 300:
+                    logger.info("使用緩存的批次聚合數據")
+                    return self._aggr_cache.aggrs
 
             if not (breeds := self._breed_repository.get_all(session)):
                 return []
@@ -64,7 +73,7 @@ class QueryService:
                     breed_groups[breed.batch_name].append(breed)
 
             # 創建並返回批次聚合列表
-            return [
+            aggrs = [
                 BatchAggregate(
                     breeds=breeds,
                     sales=self._sale_repository.get_sales_by_location(
@@ -73,6 +82,12 @@ class QueryService:
                 )
                 for batch_name, breeds in breed_groups.items()
             ]
+            self._aggr_cache = BatchAggrsCache(
+                timestamp=datetime.now(),
+                aggrs=aggrs,
+            )
+            logger.info("使用資料庫獲取批次聚合數據")
+            return aggrs
         except Exception as e:
             logger.error(f"獲取批次聚合數據時發生錯誤: {e}")
             raise ValueError(f"獲取批次聚合數據時發生錯誤: {str(e)}")
