@@ -13,6 +13,7 @@ from pydantic import (
 from sqlmodel import Field as SQLModelField
 from sqlmodel import Session, select, and_
 
+from cleansales_backend.core.db_monitor import log_execution_time
 from cleansales_backend.domain.models import SaleRecord
 
 from .interface.processors_interface import (
@@ -209,6 +210,7 @@ class SaleRecordProcessor(
     def set_response_schema(self) -> type[SaleRecordResponse]:
         return SaleRecordResponse
 
+    @log_execution_time
     @override
     def get_sales_by_location(
         self, session: Session, location: str
@@ -220,17 +222,19 @@ class SaleRecordProcessor(
             )
         )
         sales_orm = session.exec(stmt).all()
-        return [self.orm_to_domain(orm) for orm in sales_orm]
+        return [SaleRecordProcessor.orm_to_domain(orm) for orm in sales_orm]
 
+    @log_execution_time
     @override
     def get_sales_data(
         self, session: Session, limit: int = 300, offset: int = 0
     ) -> list[SaleRecord]:
         stmt = select(SaleRecordORM).limit(limit).offset(offset)
         sales_orm = session.exec(stmt).all()
-        return [self.orm_to_domain(orm) for orm in sales_orm]
+        return [SaleRecordProcessor.orm_to_domain(orm) for orm in sales_orm]
 
-    def orm_to_domain(self, orm: SaleRecordORM) -> SaleRecord:
+    @staticmethod
+    def orm_to_domain(orm: SaleRecordORM) -> SaleRecord:
         return SaleRecord(
             closed="結案" if orm.closed else None,
             handler=orm.handler,

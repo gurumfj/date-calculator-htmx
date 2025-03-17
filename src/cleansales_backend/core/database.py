@@ -26,6 +26,7 @@ from cleansales_backend.processors import BreedRecordORM, SaleRecordORM
 from cleansales_backend.processors.interface.processors_interface import IORMModel
 
 from .config import settings
+from .db_monitor import monitor
 
 # 註冊所有的 ORM 模型
 _orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM]
@@ -41,10 +42,26 @@ class Database:
         self._db_path = Path(db_path) if isinstance(db_path, str) else db_path
         self._db_path.parent.mkdir(exist_ok=True)
 
+        # 創建引擎時啟用連接池
         self._engine = create_engine(
-            f"sqlite:///{self._db_path}", echo=settings.DB_ECHO
+            f"sqlite:///{self._db_path}",
+            echo=settings.DB_ECHO,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30,
+            pool_recycle=1800
         )
+        
+        # 創建表
         SQLModel.metadata.create_all(self._engine)
+        
+        # 應用數據庫優化
+        from .db_optimizations import setup_db_optimizations
+        setup_db_optimizations(self._engine)
+        
+        # 啟動數據庫監控
+        monitor.start_monitoring(self._engine)
+        
         logger.info(f"Database created at {self._db_path.absolute()}")
 
     def get_session(self) -> Generator[Session, None, None]:

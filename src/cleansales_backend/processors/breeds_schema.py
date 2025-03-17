@@ -12,6 +12,7 @@ from pydantic import (
 from sqlmodel import Field as SQLModelField
 from sqlmodel import Session, select
 
+from cleansales_backend.core.db_monitor import log_execution_time
 from cleansales_backend.domain.models import BreedRecord
 
 from .interface.breed_repository_protocol import BreedRepositoryProtocol
@@ -212,20 +213,24 @@ class BreedRecordProcessor(
     def set_orm_schema(self) -> type[BreedRecordORM]:
         return BreedRecordORM
 
+    @log_execution_time
     @override
     def get_all(self, session: Session) -> list[BreedRecord]:
         stmt = select(self._orm_schema).where(
             self._orm_schema.event == RecordEvent.ADDED
         )
         result = session.exec(stmt).all()
-        return [self.orm_to_domain(orm) for orm in result]
+        return [BreedRecordProcessor.orm_to_domain(orm) for orm in result]
 
+    @log_execution_time
     @override
     def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
         result = self._get_by_criteria(session, {"batch_name": (batch_name, "eq")})
-        return [self.orm_to_domain(orm) for orm in result]
+        return [BreedRecordProcessor.orm_to_domain(orm) for orm in result]
 
-    def orm_to_domain(self, orm: BreedRecordORM) -> BreedRecord:
+
+    @staticmethod
+    def orm_to_domain(orm: BreedRecordORM) -> BreedRecord:
         return BreedRecord(
             farm_name=orm.farm_name,
             address=orm.address,

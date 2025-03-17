@@ -6,6 +6,7 @@ from typing import Literal
 
 from sqlmodel import Session
 
+from cleansales_backend.core.db_monitor import log_execution_time
 from cleansales_backend.domain.models import (
     BatchAggregate,
     BreedRecord,
@@ -46,6 +47,7 @@ class QueryService:
         self._sale_repository = sale_repository
         self._aggr_cache = None
 
+    @log_execution_time
     def get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
         """獲取所有批次聚合
 
