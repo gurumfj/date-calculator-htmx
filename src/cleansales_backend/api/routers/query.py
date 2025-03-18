@@ -79,7 +79,9 @@ async def get_not_completed_batches(
         return ResponseModel(
             success=True if data else False,
             message=f"獲取{len(data)}筆未結案批次" if data else "未找到未結案批次",
-            content=ContextModel(data=[aggr.dto() for aggr in data]),
+            content=ContextModel(
+                data=[BatchAggregateModel.create_from(aggr) for aggr in data]
+            ),
         )
     except Exception as e:
         logger.error(f"獲取未結案批次時發生錯誤: {e}")
@@ -133,7 +135,9 @@ async def get_batch_aggregates_by_criteria(
             message=f"獲取{len(filtered_aggrs)}筆批次聚合"
             if filtered_aggrs
             else "未找到批次聚合",
-            content=ContextModel(data=[aggr.dto() for aggr in filtered_aggrs]),
+            content=ContextModel(
+                data=[BatchAggregateModel.create_from(aggr) for aggr in filtered_aggrs]
+            ),
             errors=[
                 {
                     "batch_name": batch_name,
@@ -153,6 +157,8 @@ async def get_batch_aggregates_by_criteria(
 
 @router.get(
     "/salesummary",
+    deprecated=True,
+    description="請使用 /batch 路由",
     response_model=ResponseModel[SalesSummaryModel],
     response_model_exclude_unset=True,
     response_model_exclude_none=True,
@@ -181,7 +187,9 @@ async def get_sales_summary(
             aggrs, batch_name=batch_name
         )
         sales_summarys = [
-            aggr.sales_summary.dto() for aggr in filtered_aggrs if aggr.sales_summary
+            SalesSummaryModel.create_from(aggr.sales_summary)
+            for aggr in filtered_aggrs
+            if aggr.sales_summary
         ]
         return ResponseModel(
             success=True if filtered_aggrs else False,

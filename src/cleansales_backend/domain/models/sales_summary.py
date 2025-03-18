@@ -36,10 +36,6 @@ class SalesSummary:
     """ SUMMARY """
 
     @property
-    def batch_name(self) -> str:
-        return self.breeds[0].batch_name or self.breeds[0].farm_name
-
-    @property
     def sales_male(self) -> int:
         return sum(sale.male_count for sale in self.sales)
 
@@ -185,35 +181,34 @@ class SalesSummary:
 
         return SalesPivot(self)
 
-    def dto(self) -> "SalesSummaryModel":
+    def to_model(self) -> "SalesSummaryModel":
         """將 SalesSummary 轉換為 SalesSummaryModel
 
         Returns:
             SalesSummaryModel: 對應的 BaseModel 實例
         """
-        cycle_date_data = [self.cycle_date[0], self.cycle_date[1]]
+        # cycle_date_data = [self.cycle_date[0], self.cycle_date[1]]
 
-        sales_period_date_data = [
-            self.sales_period_date[0],
-            self.sales_period_date[1],
-        ]
+        # sales_period_date_data = [
+        #     self.sales_period_date[0],
+        #     self.sales_period_date[1],
+        # ]
 
-        sales_open_close_dayage_data = [
-            self.sales_open_close_dayage[0],
-            self.sales_open_close_dayage[1],
-        ]
+        # sales_open_close_dayage_data = [
+        #     self.sales_open_close_dayage[0],
+        #     self.sales_open_close_dayage[1],
+        # ]
 
         return SalesSummaryModel(
-            batch_name=self.batch_name,
             sales_male=self.sales_male,
             sales_female=self.sales_female,
             total_sales=self.total_sales,
             total_transactions=self.total_transactions,
             avg_weight=self.avg_weight,
-            sales_open_close_dayage=sales_open_close_dayage_data,
-            cycle_date=cycle_date_data,
+            sales_open_close_dayage=list(self.sales_open_close_dayage),
+            cycle_date=list(self.cycle_date),
             cycle_days=self.cycle_days,
-            sales_period_date=sales_period_date_data,
+            sales_period_date=list(self.sales_period_date),
             sales_duration=self.sales_duration,
             sales_percentage=self.sales_percentage,
             total_revenue=self.total_revenue,
@@ -258,9 +253,6 @@ class SalesSummaryModel(BaseModel):
     用於 API 響應和資料驗證
     """
 
-    # 批次名稱
-    batch_name: str
-
     # 銷售數量統計
     sales_male: int
     sales_female: int
@@ -287,3 +279,25 @@ class SalesSummaryModel(BaseModel):
     total_revenue: float
 
     model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def create_from(cls, data: SalesSummary) -> "SalesSummaryModel":
+        return cls(
+            sales_male=data.sales_male,
+            sales_female=data.sales_female,
+            total_sales=data.total_sales,
+            total_transactions=data.total_transactions,
+            avg_weight=data.avg_weight,
+            sales_open_close_dayage=list(data.sales_open_close_dayage),
+            cycle_date=list(data.cycle_date),
+            cycle_days=data.cycle_days,
+            sales_period_date=list(data.sales_period_date),
+            sales_duration=data.sales_duration,
+            sales_percentage=data.sales_percentage,
+            total_revenue=data.total_revenue,
+            avg_male_weight=data.avg_male_weight,
+            avg_female_weight=data.avg_female_weight,
+            avg_male_price=data.avg_male_price,
+            avg_female_price=data.avg_female_price,
+            avg_price_weight=data.avg_price_weight,
+        )

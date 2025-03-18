@@ -10,6 +10,7 @@ from ..utils import day_age, week_age
 from .batch_state import BatchState
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
+from .sales_summary import SalesSummaryModel
 
 _ = wcwidth.WIDE_EASTASIAN
 
@@ -165,7 +166,7 @@ class BatchAggregate:
         result.append(f"批次狀態: {self.batch_state.value}")
         return "\n".join(result)
 
-    def dto(self) -> "BatchAggregateModel":
+    def to_model(self) -> "BatchAggregateModel":
         """將 BatchAggregate 轉換為 BatchAggregateModel
 
         Args:
@@ -190,7 +191,7 @@ class BatchAggregate:
             female=list(self.female),
             day_age=list(self.day_age),
             week_age=list(self.week_age),
-            sales_percentage=self.sales_percentage,
+            sales_summary=self.sales_summary.to_model() if self.sales_summary else None,
         )
 
 
@@ -227,6 +228,32 @@ class BatchAggregateModel(BaseModel):
     week_age: list[str] = Field(default_factory=list, description="目前週齡")
 
     # 資料統計
-    sales_percentage: float | None = Field(default=None, description="銷售率")
+    sales_summary: SalesSummaryModel | None = Field(
+        default=None, description="銷售統計"
+    )
+    # sales_percentage: float | None = Field(default=None, description="銷售率")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def create_from(cls, data: BatchAggregate) -> "BatchAggregateModel":
+        return cls(
+            batch_name=data.batch_name,
+            farm_name=data.farm_name,
+            address=data.address,
+            farmer_name=data.farmer_name,
+            total_male=data.total_male,
+            total_female=data.total_female,
+            veterinarian=data.veterinarian,
+            batch_state=data.batch_state,
+            breed_date=list(data.breed_date),
+            supplier=list(data.supplier),
+            chicken_breed=list(data.chicken_breed),
+            male=list(data.male),
+            female=list(data.female),
+            day_age=list(data.day_age),
+            week_age=list(data.week_age),
+            sales_summary=SalesSummaryModel.create_from(data.sales_summary)
+            if data.sales_summary
+            else None,
+        )

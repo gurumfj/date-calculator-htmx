@@ -100,7 +100,7 @@ class SalesPivot:
 
     @property
     def batch_name(self) -> str:
-        return self._sales_summary.batch_name
+        return self._breeds[0].batch_name or self._breeds[0].farm_name
 
     @property
     def sales_data(self) -> pd.DataFrame:
