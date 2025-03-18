@@ -1,10 +1,11 @@
 import logging
 from collections import defaultdict
+from functools import lru_cache
 from typing import Literal
 
 from sqlmodel import Session
 
-from cleansales_backend.core.db_monitor import log_execution_time
+from cleansales_backend.core.database import Database
 from cleansales_backend.domain.models import (
     BatchAggregate,
     BreedRecord,
@@ -29,17 +30,45 @@ class QueryService:
 
     _breed_repository: BreedRepositoryProtocol
     _sale_repository: SaleRepositoryProtocol
+    _all_aggrs: list[BatchAggregate] | None
+    _hint: int
+    _db: Database | None
 
     def __init__(
         self,
         breed_repository: BreedRepositoryProtocol,
         sale_repository: SaleRepositoryProtocol,
+        db: Database | None = None,
     ) -> None:
         self._breed_repository = breed_repository
         self._sale_repository = sale_repository
+        self._db = db
+        self._hint = 0
 
-    @log_execution_time
-    def get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
+    def get_batch_cache_info(self) -> dict:
+        cache_info = {
+            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict(),
+            "db session hint": self._hint,
+        }
+        return cache_info
+
+    @staticmethod
+    def cache_clear() -> None:
+        QueryService.get_batch_aggregates.cache_clear()
+
+    @lru_cache
+    def get_batch_aggregates(self) -> list[BatchAggregate]:
+        if not self._db:
+            raise ValueError("Database instance not provided")
+        with self._db.with_session() as session:
+            all_aggrs, self._hint = self._get_batch_aggregates(session, self._hint)
+            return all_aggrs
+
+    # @lru_cache
+    # @log_execution_time
+    def _get_batch_aggregates(
+        self, session: Session, hint: int
+    ) -> tuple[list[BatchAggregate], int]:
         """獲取所有批次聚合
 
         將養殖記錄按批次分組並聚合相關銷售記錄
@@ -52,8 +81,8 @@ class QueryService:
         """
         try:
             if not (breeds := self._breed_repository.get_all(session)):
-                return []
-
+                return [], hint
+            # self._db_hint += 1
             # 使用 defaultdict 進行分組
             breed_groups: dict[str, list[BreedRecord]] = defaultdict(list)
             for breed in breeds:
@@ -70,8 +99,10 @@ class QueryService:
                 )
                 for batch_name, breeds in breed_groups.items()
             ]
+            # self._db_hint += 1
+            self._all_aggrs = aggrs
             logger.info("使用資料庫獲取批次聚合數據")
-            return aggrs
+            return aggrs, hint + 1
         except Exception as e:
             logger.error(f"獲取批次聚合數據時發生錯誤: {e}")
             raise ValueError(f"獲取批次聚合數據時發生錯誤: {str(e)}")
@@ -81,14 +112,21 @@ class QueryService:
         all_aggrs: list[BatchAggregate],
         batch_name: str | None = None,
         breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
-        batch_status: list[Literal["completed", "breeding", "sale"]] | None = None,
+        batch_status: set[
+            Literal[
+                "completed",
+                "breeding",
+                "sale",
+            ]
+        ]
+        | None = None,
     ) -> list[BatchAggregate]:
         """獲取特定批次名稱的批次聚合列表
 
         Args:
             batch_name (str): 批次名稱
             breed_type (Literal["黑羽", "古早", "舍黑", "閹雞"]): 雏種類型
-            batch_status (list[Literal["completed", "breeding", "sale"]]): 批次狀態
+            batch_status (set[Literal["completed", "breeding", "sale"]]): 批次狀態
 
         Returns:
             list[BatchAggregate]: 包含特定批次名稱的批次聚合列表
@@ -115,8 +153,7 @@ class QueryService:
         ]
 
     def get_not_completed_batches_summary(
-        self,
-        all_aggrs: list[BatchAggregate],
+        self, all_aggrs: list[BatchAggregate]
     ) -> list[BatchAggregate]:
         """獲取未結案的批次列表
 

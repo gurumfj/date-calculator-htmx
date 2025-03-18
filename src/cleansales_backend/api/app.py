@@ -20,10 +20,13 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
 from cleansales_backend.core import settings
+from cleansales_backend.services.query_service import QueryService
 
 from .routers import query, upload
 from .routers.query import get_query_service
+
 # 配置日誌記錄器
 logger = logging.getLogger(__name__)
 
@@ -65,8 +68,23 @@ async def health_check() -> JSONResponse:
     健康檢查端點
     返回服務狀態和版本信息
     """
-    cache_state = get_query_service.cache_info()
-    return JSONResponse({"status": "healthy", "branch": settings.BRANCH, "cache_state": cache_state._asdict()})
+    cache_state = get_query_service().get_batch_cache_info()
+    return JSONResponse(
+        {
+            "status": "healthy",
+            "branch": settings.BRANCH,
+            "cache_state": cache_state,
+        }
+    )
+
+
+@app.get("/cache_clear")
+async def cache_clear() -> JSONResponse:
+    """
+    清除所有緩存
+    """
+    QueryService.get_batch_aggregates.cache_clear()
+    return JSONResponse({"status": "success"})
 
 
 # CORS 中間件配置

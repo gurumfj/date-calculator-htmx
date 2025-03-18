@@ -93,19 +93,31 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
 
             validated_records, error_records = self._validate_data(df)
 
-            new_keys, delete_keys = self._infrastructure(session, validated_records, error_records, md5)
+            new_keys, delete_keys = self._infrastructure(
+                session, validated_records, error_records, md5
+            )
 
             return self._response_schema(
                 success=True,
-                message="\n".join([
-                    f"{len(validated_records)} records validated",
-                    f"{len(error_records)} records failed validation",
-                    f"{len(new_keys)} records to be added" if new_keys else "no records to be added",
-                    f"{len(delete_keys)} records to be deleted" if delete_keys else "no records to be deleted",
-                ]),
+                message="\n".join(
+                    [
+                        f"{len(validated_records)} records validated",
+                        f"{len(error_records)} records failed validation",
+                        f"{len(new_keys)} records to be added"
+                        if new_keys
+                        else "no records to be added",
+                        f"{len(delete_keys)} records to be deleted"
+                        if delete_keys
+                        else "no records to be deleted",
+                    ]
+                ),
                 content={
                     "timestamp": datetime.now().isoformat(),
-                    "file": source.file_name or source.name or source.absolute() or "Unknown",
+                    "file": source.file_name
+                    if isinstance(source, SourceData)
+                    else source.name
+                    if isinstance(source, Path)
+                    else "Unknown",
                     "validated_records": len(validated_records),
                     "error_records": len(error_records),
                     "new_keys": len(new_keys),
@@ -150,11 +162,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
                 # print(row)
                 record = self._validator_schema.model_validate(row)
                 # validated_records.setdefault(record.unique_id or self._calculate_unique_id(record), record)
-                record.unique_id = (
-                    self._calculate_unique_id(record) or record.unique_id
-                    # if record.unique_id is None
-                    # else record.unique_id
-                )
+                record.unique_id = record.unique_id or self._calculate_unique_id(record)
                 validated_records[record.unique_id] = record
             except ValueError:
                 error = {
@@ -181,9 +189,11 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
                 logger.info("沒有有效記錄")
                 return set(), set()
             # 查詢資料庫中所有的記錄
-            all_db_obj: list[ORMT] = session.exec(select(self._orm_schema).where(
-                self._orm_schema.event == RecordEvent.ADDED
-            )).all()
+            all_db_obj = session.exec(
+                select(self._orm_schema).where(
+                    self._orm_schema.event == RecordEvent.ADDED
+                )
+            ).all()
 
             # 從完整對象中提取 unique_id
             db_keys: set[str] = set(r.unique_id for r in all_db_obj)
