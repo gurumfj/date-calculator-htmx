@@ -18,8 +18,6 @@ from enum import Enum
 import logging
 from cleansales_backend.core import core_db, get_event_bus, settings
 from cleansales_backend.core.event_bus import TelegramNotifier
-from cleansales_backend.domain.utils import BatchAggrsCache
-from cleansales_backend.domain.models import BatchAggregate
 
 logger = logging.getLogger(__name__)
 # 設定根 logger
@@ -29,7 +27,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-batch_aggrs_cache = BatchAggrsCache[BatchAggregate]()
 
 class ProcessEvent(str, Enum):
     """處理事件枚舉"""

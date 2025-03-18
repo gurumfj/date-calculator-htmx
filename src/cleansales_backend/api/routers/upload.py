@@ -22,27 +22,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlmodel import Session
 
 from cleansales_backend.core import Event, EventBus
-from cleansales_backend.processors import (
-    BreedRecordProcessor,
-    IResponse,
-    SaleRecordProcessor,
-)
-
-# from cleansales_backend.services import CleanSalesService
+from cleansales_backend.processors import BreedRecordProcessor, IResponse, SaleRecordProcessor
 from cleansales_backend.shared.models import SourceData
 
-from .. import ProcessEvent, core_db, get_event_bus, batch_aggrs_cache
 
-# from ..models import ResponseModel
-
-
-# class ResponseModel(BaseModel):
-#     """TODO: 需要重構"""
-
-#     status: str
-#     msg: str
-#     content: Any
-
+from .. import ProcessEvent, core_db, get_event_bus
+# from .. import batch_aggrs_cache
+from .query import get_query_service
 
 # 配置路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
@@ -128,7 +114,8 @@ async def process_breeds_file(
 
         # 處理成功時發布事件
         if result.success:
-            batch_aggrs_cache.invalidate()
+            # batch_aggrs_cache.invalidate()
+            get_query_service.cache_clear()
             event_bus.publish(
                 Event(
                     event=ProcessEvent.BREEDS_PROCESSING_COMPLETED,
@@ -206,7 +193,8 @@ async def process_sales_file(
 
         # 處理成功時發布事件
         if result.success:
-            batch_aggrs_cache.invalidate()
+            # batch_aggrs_cache.invalidate()
+            get_query_service.cache_clear()
             event_bus.publish(
                 Event(
                     event=ProcessEvent.SALES_PROCESSING_COMPLETED,

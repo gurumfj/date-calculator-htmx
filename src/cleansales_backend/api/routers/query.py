@@ -15,6 +15,7 @@
 ################################################################################
 """
 
+from functools import lru_cache
 import logging
 from typing import Annotated, Literal
 
@@ -29,7 +30,7 @@ from cleansales_backend.services import QueryService
 
 
 from .. import core_db
-from .. import batch_aggrs_cache
+# from .. import batch_aggrs_cache
 from ..models import ContextModel, ResponseModel
 # 配置查詢路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
@@ -43,10 +44,11 @@ _sale_repository = SaleRecordProcessor()
 _query_service = QueryService(
     _breed_repository,
     _sale_repository,
-    batch_aggrs_cache,
+    # batch_aggrs_cache,
 )
 
 
+@lru_cache(maxsize=5)
 def get_query_service() -> QueryService:
     """依賴注入：獲取查詢服務實例
 
@@ -54,7 +56,6 @@ def get_query_service() -> QueryService:
         QueryService: 查詢服務實例
     """
     return _query_service
-
 
 @router.get(
     "/not-completed",

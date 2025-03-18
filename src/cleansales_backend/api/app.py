@@ -19,13 +19,14 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import JSONResponse
 from cleansales_backend.core import settings
 
 from .routers import query, upload
-
+from .routers.query import get_query_service
 # 配置日誌記錄器
 logger = logging.getLogger(__name__)
+
 
 # FastAPI 應用程式配置
 # -----------------------------------------------------------------------------
@@ -59,12 +60,13 @@ app.include_router(upload.router)  # 這會處理 /api/upload
 
 # 健康檢查端點
 @app.get("/")
-async def health_check() -> dict[str, str]:
+async def health_check() -> JSONResponse:
     """
     健康檢查端點
     返回服務狀態和版本信息
     """
-    return {"status": "healthy", "branch": settings.BRANCH}
+    cache_state = get_query_service.cache_info()
+    return JSONResponse({"status": "healthy", "branch": settings.BRANCH, "cache_state": cache_state._asdict()})
 
 
 # CORS 中間件配置
