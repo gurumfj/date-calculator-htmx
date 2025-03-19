@@ -11,9 +11,8 @@ from pydantic import (
     field_validator,
 )
 from sqlmodel import Field as SQLModelField
-from sqlmodel import Session, select, and_
+from sqlmodel import Session, and_, select
 
-from cleansales_backend.core.db_monitor import log_execution_time
 from cleansales_backend.domain.models import SaleRecord
 
 from .interface.processors_interface import (
@@ -174,12 +173,12 @@ class SaleRecordBase(IBaseModel):
             return None
 
 
-class SaleRecordORM(IORMModel, table=True):
+class SaleRecordORM(IORMModel, table=True):  # type: ignore
     unique_id: str = SQLModelField(..., primary_key=True, description="內容比對唯一值")
     closed: bool = Field(False, description="結案狀態")
     handler: str | None = Field(None, description="會磅狀態")
     sale_date: date = Field(..., description="銷售日期")
-    location: str = Field(description="場別")
+    location: str = SQLModelField(description="場別", index=True)
     customer: str = Field(description="客戶名稱")
     male_count: int = Field(0, ge=0, description="公豬數量")
     female_count: int = Field(0, ge=0, description="母豬數量")
@@ -217,7 +216,7 @@ class SaleRecordProcessor(
         stmt = select(SaleRecordORM).where(
             and_(
                 SaleRecordORM.location == location,
-                SaleRecordORM.event == RecordEvent.ADDED
+                SaleRecordORM.event == RecordEvent.ADDED,
             )
         )
         sales_orm = session.exec(stmt).all()

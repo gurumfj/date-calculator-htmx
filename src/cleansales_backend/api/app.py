@@ -19,7 +19,9 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.params import Depends
 from fastapi.responses import JSONResponse
+from typing_extensions import Annotated
 
 from cleansales_backend.core import settings
 from cleansales_backend.services.query_service import QueryService
@@ -79,11 +81,13 @@ async def health_check() -> JSONResponse:
 
 
 @app.get("/cache_clear")
-async def cache_clear() -> JSONResponse:
+async def cache_clear(
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+) -> JSONResponse:
     """
     清除所有緩存
     """
-    QueryService.get_batch_aggregates.cache_clear()
+    query_service.cache_clear()
     return JSONResponse({"status": "success"})
 
 

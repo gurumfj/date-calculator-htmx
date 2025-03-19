@@ -49,7 +49,7 @@ def create_parser() -> argparse.ArgumentParser:
                         "required": True,
                         "help": "輸入的 Excel 檔案路徑",
                     },
-                    "--no-md5": {
+                    "--force": {
                         "action": "store_false",
                         "dest": "check_md5",
                         "help": "關閉 MD5 檢查",
@@ -140,7 +140,7 @@ def main() -> None:
     )
     breed_processor = BreedRecordProcessor()
     sale_processor = SaleRecordProcessor()
-    query_service = QueryService(breed_processor, sale_processor)
+    query_service = QueryService(breed_processor, sale_processor, _db)
 
     try:
         if args.subcommand == "import":
@@ -158,6 +158,7 @@ def main() -> None:
                                 check_md5=args.check_md5,
                             ).message
                         )
+                        query_service.cache_clear()
                 case "breeds":
                     source_data = SourceData(
                         file_name=str(args.input_file),
@@ -171,6 +172,7 @@ def main() -> None:
                                 check_md5=args.check_md5,
                             ).message
                         )
+                        query_service.cache_clear()
                 case _:
                     pass
         elif args.subcommand == "query":
@@ -193,7 +195,7 @@ def main() -> None:
                 aggr
                 for aggr in all_aggrs
                 if (aggr.batch_state in search_status)
-                and (search_name is None or search_name in aggr.batch_name)
+                and (search_name is None or (aggr.batch_name and search_name in aggr.batch_name))
                 and any(breed in aggr.chicken_breed for breed in search_breed)
             ]
             if not filtered_aggrs:
@@ -203,9 +205,9 @@ def main() -> None:
             msg.append("=" * 88)
             for aggr in filtered_aggrs:
                 msg.append(str(aggr))
-                if aggr.sales:
+                if aggr.sales_summary:
                     msg.append("-" * 40)
-                    msg.append(str(aggr.sales_trend_data))
+                    msg.append(str(aggr.sales_summary))
                 msg.append("-" * 60)
 
             msg.append("=" * 88)

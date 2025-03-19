@@ -14,8 +14,9 @@
 ################################################################################
 """
 
-from enum import Enum
 import logging
+from enum import Enum
+
 from cleansales_backend.core import core_db, get_event_bus, settings
 from cleansales_backend.core.event_bus import TelegramNotifier
 

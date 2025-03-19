@@ -12,7 +12,6 @@ from pydantic import (
 from sqlmodel import Field as SQLModelField
 from sqlmodel import Session, select
 
-from cleansales_backend.core.db_monitor import log_execution_time
 from cleansales_backend.domain.models import BreedRecord
 
 from .interface.breed_repository_protocol import BreedRepositoryProtocol
@@ -148,7 +147,7 @@ class BreedRecordBase(IBaseModel):
             raise ValueError(f"計算母雞數量錯誤: {str(e)}")
 
 
-class BreedRecordORM(IORMModel, table=True):
+class BreedRecordORM(IORMModel, table=True):  # type: ignore
     """入雛記錄資料模型
 
     記錄每批雞隻的入雛基本資料，包含農場資訊、畜主資料及批次詳細資訊
@@ -225,7 +224,6 @@ class BreedRecordProcessor(
     def get_by_batch_name(self, session: Session, batch_name: str) -> list[BreedRecord]:
         result = self._get_by_criteria(session, {"batch_name": (batch_name, "eq")})
         return [BreedRecordProcessor.orm_to_domain(orm) for orm in result]
-
 
     @staticmethod
     def orm_to_domain(orm: BreedRecordORM) -> BreedRecord:

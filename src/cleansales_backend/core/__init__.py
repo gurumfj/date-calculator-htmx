@@ -11,10 +11,11 @@ def get_event_bus() -> EventBus:
 
 
 __all__ = [
-    "Database",
     "settings",
-    "TelegramNotifier",
+    "Database",
     "Event",
-    "get_event_bus",
+    "EventBus",
+    "TelegramNotifier",
     "core_db",
+    "get_event_bus",
 ]

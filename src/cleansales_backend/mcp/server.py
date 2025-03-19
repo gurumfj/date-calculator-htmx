@@ -4,6 +4,7 @@ TODO: query location sales data from the database
 
 from datetime import datetime
 
+import requests
 from mcp.server.fastmcp import FastMCP
 
 from cleansales_backend import Database, settings
@@ -16,7 +17,9 @@ mcp = FastMCP("cleansales-server")
 db = Database(settings.DB_PATH)
 sale_repository = SaleRecordProcessor()
 breed_repository = BreedRecordProcessor()
-query_service = QueryService(breed_repository, sale_repository)
+query_service = QueryService(
+    db=db, breed_repository=breed_repository, sale_repository=sale_repository
+)
 
 
 @mcp.tool(name="today", description="Get the current date in YYYY-MM-DD format")
@@ -40,8 +43,10 @@ def get_current_time() -> datetime:
     mime_type="application/json",
 )
 def get_not_completed_batches() -> IResponse:
-    with db.with_session() as session:
-        data = query_service.get_not_completed_batches_summary(session)
+    # aggrs = query_service.get_batch_aggregates()
+    # data = query_service.get_not_completed_batches_summary(aggrs)
+    # 發起請求
+    data = requests.get("http://localhost:8888/api/not-completed").json()
 
     if not data:
         return IResponse(success=False, message="未找到未結案批次")

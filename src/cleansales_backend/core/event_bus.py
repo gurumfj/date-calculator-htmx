@@ -16,8 +16,7 @@
 
 import logging
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable
 
@@ -45,7 +44,8 @@ class Event:
 class EventBus:
     """事件總線類"""
 
-    __instance = None
+    __instance: "EventBus | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "EventBus":
         if cls.__instance is None:
@@ -53,7 +53,7 @@ class EventBus:
         return cls.__instance
 
     def __init__(self) -> None:
-        if not hasattr(self, "_initialized"):
+        if not self._initialized:
             self._initialized = True
             self.callbacks: dict[Enum, list[Callable[[Event], None]]] = defaultdict(
                 list
@@ -81,6 +81,7 @@ class EventBus:
 class TelegramNotifier:
     """Telegram 通知處理器"""
 
+    _event_bus: EventBus | None = None
     post_url: AnyHttpUrl | None = None
 
     def __init__(self, event_bus: EventBus, register_events: list[Enum]) -> None:
@@ -120,7 +121,7 @@ class TelegramNotifier:
             # 將事件內容轉換為格式化的文字訊息
             message = f"事件: {event.event.value}\n"
             message += f"\n訊息: {event.message}\n"
-            message += "\n內容:\n" 
+            message += "\n內容:\n"
             for key, value in event.content.items():
                 message += f"- {key}: {value}\n"
             # message += f"\n時間: {event.content['timestamp']}"

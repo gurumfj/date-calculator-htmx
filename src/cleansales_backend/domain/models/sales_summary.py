@@ -1,14 +1,14 @@
 from datetime import date, datetime
+from typing import override
 
-from pandas.compat import TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict
 
 from ..utils import day_age, format_currency
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
 
-if TYPE_CHECKING:
-    from .sales_pivot import SalesPivot
+# if TYPE_CHECKING:
+from .sales_pivot import SalesPivot
 
 
 class SalesSummary:
@@ -22,6 +22,9 @@ class SalesSummary:
     - 產生銷售趨勢報表
     - 客戶交易分析
     """
+
+    breeds: list[BreedRecord]
+    sales: list[SaleRecord]
 
     # TODO: 作為 BatchAggregate 的子屬性。
     def __init__(self, sales: list[SaleRecord], breeds: list[BreedRecord]) -> None:
@@ -175,11 +178,11 @@ class SalesSummary:
         return len(self.sales)
 
     @property
-    def sales_pivot(self) -> "SalesPivot":
+    def sales_pivot(self) -> SalesPivot:
         """銷售資料"""
         from .sales_pivot import SalesPivot
 
-        return SalesPivot(self)
+        return SalesPivot(self.sales, self.breeds)
 
     def to_model(self) -> "SalesSummaryModel":
         """將 SalesSummary 轉換為 SalesSummaryModel
@@ -187,18 +190,6 @@ class SalesSummary:
         Returns:
             SalesSummaryModel: 對應的 BaseModel 實例
         """
-        # cycle_date_data = [self.cycle_date[0], self.cycle_date[1]]
-
-        # sales_period_date_data = [
-        #     self.sales_period_date[0],
-        #     self.sales_period_date[1],
-        # ]
-
-        # sales_open_close_dayage_data = [
-        #     self.sales_open_close_dayage[0],
-        #     self.sales_open_close_dayage[1],
-        # ]
-
         return SalesSummaryModel(
             sales_male=self.sales_male,
             sales_female=self.sales_female,
@@ -219,6 +210,7 @@ class SalesSummary:
             avg_price_weight=self.avg_price_weight,
         )
 
+    @override
     def __str__(self) -> str:
         """銷售資料"""
         msg: list[str] = []
@@ -278,7 +270,7 @@ class SalesSummaryModel(BaseModel):
     sales_percentage: float
     total_revenue: float
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)  # type: ignore
 
     @classmethod
     def create_from(cls, data: SalesSummary) -> "SalesSummaryModel":

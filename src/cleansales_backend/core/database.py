@@ -27,6 +27,7 @@ from cleansales_backend.processors.interface.processors_interface import IORMMod
 
 from .config import settings
 from .db_monitor import monitor
+from .db_optimizations import setup_db_optimizations
 
 # 註冊所有的 ORM 模型
 _orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM]
@@ -42,33 +43,51 @@ class Database:
         self._db_path = Path(db_path) if isinstance(db_path, str) else db_path
         self._db_path.parent.mkdir(exist_ok=True)
 
-        # 創建引擎時啟用連接池
+        # 創建引擎時啟用連接池，並添加 SQLite 優化設置
+        connect_args = {
+            "timeout": 30,  # 連接超時時間
+            "check_same_thread": False,  # 允許跨線程訪問
+        }
+
         self._engine = create_engine(
             f"sqlite:///{self._db_path}",
             echo=settings.DB_ECHO,
-            pool_size=10,
-            max_overflow=20,
+            pool_size=5,  # 減小連接池大小以避免資源爭用
+            max_overflow=10,
             pool_timeout=30,
-            pool_recycle=1800
+            pool_recycle=300,  # 更頻繁地回收連接
+            pool_pre_ping=True,  # 在使用前測試連接
+            connect_args=connect_args,
         )
-        
+
         # 創建表
         SQLModel.metadata.create_all(self._engine)
-        
+
         # 應用數據庫優化
-        from .db_optimizations import setup_db_optimizations
         setup_db_optimizations(self._engine)
-        
+
         # 啟動數據庫監控
         monitor.start_monitoring(self._engine)
-        
+
         logger.info(f"Database created at {self._db_path.absolute()}")
 
     def get_session(self) -> Generator[Session, None, None]:
-        """獲取數據庫會話
+        """獲取數據庫會話，用於 FastAPI 依賴注入
 
-        使用 context manager 模式管理 session 生命週期，確保資源正確釋放
-        自動處理交易的提交和回滾
+        Returns:
+            Generator[Session, None, None]: 數據庫會話實例
+        """
+        session = Session(self._engine)
+        try:
+            yield session
+        finally:
+            session.close()
+
+    @contextmanager
+    def with_session(self) -> Generator[Session, None, None]:
+        """
+        提供上下文管理器，確保 session 的生命週期管理
+        包含重試機制和錯誤恢復
 
         Yields:
             Session: 數據庫會話實例，可用於執行查詢和修改操作
@@ -76,27 +95,42 @@ class Database:
         Raises:
             Exception: 當資料庫操作失敗時拋出相應異常
         """
-        # hint db path
-        logger.debug(f"Database path: {self._db_path}")
-        # 使用 with 語句自動管理 session 生命週期
-        with Session(self._engine) as session:
-            try:
-                logger.debug("開始數據庫會話")
-                yield session
-                # 如果沒有異常發生，自動提交更改
-                # session.commit()
-                # logger.debug("數據庫會話提交成功")
-            except Exception as e:
-                # 發生異常時回滾更改
-                session.rollback()
-                logger.error(f"數據庫操作失敗: {str(e)}")
-                raise
-            finally:
-                logger.debug("數據庫會話結束")
+        max_retries = 3
+        retry_count = 0
+        last_error = None
 
-    @contextmanager
-    def with_session(self) -> Generator[Session, None, None]:
-        """
-        提供上下文管理器，確保 session 的生命週期管理
-        """
-        yield from self.get_session()
+        while retry_count < max_retries:
+            try:
+                logger.debug(f"Database path: {self._db_path}")
+                session = Session(self._engine)
+                logger.debug("開始數據庫會話")
+
+                try:
+                    yield session
+                    session.commit()
+                    logger.debug("數據庫會話提交成功")
+                    return  # 成功完成，直接返回
+                except Exception as e:
+                    last_error = e
+                    session.rollback()
+                    retry_info = f"(嘗試 {retry_count + 1}/{max_retries})"
+                    error_msg = f"數據庫操作失敗 {retry_info}: {str(e)}"
+                    logger.error(error_msg)
+                    if retry_count == max_retries - 1:
+                        raise last_error  # 拋出最後一個錯誤
+                    retry_count += 1
+                finally:
+                    session.close()
+                    logger.debug("數據庫會話結束")
+            except Exception as e:
+                last_error = e
+                retry_info = f"(嘗試 {retry_count + 1}/{max_retries})"
+                error_msg = f"創建數據庫會話失敗 {retry_info}: {str(e)}"
+                logger.error(error_msg)
+                if retry_count == max_retries - 1:
+                    raise last_error
+                retry_count += 1
+
+        # 如果所有重試都失敗了，拋出最後一個錯誤
+        if last_error:
+            raise last_error

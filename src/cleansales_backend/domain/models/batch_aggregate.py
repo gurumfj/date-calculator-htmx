@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, datetime
 from typing import TypeVar
 
 import wcwidth  # keep it for tabulate
 from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import deprecated, override
 
 from cleansales_backend.domain.models.sales_summary import SalesSummary
 
@@ -76,10 +77,12 @@ class BatchAggregate:
         return self.breeds[0].farmer_name
 
     @property
+    @deprecated("Use batch_male instead")
     def total_male(self) -> int:
         return sum(breed.male for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_female instead")
     def total_female(self) -> int:
         return sum(breed.female for breed in self.breeds)
 
@@ -120,11 +123,11 @@ class BatchAggregate:
         return tuple(breed.chicken_breed for breed in self.breeds)
 
     @property
-    def male(self) -> tuple[int, ...]:
+    def batch_male(self) -> tuple[int, ...]:
         return tuple(breed.male for breed in self.breeds)
 
     @property
-    def female(self) -> tuple[int, ...]:
+    def batch_female(self) -> tuple[int, ...]:
         return tuple(breed.female for breed in self.breeds)
 
     @property
@@ -142,11 +145,22 @@ class BatchAggregate:
         return self.sales_summary.sales_percentage if self.sales_summary else None
 
     @property
+    def cycle_date(self) -> tuple[datetime, datetime | None]:
+        min_date = min(breed.breed_date for breed in self.breeds)
+        # 將 sale_date 從 datetime 轉換為 date 類型
+        if self.sales:
+            max_date = max(sale.sale_date for sale in self.sales)
+        else:
+            max_date = None
+        return (min_date, max_date)
+
+    @property
     def sales_summary(self) -> SalesSummary | None:
         if not self.sales:
             return None
         return SalesSummary(self.sales, self.breeds)
 
+    @override
     def __str__(self) -> str:
         """批次彙整資料"""
         result: list[str] = []
@@ -159,8 +173,8 @@ class BatchAggregate:
         )
         result.append(f"日齡: {', '.join(str(d) for d in self.day_age)}")
         result.append(f"週齡: {', '.join(self.week_age)}")
-        result.append(f"公雞數: {self.total_male:,} 隻 {self.male}")
-        result.append(f"母雞數: {self.total_female:,} 隻 {self.female}")
+        result.append(f"公雞數: {sum(self.batch_male):,} 隻 {self.batch_male}")
+        result.append(f"母雞數: {sum(self.batch_female):,} 隻 {self.batch_female}")
         result.append(f"獸醫師: {self.veterinarian}")
         result.append(f"種雞場: {', '.join(filter(None, self.supplier))}")
         result.append(f"批次狀態: {self.batch_state.value}")
@@ -180,17 +194,18 @@ class BatchAggregate:
             farm_name=self.farm_name,
             address=self.address,
             farmer_name=self.farmer_name,
-            total_male=self.total_male,
-            total_female=self.total_female,
+            # total_male=self.total_male,  # TODO: 不回應可計算欄位節省流量
+            # total_female=self.total_female,  # TODO: 不回應可計算欄位節省流量
             veterinarian=self.veterinarian,
             batch_state=self.batch_state,
             breed_date=list(self.breed_date),
             supplier=list(self.supplier),
             chicken_breed=list(self.chicken_breed),
-            male=list(self.male),
-            female=list(self.female),
+            batch_male=list(self.batch_male),
+            batch_female=list(self.batch_female),
             day_age=list(self.day_age),
             week_age=list(self.week_age),
+            cycle_date=self.cycle_date,
             sales_summary=self.sales_summary.to_model() if self.sales_summary else None,
         )
 
@@ -209,8 +224,12 @@ class BatchAggregateModel(BaseModel):
     farmer_name: str | None = Field(default=None, description="飼養戶名稱")
 
     # 數量統計
-    total_male: int = Field(default=0, description="飼養公雞總數")
-    total_female: int = Field(default=0, description="飼養母雞總數")
+    # total_male: int = Field(
+    #     default=0, description="飼養公雞總數"
+    # )  # TODO: 不回應可計算欄位節省流量
+    # total_female: int = Field(
+    #     default=0, description="飼養母雞總數"
+    # )  # TODO: 不回應可計算欄位節省流量
 
     # 批次資訊
     veterinarian: str | None = Field(default=None, description="獸醫師")
@@ -222,18 +241,22 @@ class BatchAggregateModel(BaseModel):
     )
     supplier: list[str | None] = Field(default_factory=list, description="種雞場")
     chicken_breed: list[str] = Field(default_factory=list, description="飼養品種")
-    male: list[int] = Field(default_factory=list, description="飼養公雞數")
-    female: list[int] = Field(default_factory=list, description="飼養母雞數")
+    batch_male: list[int] = Field(default_factory=list, description="飼養公雞數")
+    batch_female: list[int] = Field(default_factory=list, description="飼養母雞數")
     day_age: list[int] = Field(default_factory=list, description="目前日齡")
     week_age: list[str] = Field(default_factory=list, description="目前週齡")
+
+    # 日期資訊
+    cycle_date: tuple[date, date | None] = Field(
+        default=(date.min, None), description="周期日期"
+    )
 
     # 資料統計
     sales_summary: SalesSummaryModel | None = Field(
         default=None, description="銷售統計"
     )
-    # sales_percentage: float | None = Field(default=None, description="銷售率")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True)  # type: ignore
 
     @classmethod
     def create_from(cls, data: BatchAggregate) -> "BatchAggregateModel":
@@ -242,17 +265,18 @@ class BatchAggregateModel(BaseModel):
             farm_name=data.farm_name,
             address=data.address,
             farmer_name=data.farmer_name,
-            total_male=data.total_male,
-            total_female=data.total_female,
+            # total_male=data.total_male,  # TODO: 不回應可計算欄位節省流量
+            # total_female=data.total_female,  # TODO: 不回應可計算欄位節省流量
             veterinarian=data.veterinarian,
             batch_state=data.batch_state,
             breed_date=list(data.breed_date),
             supplier=list(data.supplier),
             chicken_breed=list(data.chicken_breed),
-            male=list(data.male),
-            female=list(data.female),
+            batch_male=list(data.batch_male),
+            batch_female=list(data.batch_female),
             day_age=list(data.day_age),
             week_age=list(data.week_age),
+            cycle_date=data.cycle_date,
             sales_summary=SalesSummaryModel.create_from(data.sales_summary)
             if data.sales_summary
             else None,

@@ -31,6 +31,7 @@ from cleansales_backend.services.query_service import QueryService
 from cleansales_backend.shared.models import SourceData
 
 from .. import ProcessEvent, core_db, get_event_bus
+from .query import get_query_service
 
 # from .. import batch_aggrs_cache
 
@@ -82,6 +83,7 @@ def validate_excel_file(file: UploadFile) -> None:
 async def process_breeds_file(
     file_upload: Annotated[UploadFile, File(...)],
     session: Annotated[Session, Depends(core_db.get_session)],
+    query_service: Annotated[QueryService, Depends(get_query_service)],
     processor: Annotated[BreedRecordProcessor, Depends(get_breeds_processor)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
@@ -119,7 +121,7 @@ async def process_breeds_file(
         # 處理成功時發布事件
         if result.success:
             # batch_aggrs_cache.invalidate()
-            QueryService.get_batch_aggregates.cache_clear()
+            query_service.cache_clear()
             event_bus.publish(
                 Event(
                     event=ProcessEvent.BREEDS_PROCESSING_COMPLETED,
@@ -161,6 +163,7 @@ async def process_breeds_file(
 async def process_sales_file(
     file_upload: Annotated[UploadFile, File(...)],
     session: Annotated[Session, Depends(core_db.get_session)],
+    query_service: Annotated[QueryService, Depends(get_query_service)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     processor: Annotated[SaleRecordProcessor, Depends(get_sales_processor)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
@@ -198,7 +201,7 @@ async def process_sales_file(
         # 處理成功時發布事件
         if result.success:
             # batch_aggrs_cache.invalidate()
-            QueryService.get_batch_aggregates.cache_clear()
+            query_service.cache_clear()
             event_bus.publish(
                 Event(
                     event=ProcessEvent.SALES_PROCESSING_COMPLETED,

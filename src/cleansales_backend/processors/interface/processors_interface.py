@@ -154,7 +154,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
         """
 
         validated_records: dict[str, IBaseModel] = {}
-        error_records = []
+        error_records: list[dict[str, Any]] = []
 
         # 將每筆資料轉換為 SaleRecordBase 物件
         for _, row in df.iterrows():
@@ -165,7 +165,7 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
                 record.unique_id = record.unique_id or self._calculate_unique_id(record)
                 validated_records[record.unique_id] = record
             except ValueError:
-                error = {
+                error: dict[str, Any] = {
                     "message": "轉換資料時發生錯誤",
                     "data": row.to_dict(),
                     # "error": str(ve),
@@ -184,55 +184,46 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
         error_records: list[dict[str, Any]],
         md5: str,
     ) -> tuple[set[str], set[str]]:
-        try:
-            if not validated_records:
-                logger.info("沒有有效記錄")
-                return set(), set()
-            # 查詢資料庫中所有的記錄
-            all_db_obj = session.exec(
-                select(self._orm_schema).where(
-                    self._orm_schema.event == RecordEvent.ADDED
-                )
-            ).all()
+        if not validated_records:
+            logger.info("沒有有效記錄")
+            return set(), set()
 
-            # 從完整對象中提取 unique_id
-            db_keys: set[str] = set(r.unique_id for r in all_db_obj)
-            import_keys: set[str] = set(validated_records.keys())
-            delete_keys: set[str] = db_keys - import_keys
-            new_keys: set[str] = import_keys - db_keys
+        # 查詢資料庫中所有的記錄
+        all_db_obj = session.exec(
+            select(self._orm_schema).where(self._orm_schema.event == RecordEvent.ADDED)
+        ).all()
 
-            logger.info(f"{len(import_keys)} records in import file")
-            logger.info(f"{len(new_keys)} records to be added")
-            logger.info(f"{len(delete_keys)} records to be deleted")
+        # 從完整對象中提取 unique_id
+        db_keys: set[str] = set(r.unique_id for r in all_db_obj)
+        import_keys: set[str] = set(validated_records.keys())
+        delete_keys: set[str] = db_keys - import_keys
+        new_keys: set[str] = import_keys - db_keys
 
-            # 刪除不在 import file 中的記錄
-            for obj in all_db_obj:
-                if obj.unique_id in delete_keys:
-                    # session.delete(obj)
-                    obj.event = RecordEvent.DELETED
-                    obj.updated_at = datetime.now()
-                    _ = session.merge(obj)
+        logger.info(f"{len(import_keys)} records in import file")
+        logger.info(f"{len(new_keys)} records to be added")
+        logger.info(f"{len(delete_keys)} records to be deleted")
 
-            if not new_keys:
-                logger.info("沒有新記錄需要添加")
-                session.commit()
-                return set(), set()
+        # 刪除不在 import file 中的記錄
+        for obj in all_db_obj:
+            if obj.unique_id in delete_keys:
+                # session.delete(obj)
+                obj.event = RecordEvent.DELETED
+                obj.updated_at = datetime.now()
+                _ = session.merge(obj)
 
-            # 只添加不在資料庫中的記錄
-            for new_key in new_keys:
-                orm_record = self._orm_schema.model_validate(validated_records[new_key])
-                orm_record.event = RecordEvent.ADDED
-                orm_record.md5 = md5
-                _ = session.merge(orm_record)
-            session.commit()
-            logger.info(f"成功添加 {len(new_keys)} 條記錄")
+        if not new_keys:
+            logger.info("沒有新記錄需要添加")
+            return set(), set()
 
-            return new_keys, delete_keys
+        # 只添加不在資料庫中的記錄
+        for new_key in new_keys:
+            orm_record = self._orm_schema.model_validate(validated_records[new_key])
+            orm_record.event = RecordEvent.ADDED
+            orm_record.md5 = md5
+            _ = session.merge(orm_record)
 
-        except Exception as e:
-            session.rollback()
-            logger.error(f"添加記錄時發生錯誤: {e}")
-            raise
+        logger.info(f"成功添加 {len(new_keys)} 條記錄")
+        return new_keys, delete_keys
 
     def _get_by_criteria(
         self,

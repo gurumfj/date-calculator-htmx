@@ -1,9 +1,11 @@
 import logging
 from collections import defaultdict
+from datetime import datetime
 from functools import lru_cache
 from typing import Literal
 
 from sqlmodel import Session
+from typing_extensions import Any
 
 from cleansales_backend.core.database import Database
 from cleansales_backend.domain.models import (
@@ -30,45 +32,43 @@ class QueryService:
 
     _breed_repository: BreedRepositoryProtocol
     _sale_repository: SaleRepositoryProtocol
-    _all_aggrs: list[BatchAggregate] | None
-    _hint: int
-    _db: Database | None
+    _db_hint: dict[str, str]
+    _db: Database
 
     def __init__(
         self,
         breed_repository: BreedRepositoryProtocol,
         sale_repository: SaleRepositoryProtocol,
-        db: Database | None = None,
+        db: Database,
     ) -> None:
         self._breed_repository = breed_repository
         self._sale_repository = sale_repository
         self._db = db
-        self._hint = 0
+        self._db_hint = {datetime.now().isoformat(): "Started"}
 
-    def get_batch_cache_info(self) -> dict:
+    def get_batch_cache_info(self) -> dict[str, Any]:
         cache_info = {
             "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict(),
-            "db session hint": self._hint,
+            "db session hint": self._db_hint,
         }
         return cache_info
 
-    @staticmethod
-    def cache_clear() -> None:
-        QueryService.get_batch_aggregates.cache_clear()
+    def cache_clear(self) -> None:
+        logger.info("Clearing cache")
+        self.get_batch_aggregates.cache_clear()
+        self._db_hint = {**self._db_hint, datetime.now().isoformat(): "cache cleared"}
 
     @lru_cache
     def get_batch_aggregates(self) -> list[BatchAggregate]:
-        if not self._db:
-            raise ValueError("Database instance not provided")
         with self._db.with_session() as session:
-            all_aggrs, self._hint = self._get_batch_aggregates(session, self._hint)
+            all_aggrs, self._db_hint = self._get_batch_aggregates(
+                session, self._db_hint
+            )
             return all_aggrs
 
-    # @lru_cache
-    # @log_execution_time
     def _get_batch_aggregates(
-        self, session: Session, hint: int
-    ) -> tuple[list[BatchAggregate], int]:
+        self, session: Session, hint: dict[str, str]
+    ) -> tuple[list[BatchAggregate], dict[str, str]]:
         """獲取所有批次聚合
 
         將養殖記錄按批次分組並聚合相關銷售記錄
@@ -80,12 +80,9 @@ class QueryService:
             list[BatchAggregate]: 批次聚合列表，包含每個批次的養殖和銷售記錄
         """
         try:
-            if not (breeds := self._breed_repository.get_all(session)):
-                return [], hint
-            # self._db_hint += 1
             # 使用 defaultdict 進行分組
             breed_groups: dict[str, list[BreedRecord]] = defaultdict(list)
-            for breed in breeds:
+            for breed in self._breed_repository.get_all(session):
                 if breed.batch_name:  # 確保 batch_name 不為 None
                     breed_groups[breed.batch_name].append(breed)
 
@@ -99,10 +96,8 @@ class QueryService:
                 )
                 for batch_name, breeds in breed_groups.items()
             ]
-            # self._db_hint += 1
-            self._all_aggrs = aggrs
             logger.info("使用資料庫獲取批次聚合數據")
-            return aggrs, hint + 1
+            return aggrs, {**hint, datetime.now().isoformat(): "getted from database"}
         except Exception as e:
             logger.error(f"獲取批次聚合數據時發生錯誤: {e}")
             raise ValueError(f"獲取批次聚合數據時發生錯誤: {str(e)}")
@@ -120,6 +115,7 @@ class QueryService:
             ]
         ]
         | None = None,
+        period: tuple[datetime, datetime] | None = None,
     ) -> list[BatchAggregate]:
         """獲取特定批次名稱的批次聚合列表
 
@@ -131,7 +127,7 @@ class QueryService:
         Returns:
             list[BatchAggregate]: 包含特定批次名稱的批次聚合列表
         """
-        logger.info(f"criteria: {batch_status, batch_name, breed_type}")
+        logger.info(f"criteria: {batch_status, batch_name, breed_type, period}")
         return [
             aggr
             for aggr in all_aggrs
@@ -148,6 +144,16 @@ class QueryService:
                 and (
                     breed_type is None
                     or any(breed_type in breed.chicken_breed for breed in aggr.breeds)
+                )
+                and (
+                    period is None
+                    or (
+                        aggr.cycle_date[0] <= period[1]
+                        and (
+                            aggr.cycle_date[1] is None
+                            or aggr.cycle_date[1] >= period[0]
+                        )
+                    )
                 )
             )
         ]
@@ -167,7 +173,11 @@ class QueryService:
             filtered_aggrs = [
                 aggr
                 for aggr in all_aggrs
-                if aggr.batch_state in [BatchState.BREEDING, BatchState.SALE]
+                if aggr.batch_state
+                in [
+                    BatchState.BREEDING,
+                    BatchState.SALE,
+                ]
             ]
             return filtered_aggrs
         except Exception as e:

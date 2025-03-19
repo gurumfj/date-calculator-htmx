@@ -50,6 +50,17 @@ allow-direct-references = true
 cleansales = "cleansales_backend.cli:main"
 cleansales-api = "cleansales_backend.api:main"
 cleansales-mcp = "cleansales_backend.mcp:main"
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = ["src"]
+disallow_untyped_decorators = false
+disallow_subclassing_any = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+# module = ["pydantic.*", "fastapi.*", "sqlmodel.*", "sqlalchemy.*", "uvicorn.*", "pandas.*", "requests.*", "mcp.*", "wcwidth.*", "pydantic_settings.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = [
@@ -59,37 +70,11 @@ testpaths = [
     "tests",
 ]
 
-[tool.mypy]
-python_version = "3.12"
-strict = true
-exclude = "^.*_.*\\.py$, ^out/"
-explicit_package_bases = true
-namespace_packages = true
-warn_return_any = true
-warn_unused_configs = true
-mypy_path = ["src"]
-[[tool.mypy.overrides]]
-module = "numpy.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "wcwidth"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "modules.*"
-ignore_missing_imports = false
-
 [tool.ruff]
-# Assume Python 3.12
 target-version = "py312"
 line-length = 88
 indent-width = 4
-
-# Enable auto-fix
 fix = true
-
-# Exclude commonly ignored directories
 exclude = [
     ".bzr",
     ".direnv",
@@ -115,21 +100,14 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-# Enable Pyflakes (`F`), pycodestyle (`E`), isort (`I`), and naming (`N`)
 select = [
-    "E",  # pycodestyle errors
-    "F",  # Pyflakes
-    "I",  # isort
-    "N",  # pep8-naming
+    "E",
+    "F",
+    "I",
+    "N",
 ]
-# ignore = ["E731"]
-
-# Allow fix for all enabled rules
 fixable = ["ALL"]
-
-# Allow unused variables when underscore-prefixed
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
 
 [tool.basedpyright]
 include = ["src"]
@@ -138,28 +116,13 @@ exclude = ["**/node_modules",
     "src/experimental",
     "src/typestubs"
 ]
-# ignore = []
 defineConstant = { DEBUG = true }
-# stubPath = "out/"
-
-# reportMissingImports = false
-# reportMissingTypeStubs = false
-# reportUnknownVariableType = false
-
 pythonVersion = "3.12"
 pythonPlatform = "macOS"
-
-typeCheckingMode = "recommended"  # 推荐的类型检查模式
+typeCheckingMode = "basedpyright"
 reportAny = false
 reportMissingTypeStubs = false
 reportUnknownVariableType = false
 reportUnknownMemberType = false
 reportCallInDefaultInitializer = false
-# useLibraryCodeForTypes = true  # 使用庫代碼作為類型來源
-
-# executionEnvironments = [
-#   { root = "src/web", pythonVersion = "3.5", pythonPlatform = "Windows", extraPaths = [ "src/service_libs" ], reportMissingImports = "warning" },
-#   { root = "src/sdk", pythonVersion = "3.0", extraPaths = [ "src/backend" ] },
-#   { root = "src/tests", reportPrivateUsage = false, extraPaths = ["src/tests/e2e", "src/sdk" ]},
-#   { root = "src" }
-# ]
+reportExplicitAny = false

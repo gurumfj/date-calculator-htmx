@@ -1,15 +1,18 @@
 import logging
 from datetime import datetime
-from typing import Any, List
+from typing import Any
 
 import pandas as pd
 import wcwidth
 from pydantic import BaseModel, Field, field_validator
+from typing_extensions import TYPE_CHECKING
 
 from ..utils import day_age
 from .breed_record import BreedRecord
 from .sale_record import SaleRecord
-from .sales_summary import SalesSummary
+
+if TYPE_CHECKING:
+    pass
 
 _ = wcwidth.WIDE_EASTASIAN
 
@@ -59,13 +62,13 @@ class SalesPivotModel(BaseModel):
 
     batch_name: str
 
-    sales_data: List[SalesDataModel] = Field(
+    sales_data: list[SalesDataModel] = Field(
         ...,
         description="銷售資料列表，每個項目為一筆銷售記錄",
     )
 
     class Config:
-        json_schema_extra = {
+        json_schema_extra: dict[str, Any] = {
             "example": {
                 "sales_data": [
                     {
@@ -91,12 +94,9 @@ class SalesPivot:
     _sales: list[SaleRecord]
     _breeds: list[BreedRecord]
 
-    _sales_summary: SalesSummary
-
-    def __init__(self, sales_summary: SalesSummary):
-        self._sales_summary = sales_summary
-        self._sales = sales_summary.sales
-        self._breeds = sales_summary.breeds
+    def __init__(self, sales: list[SaleRecord], breeds: list[BreedRecord]):
+        self._sales = sales
+        self._breeds = breeds
 
     @property
     def batch_name(self) -> str:

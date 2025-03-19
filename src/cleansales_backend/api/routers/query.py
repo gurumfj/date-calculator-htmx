@@ -16,6 +16,7 @@
 """
 
 import logging
+from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -75,7 +76,10 @@ async def get_not_completed_batches(
     """
     try:
         aggrs = query_service.get_batch_aggregates()
-        data = query_service.get_not_completed_batches_summary(aggrs)
+        # data = query_service.get_not_completed_batches_summary(aggrs)
+        data = query_service.get_batch_aggregates_by_criteria(
+            aggrs, period=(datetime.now() - timedelta(days=60), datetime.now())
+        )
         return ResponseModel(
             success=True if data else False,
             message=f"獲取{len(data)}筆未結案批次" if data else "未找到未結案批次",
