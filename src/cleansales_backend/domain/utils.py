@@ -1,8 +1,7 @@
+import logging
 from datetime import date, datetime
 
-import logging
 import pandas as pd
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,4 +42,3 @@ def week_age(day_age: int) -> str:
     return (
         f"{day_age // 7 - 1 if day_age % 7 == 0 else day_age // 7}/{day[day_age % 7]}"
     )
-

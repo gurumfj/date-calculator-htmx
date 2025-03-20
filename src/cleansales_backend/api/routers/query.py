@@ -114,6 +114,14 @@ async def get_batch_aggregates_by_criteria(
         default=None,
         description="可包含多個狀態。空列表或 None 表示不過濾狀態",
     ),
+    start_date: datetime | None = Query(
+        default=None,
+        description="開始日期。空列表或 None 表示不過濾狀態",
+    ),
+    end_date: datetime | None = Query(
+        default=None,
+        description="結束日期。空列表或 None 表示不過濾狀態",
+    ),
 ) -> ResponseModel[BatchAggregateModel]:
     """獲取特定批次名稱的批次聚合列表
 
@@ -129,10 +137,11 @@ async def get_batch_aggregates_by_criteria(
     try:
         # if batch_state:=status:
         batch_status_set = set(batch_status) if batch_status is not None else None
+        period = (start_date, end_date) if start_date and end_date else None
 
         aggrs = query_service.get_batch_aggregates()
         filtered_aggrs = query_service.get_batch_aggregates_by_criteria(
-            aggrs, batch_name, breed_type, batch_status_set
+            aggrs, batch_name, breed_type, batch_status_set, period
         )
         return ResponseModel(
             success=True if filtered_aggrs else False,

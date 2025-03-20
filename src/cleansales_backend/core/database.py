@@ -19,7 +19,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlmodel import Session, SQLModel, create_engine
 
 from cleansales_backend.processors import BreedRecordORM, SaleRecordORM
@@ -27,7 +27,8 @@ from cleansales_backend.processors.interface.processors_interface import IORMMod
 
 from .config import settings
 from .db_monitor import monitor
-from .db_optimizations import setup_db_optimizations
+
+# from .db_optimizations import setup_db_optimizations
 
 # 註冊所有的 ORM 模型
 _orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM]
@@ -60,11 +61,16 @@ class Database:
             connect_args=connect_args,
         )
 
+        # 啟用外鍵約束
+        with self._engine.connect() as conn:
+            _ = conn.execute(text("PRAGMA foreign_keys=ON"))
+            conn.commit()
+
         # 創建表
         SQLModel.metadata.create_all(self._engine)
 
         # 應用數據庫優化
-        setup_db_optimizations(self._engine)
+        # setup_db_optimizations(self._engine)
 
         # 啟動數據庫監控
         monitor.start_monitoring(self._engine)
@@ -80,6 +86,10 @@ class Database:
         session = Session(self._engine)
         try:
             yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
         finally:
             session.close()
 
