@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import TypeVar
 
-import wcwidth  # keep it for tabulate
+import wcwidth  # type: ignore
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import deprecated, override
 

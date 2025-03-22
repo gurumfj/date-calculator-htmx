@@ -51,17 +51,17 @@ _telegram_notifier = TelegramNotifier(
 )
 
 
-def main() -> None:
-    """API 服務入口點"""
-    import uvicorn
+# def main() -> None:
+#     """API 服務入口點"""
+#     import uvicorn
 
-    uvicorn.run(
-        "cleansales_backend.api.app:app",
-        host=settings.API_HOST,
-        port=settings.API_PORT,
-        reload=settings.API_RELOAD,
-        reload_dirs=["src/cleansales_backend"],
-    )
+#     uvicorn.run(
+#         "cleansales_backend.api.app:app",
+#         host=settings.API_HOST,
+#         port=settings.API_PORT,
+#         reload=settings.API_RELOAD,
+#         reload_dirs=["src/cleansales_backend"],
+#     )
 
 
-__all__ = ["core_db", "main", "get_event_bus", "ProcessEvent", "batch_aggrs_cache"]
+__all__ = ["core_db", "main", "get_event_bus", "ProcessEvent"]

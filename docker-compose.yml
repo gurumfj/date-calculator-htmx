@@ -1,33 +1,48 @@
-# version: '3.8'
-
 services:
-  cleansales_api:
+  cleansales_backend_base:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      target: base
     ports:
       - "8888:8000"
     volumes:
-      - ./src:/app/src
       - ./data:/app/data
-      # - ./src:/app/src
-      # - ./tests:/app/tests
-      # - ./pyproject.toml:/app/pyproject.toml
-      # - ./README.md:/app/README.md
-    # environment:
-      # - UV_SYSTEM_PYTHON=1
-      # - PYTHONPATH=/app
-      # - PYTHONUNBUFFERED=1
     restart: unless-stopped
-    command:  uv run cleansales-api
-    # command: uv pip install --system -e .
-    # command: sh -c "uv pip install --system -e . && uv run cleansales-api"
-    # command: sh -c "uv pip install --system -e . && uv run cleansales"
-    # command: uv run cleansales-api
-    # command: uv run cleansales
+    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8000
 
+  dev:
+    extends:
+      service: cleansales_backend_base
+    build:
+      target: development
+    env_file:
+      - .env-dev
 
+    develop:
+      watch:
+        - action: sync
+          path: src
+          target: /app/src
 
-  #     context: .
-  #     dockerfile: Dockerfile.dev
-  #   command: uv run cleansales
+        - action: restart
+          path: src
+
+        - action: rebuild
+          path: ./pyproject.toml
+
+        - action: rebuild
+          path: ./Dockerfile
+
+        - action: rebuild
+          path: ./docker-compose.yml
+
+        - action: restart
+          path: ./pyproject.toml
+
+  prod:
+    extends:
+      service: cleansales_backend_base
+    build:
+      target: production
+    env_file:
+      - .env-prod

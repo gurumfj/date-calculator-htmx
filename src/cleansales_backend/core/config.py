@@ -33,15 +33,6 @@ class Settings(BaseSettings):
     DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")
     DB_ECHO: bool = Field(default=False)
 
-    # API 服務配置
-    API_HOST: str = Field(default="0.0.0.0")
-    API_PORT: int = Field(default=8000)
-    API_RELOAD: bool = Field(default=False)
-
-    # 上傳文件配置
-    MAX_UPLOAD_SIZE: int = Field(default=10 * 1024 * 1024)  # 10MB TODO: 取消
-    ALLOWED_EXTENSIONS: set[str] = Field(default={".xlsx", ".xls"})  # TODO: 取消
-
     # 日誌配置
     LOG_LEVEL: str = Field(default="DEBUG")
     LOG_FORMAT: str = Field(

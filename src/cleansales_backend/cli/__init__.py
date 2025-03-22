@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import Depends
 
 from cleansales_backend.core import core_db, settings
 from cleansales_backend.core.database import Database
@@ -94,7 +93,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     # 加入全域參數
     for arg_name, arg_config in cli_structure.get("global_args", {}).items():
-        parser.add_argument(arg_name, **arg_config)
+        _ = parser.add_argument(arg_name, **arg_config)
 
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
@@ -111,12 +110,12 @@ def create_parser() -> argparse.ArgumentParser:
                 )
                 # 加入子命令的參數
                 for arg_name, arg_config in subcmd_config["args"].items():
-                    subcmd_parser.add_argument(arg_name, **arg_config)
+                    _ = subcmd_parser.add_argument(arg_name, **arg_config)
 
         # 處理命令的參數
         if "args" in cmd_config:
             for arg_name, arg_config in cmd_config["args"].items():
-                cmd_parser.add_argument(arg_name, **arg_config)
+                _ = cmd_parser.add_argument(arg_name, **arg_config)
 
     return parser
 
@@ -195,7 +194,10 @@ def main() -> None:
                 aggr
                 for aggr in all_aggrs
                 if (aggr.batch_state in search_status)
-                and (search_name is None or (aggr.batch_name and search_name in aggr.batch_name))
+                and (
+                    search_name is None
+                    or (aggr.batch_name and search_name in aggr.batch_name)
+                )
                 and any(breed in aggr.chicken_breed for breed in search_breed)
             ]
             if not filtered_aggrs:

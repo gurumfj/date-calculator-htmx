@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 app = FastAPI(
     title="銷售資料處理 API",
-    description="""
+    description=f"""
     提供銷售資料處理服務的 API
     
     ## 功能
@@ -49,13 +49,11 @@ app = FastAPI(
     1. 使用 POST `/upload/sales` 上傳販售資料 Excel 檔案
     2. 使用 POST `/upload/breeds` 上傳入雛資料 Excel 檔案
     3. 系統會自動處理檔案並返回結果
-    
-    ## 注意事項
-    - 檔案大小限制：10MB
-    - 支援的 Excel 版本：2007 及以上
-    - 處理時間依檔案大小而定
+
+    ## 分支信息
+    - 分支: {settings.BRANCH}
     """,
-    version="1.0.0",
+    version="1.0.1",
 )
 
 # 註冊 API 路由
@@ -76,6 +74,7 @@ async def health_check() -> JSONResponse:
             "status": "healthy",
             "branch": settings.BRANCH,
             "cache_state": cache_state,
+            "api_version": app.version,
         }
     )
 
