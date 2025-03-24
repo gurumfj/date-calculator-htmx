@@ -38,6 +38,9 @@ class ProcessEvent(str, Enum):
     BREEDS_PROCESSING_STARTED = "入雛資料上傳開始"
     BREEDS_PROCESSING_COMPLETED = "入雛資料上傳完成"
     BREEDS_PROCESSING_FAILED = "入雛資料上傳失敗"
+    FEEDS_PROCESSING_STARTED = "飼料記錄上傳開始"
+    FEEDS_PROCESSING_COMPLETED = "飼料記錄上傳完成"
+    FEEDS_PROCESSING_FAILED = "飼料記錄上傳失敗"
 
 
 _telegram_notifier = TelegramNotifier(
@@ -47,6 +50,8 @@ _telegram_notifier = TelegramNotifier(
         ProcessEvent.SALES_PROCESSING_FAILED,
         ProcessEvent.BREEDS_PROCESSING_COMPLETED,
         ProcessEvent.BREEDS_PROCESSING_FAILED,
+        ProcessEvent.FEEDS_PROCESSING_COMPLETED,
+        ProcessEvent.FEEDS_PROCESSING_FAILED,
     ],
 )
 

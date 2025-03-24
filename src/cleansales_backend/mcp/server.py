@@ -8,7 +8,11 @@ import requests
 from mcp.server.fastmcp import FastMCP
 
 from cleansales_backend import Database, settings
-from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
+from cleansales_backend.processors import (
+    BreedRecordProcessor,
+    FeedRecordProcessor,
+    SaleRecordProcessor,
+)
 from cleansales_backend.processors.interface.processors_interface import IResponse
 from cleansales_backend.services import QueryService
 
@@ -17,8 +21,12 @@ mcp = FastMCP("cleansales-server")
 db = Database(settings.DB_PATH)
 sale_repository = SaleRecordProcessor()
 breed_repository = BreedRecordProcessor()
+feed_repository = FeedRecordProcessor()
 query_service = QueryService(
-    db=db, breed_repository=breed_repository, sale_repository=sale_repository
+    db=db,
+    breed_repository=breed_repository,
+    sale_repository=sale_repository,
+    feed_repository=feed_repository,
 )
 
 

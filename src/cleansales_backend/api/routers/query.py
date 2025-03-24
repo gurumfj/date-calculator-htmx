@@ -25,6 +25,7 @@ from cleansales_backend.domain.models.batch_aggregate import BatchAggregateModel
 from cleansales_backend.domain.models.sales_pivot import SalesPivotModel
 from cleansales_backend.domain.models.sales_summary import SalesSummaryModel
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
+from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
 from cleansales_backend.services import QueryService
 
 from .. import core_db
@@ -41,9 +42,11 @@ router = APIRouter(prefix="/api", tags=["api"])
 
 _breed_repository = BreedRecordProcessor()
 _sale_repository = SaleRecordProcessor()
+_feed_repository = FeedRecordProcessor()
 _query_service = QueryService(
     _breed_repository,
     _sale_repository,
+    _feed_repository,
     core_db,
 )
 

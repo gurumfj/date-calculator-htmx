@@ -24,6 +24,7 @@ from sqlmodel import Session
 from cleansales_backend.core import Event, EventBus
 from cleansales_backend.processors import (
     BreedRecordProcessor,
+    FeedRecordProcessor,
     IResponse,
     SaleRecordProcessor,
 )
@@ -51,6 +52,13 @@ _breeds_processor = BreedRecordProcessor()
 
 def get_breeds_processor() -> BreedRecordProcessor:
     return _breeds_processor
+
+
+_feeds_processor = FeedRecordProcessor()
+
+
+def get_feeds_processor() -> FeedRecordProcessor:
+    return _feeds_processor
 
 
 # 創建路由器實例，設置前綴和標籤
@@ -231,6 +239,83 @@ async def process_sales_file(
             Event(
                 event=ProcessEvent.SALES_PROCESSING_FAILED,
                 message="處理販售資料檔案時發生錯誤",
+                content={
+                    "error": str(e),
+                },
+            )
+        )
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/feeds", response_model=IResponse)
+async def process_feeds_file(
+    file_upload: Annotated[UploadFile, File(...)],
+    session: Annotated[Session, Depends(core_db.get_session)],
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    processor: Annotated[FeedRecordProcessor, Depends(get_feeds_processor)],
+    check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
+) -> IResponse:
+    """
+    處理飼料記錄 Excel 文件的上傳端點
+
+    Args:
+        file_upload (UploadFile): 上傳的 Excel 文件
+        session (Session): 數據庫會話實例
+        event_bus (EventBus): 事件總線實例
+        processor (FeedRecordProcessor): 數據處理服務實例
+        check_exists (bool): 是否檢查數據是否已存在
+
+    Returns:
+        ResponseModel: 包含處理結果的響應模型
+
+    Raises:
+        HTTPException: 當文件格式錯誤或處理過程中出現錯誤時
+    """
+    try:
+        # 使用新的驗證函數
+        validate_excel_file(file_upload)
+
+        # 讀取並轉換數據
+        source_data = SourceData(
+            # 使用空字符串作為默認值，確保文件名不為 None
+            file_name=file_upload.filename or "",
+            dataframe=pd.read_excel(file_upload.file),
+        )
+
+        # 執行數據處理
+        result = processor.execute(session, source_data, check_md5=check_exists)
+
+        # 處理成功時發布事件
+        if result.success:
+            # batch_aggrs_cache.invalidate()
+            query_service.cache_clear()
+            event_bus.publish(
+                Event(
+                    event=ProcessEvent.FEEDS_PROCESSING_COMPLETED,
+                    message="處理飼料記錄檔案成功",
+                    content=result.content,
+                )
+            )
+        return result
+    except ValueError as ve:
+        # 處理驗證錯誤
+        logger.error(f"處理飼料記錄檔案時發生錯誤: {ve}")
+        event_bus.publish(
+            Event(
+                event=ProcessEvent.FEEDS_PROCESSING_FAILED,
+                message="處理飼料記錄檔案時發生錯誤",
+                content={"error": str(ve)},
+            )
+        )
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        # 處理其他未預期的錯誤
+        logger.error(f"處理飼料記錄檔案時發生錯誤: {e}")
+        event_bus.publish(
+            Event(
+                event=ProcessEvent.FEEDS_PROCESSING_FAILED,
+                message="處理飼料記錄檔案時發生錯誤",
                 content={
                     "error": str(e),
                 },

@@ -22,7 +22,7 @@ from pathlib import Path
 from sqlalchemy import Engine, text
 from sqlmodel import Session, SQLModel, create_engine
 
-from cleansales_backend.processors import BreedRecordORM, SaleRecordORM
+from cleansales_backend.processors import BreedRecordORM, FeedRecordORM, SaleRecordORM
 from cleansales_backend.processors.interface.processors_interface import IORMModel
 
 from .config import settings
@@ -31,7 +31,7 @@ from .db_monitor import monitor
 # from .db_optimizations import setup_db_optimizations
 
 # 註冊所有的 ORM 模型
-_orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM]
+_orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM, FeedRecordORM]
 
 logger = logging.getLogger(__name__)
 

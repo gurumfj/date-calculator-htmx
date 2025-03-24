@@ -15,6 +15,7 @@ from cleansales_backend.domain.models import (
 from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.processors import (
     BreedRepositoryProtocol,
+    FeedRepositoryProtocol,
     SaleRepositoryProtocol,
 )
 
@@ -32,6 +33,7 @@ class QueryService:
 
     _breed_repository: BreedRepositoryProtocol
     _sale_repository: SaleRepositoryProtocol
+    _feed_repository: FeedRepositoryProtocol
     _db_hint: dict[str, str]
     _db: Database
 
@@ -39,10 +41,12 @@ class QueryService:
         self,
         breed_repository: BreedRepositoryProtocol,
         sale_repository: SaleRepositoryProtocol,
+        feed_repository: FeedRepositoryProtocol,
         db: Database,
     ) -> None:
         self._breed_repository = breed_repository
         self._sale_repository = sale_repository
+        self._feed_repository = feed_repository
         self._db = db
         self._db_hint = {datetime.now().isoformat(): "Started"}
 
@@ -93,6 +97,7 @@ class QueryService:
                     sales=self._sale_repository.get_sales_by_location(
                         session, batch_name
                     ),
+                    feeds=self._feed_repository.get_by_batch_name(session, batch_name),
                 )
                 for batch_name, breeds in breed_groups.items()
             ]

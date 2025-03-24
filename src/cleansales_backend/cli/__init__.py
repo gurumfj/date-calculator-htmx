@@ -9,6 +9,7 @@ from cleansales_backend.core import core_db, settings
 from cleansales_backend.core.database import Database
 from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
+from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
 from cleansales_backend.services import QueryService
 from cleansales_backend.shared.models import SourceData
 
@@ -139,7 +140,8 @@ def main() -> None:
     )
     breed_processor = BreedRecordProcessor()
     sale_processor = SaleRecordProcessor()
-    query_service = QueryService(breed_processor, sale_processor, _db)
+    feed_processor = FeedRecordProcessor()
+    query_service = QueryService(breed_processor, sale_processor, feed_processor, _db)
 
     try:
         if args.subcommand == "import":

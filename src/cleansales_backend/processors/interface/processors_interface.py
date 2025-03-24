@@ -159,17 +159,18 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
         # 將每筆資料轉換為 SaleRecordBase 物件
         for _, row in df.iterrows():
             try:
-                # print(row)
+                # 嘗試驗證資料
                 record = self._validator_schema.model_validate(row)
-                # validated_records.setdefault(record.unique_id or self._calculate_unique_id(record), record)
                 record.unique_id = record.unique_id or self._calculate_unique_id(record)
                 validated_records[record.unique_id] = record
-            except ValueError:
+            except ValueError as ve:
+                # 記錄詳細的錯誤信息
                 error: dict[str, Any] = {
                     "message": "轉換資料時發生錯誤",
                     "data": row.to_dict(),
-                    # "error": str(ve),
+                    "error": str(ve),
                 }
+                logger.debug(f"資料驗證失敗詳細錯誤: {str(ve)}")
                 logger.debug(f"資料驗證失敗: {error}")
                 error_records.append(error)
         logger.info(

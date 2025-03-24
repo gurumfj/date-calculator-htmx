@@ -10,6 +10,7 @@ from cleansales_backend.domain.models.sales_summary import SalesSummary
 from ..utils import day_age, week_age
 from .batch_state import BatchState
 from .breed_record import BreedRecord
+from .feed_record import FeedRecord
 from .sale_record import SaleRecord
 from .sales_summary import SalesSummaryModel
 
@@ -34,31 +35,35 @@ class BatchAggregate:
 
     breeds: list[BreedRecord]
     sales: list[SaleRecord]
+    feeds: list[FeedRecord]
 
     def __init__(
         self,
         breeds: list[BreedRecord] = [],
         sales: list[SaleRecord] = [],
+        feeds: list[FeedRecord] = [],
     ) -> None:
         self.breeds = breeds
         self.sales = sales
+        self.feeds = feeds
         self.validate()
 
     def validate(self) -> None:
-        if not self.breeds:
-            raise ValueError("Breed records are required")
-        if not self.sales:
-            return
-        if not all(
-            [record.batch_name == self.breeds[0].batch_name for record in self.breeds]
-        ):
+        batch_name = set([record.batch_name for record in self.breeds])
+        if len(batch_name) > 1:
             raise ValueError("All breed records must be from the same batch")
-        if not all(
-            [record.location == self.breeds[0].batch_name for record in self.sales]
-        ):
-            raise ValueError("All sale records must be from the same location")
-        if not self.breeds[0].batch_name == self.sales[0].location:
-            raise ValueError("Breed batch name and sale location must be the same")
+        if len(self.sales) > 0:
+            sale_batch_name = set([record.location for record in self.sales])
+            if len(sale_batch_name) > 1:
+                raise ValueError("All sale records must be from the same location")
+            if sale_batch_name != batch_name:
+                raise ValueError("Sale location must match breed batch name")
+        if len(self.feeds) > 0:
+            feed_batch_name = set([record.batch_name for record in self.feeds])
+            if len(feed_batch_name) > 1:
+                raise ValueError("All feed records must be from the same batch")
+            if feed_batch_name != batch_name:
+                raise ValueError("Feed batch name must match breed batch name")
 
     @property
     def batch_name(self) -> str | None:
@@ -92,8 +97,12 @@ class BatchAggregate:
 
     @property
     def batch_state(self) -> BatchState:
-        # 如果所有銷售紀錄都已結案，則整個批次結案
+        # 如果所有飼養紀錄都已結案，則整個批次結案
         if all(b.batch_state == BatchState.COMPLETED for b in self.breeds):
+            return BatchState.COMPLETED
+
+        # 如果所有飼料紀錄都已結案，則整個批次結案
+        if all(f.batch_state == BatchState.COMPLETED for f in self.feeds):
             return BatchState.COMPLETED
 
         if self.sales and all(
@@ -155,6 +164,10 @@ class BatchAggregate:
         return (min_date, max_date)
 
     @property
+    def feed_manufacturer(self) -> set[str | None]:
+        return set(feed.feed_manufacturer for feed in self.feeds)
+
+    @property
     def sales_summary(self) -> SalesSummary | None:
         if not self.sales:
             return None
@@ -194,10 +207,9 @@ class BatchAggregate:
             farm_name=self.farm_name,
             address=self.address,
             farmer_name=self.farmer_name,
-            # total_male=self.total_male,  # TODO: 不回應可計算欄位節省流量
-            # total_female=self.total_female,  # TODO: 不回應可計算欄位節省流量
             veterinarian=self.veterinarian,
             batch_state=self.batch_state,
+            feed_manufacturer=list(self.feed_manufacturer),
             breed_date=list(self.breed_date),
             supplier=list(self.supplier),
             chicken_breed=list(self.chicken_breed),
@@ -223,17 +235,12 @@ class BatchAggregateModel(BaseModel):
     address: str | None = Field(default=None, description="場址")
     farmer_name: str | None = Field(default=None, description="飼養戶名稱")
 
-    # 數量統計
-    # total_male: int = Field(
-    #     default=0, description="飼養公雞總數"
-    # )  # TODO: 不回應可計算欄位節省流量
-    # total_female: int = Field(
-    #     default=0, description="飼養母雞總數"
-    # )  # TODO: 不回應可計算欄位節省流量
-
     # 批次資訊
     veterinarian: str | None = Field(default=None, description="獸醫師")
     batch_state: BatchState = Field(default=BatchState.BREEDING, description="批次狀態")
+    feed_manufacturer: list[str | None] = Field(
+        default_factory=list, description="飼料製造商"
+    )
 
     # 列表資訊
     breed_date: list[date] = Field(
@@ -265,10 +272,9 @@ class BatchAggregateModel(BaseModel):
             farm_name=data.farm_name,
             address=data.address,
             farmer_name=data.farmer_name,
-            # total_male=data.total_male,  # TODO: 不回應可計算欄位節省流量
-            # total_female=data.total_female,  # TODO: 不回應可計算欄位節省流量
             veterinarian=data.veterinarian,
             batch_state=data.batch_state,
+            feed_manufacturer=list(data.feed_manufacturer),
             breed_date=list(data.breed_date),
             supplier=list(data.supplier),
             chicken_breed=list(data.chicken_breed),

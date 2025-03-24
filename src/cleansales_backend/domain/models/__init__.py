@@ -1,7 +1,8 @@
 from .batch_aggregate import BatchAggregate
 from .batch_state import BatchState
-from .breed_record import BreedRecord, BreedRecordBase
-from .sale_record import SaleRecord, SaleRecordBase
+from .breed_record import BreedRecord
+from .feed_record import FeedRecord
+from .sale_record import SaleRecord
 from .sales_pivot import SalesPivot, SalesPivotModel
 from .sales_summary import SalesSummary, SalesSummaryModel
 
@@ -9,9 +10,8 @@ from .sales_summary import SalesSummary, SalesSummaryModel
 
 __all__ = [
     "BreedRecord",
-    "BreedRecordBase",
+    "FeedRecord",
     "SaleRecord",
-    "SaleRecordBase",
     "BatchAggregate",
     "BatchState",
     "SalesSummary",
