@@ -119,32 +119,39 @@ class BatchAggregate:
         return BatchState.BREEDING
 
     @property
+    @deprecated("Use batch_records instead")
     def breed_date(self) -> tuple[date, ...]:
         return tuple(breed.breed_date for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_records instead")
     def supplier(self) -> tuple[str | None, ...]:
         """種雞場"""
         return tuple(breed.supplier for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_records instead")
     def chicken_breed(self) -> tuple[str, ...]:
         return tuple(breed.chicken_breed for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_records instead")
     def batch_male(self) -> tuple[int, ...]:
         return tuple(breed.male for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_records instead")
     def batch_female(self) -> tuple[int, ...]:
         return tuple(breed.female for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_records instead")
     def day_age(self) -> tuple[int, ...]:
         """日齡"""
         return tuple(day_age(breed.breed_date) for breed in self.breeds)
 
     @property
+    @deprecated("Use batch_records instead")
     def week_age(self) -> tuple[str, ...]:
         """週齡"""
         return tuple(week_age(day_age(breed.breed_date)) for breed in self.breeds)
@@ -172,6 +179,10 @@ class BatchAggregate:
         if not self.sales:
             return None
         return SalesSummary(self.sales, self.breeds)
+
+    @property
+    def batch_records(self) -> list["BatchRecordModel"]:
+        return [BatchRecordModel.create_from(breed) for breed in self.breeds]
 
     @override
     def __str__(self) -> str:
@@ -210,15 +221,38 @@ class BatchAggregate:
             veterinarian=self.veterinarian,
             batch_state=self.batch_state,
             feed_manufacturer=list(self.feed_manufacturer),
-            breed_date=list(self.breed_date),
-            supplier=list(self.supplier),
-            chicken_breed=list(self.chicken_breed),
-            batch_male=list(self.batch_male),
-            batch_female=list(self.batch_female),
-            day_age=list(self.day_age),
-            week_age=list(self.week_age),
+            # breed_date=list(self.breed_date),
+            # supplier=list(self.supplier),
+            # chicken_breed=list(self.chicken_breed),
+            # batch_male=list(self.batch_male),
+            # batch_female=list(self.batch_female),
+            # day_age=list(self.day_age),
+            # week_age=list(self.week_age),
             cycle_date=self.cycle_date,
             sales_summary=self.sales_summary.to_model() if self.sales_summary else None,
+            batch_records=self.batch_records,
+        )
+
+
+class BatchRecordModel(BaseModel):
+    breed_date: date
+    day_age: int
+    week_age: str
+    male: int
+    female: int
+    supplier: str | None
+    chicken_breed: str
+
+    @classmethod
+    def create_from(cls, data: BreedRecord) -> "BatchRecordModel":
+        return cls(
+            breed_date=data.breed_date,
+            day_age=day_age(data.breed_date),
+            week_age=week_age(day_age(data.breed_date)),
+            male=data.male,
+            female=data.female,
+            supplier=data.supplier,
+            chicken_breed=data.chicken_breed,
         )
 
 
@@ -243,15 +277,29 @@ class BatchAggregateModel(BaseModel):
     )
 
     # 列表資訊
+    # deprecated
     breed_date: list[date] = Field(
-        default_factory=list, description="開始飼養（入雛）日期"
+        default_factory=list, description="開始飼養（入雛）日期", deprecated=True
     )
-    supplier: list[str | None] = Field(default_factory=list, description="種雞場")
-    chicken_breed: list[str] = Field(default_factory=list, description="飼養品種")
-    batch_male: list[int] = Field(default_factory=list, description="飼養公雞數")
-    batch_female: list[int] = Field(default_factory=list, description="飼養母雞數")
-    day_age: list[int] = Field(default_factory=list, description="目前日齡")
-    week_age: list[str] = Field(default_factory=list, description="目前週齡")
+    supplier: list[str | None] = Field(
+        default_factory=list, description="種雞場", deprecated=True
+    )
+
+    chicken_breed: list[str] = Field(
+        default_factory=list, description="飼養品種", deprecated=True
+    )
+    batch_male: list[int] = Field(
+        default_factory=list, description="飼養公雞數", deprecated=True
+    )
+    batch_female: list[int] = Field(
+        default_factory=list, description="飼養母雞數", deprecated=True
+    )
+    day_age: list[int] = Field(
+        default_factory=list, description="目前日齡", deprecated=True
+    )
+    week_age: list[str] = Field(
+        default_factory=list, description="目前週齡", deprecated=True
+    )
 
     # 日期資訊
     cycle_date: tuple[date, date | None] = Field(
@@ -261,6 +309,9 @@ class BatchAggregateModel(BaseModel):
     # 資料統計
     sales_summary: SalesSummaryModel | None = Field(
         default=None, description="銷售統計"
+    )
+    batch_records: list[BatchRecordModel] = Field(
+        default_factory=list, description="批次記錄"
     )
 
     model_config = ConfigDict(from_attributes=True)  # type: ignore
@@ -275,15 +326,16 @@ class BatchAggregateModel(BaseModel):
             veterinarian=data.veterinarian,
             batch_state=data.batch_state,
             feed_manufacturer=list(data.feed_manufacturer),
-            breed_date=list(data.breed_date),
-            supplier=list(data.supplier),
-            chicken_breed=list(data.chicken_breed),
-            batch_male=list(data.batch_male),
-            batch_female=list(data.batch_female),
-            day_age=list(data.day_age),
-            week_age=list(data.week_age),
+            # breed_date=list(data.breed_date),
+            # supplier=list(data.supplier),
+            # chicken_breed=list(data.chicken_breed),
+            # batch_male=list(data.batch_male),
+            # batch_female=list(data.batch_female),
+            # day_age=list(data.day_age),
+            # week_age=list(data.week_age),
             cycle_date=data.cycle_date,
             sales_summary=SalesSummaryModel.create_from(data.sales_summary)
             if data.sales_summary
             else None,
+            batch_records=data.batch_records,
         )
