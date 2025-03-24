@@ -7,8 +7,11 @@ services:
       - "8888:8000"
     volumes:
       - ./data:/app/data
+      - ./src:/app/src
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./uv.lock:/app/uv.lock
     restart: unless-stopped
-    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8000
+    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8000 --reload
 
   dev:
     extends:
@@ -18,26 +21,26 @@ services:
     env_file:
       - .env-dev
 
-    develop:
-      watch:
-        - action: sync
-          path: src
-          target: /app/src
+    # develop:
+    #   watch:
+    #     - action: sync
+    #       path: src
+    #       target: /app/src
 
-        - action: restart
-          path: src
+    #     - action: restart
+    #       path: src
 
-        - action: rebuild
-          path: ./pyproject.toml
+    #     - action: rebuild
+    #       path: ./pyproject.toml
 
-        - action: rebuild
-          path: ./Dockerfile
+    #     - action: rebuild
+    #       path: ./Dockerfile
 
-        - action: rebuild
-          path: ./docker-compose.yml
+    #     - action: rebuild
+    #       path: ./docker-compose.yml
 
-        - action: restart
-          path: ./pyproject.toml
+    #     - action: restart
+    #       path: ./pyproject.toml
 
   prod:
     extends:

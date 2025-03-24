@@ -28,12 +28,11 @@ ENV PYTHONUNBUFFERED=1
 FROM base AS production
 # 複製依賴文件
 COPY pyproject.toml uv.lock . 
-
-# 安裝生產依賴
-RUN uv sync
+RUN uv sync --frozen --no-install-project
 
 # 複製源代碼
 COPY ./src /app/src
+RUN uv sync
 
 # 設置生產環境變數
 ENV PYTHONPATH=/app/src
