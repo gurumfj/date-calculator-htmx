@@ -1,11 +1,12 @@
-from dataclasses import dataclass
 from datetime import datetime
+
+from pydantic import BaseModel, computed_field
+from pydantic.config import ConfigDict
 
 from .batch_state import BatchState
 
 
-@dataclass(frozen=True)
-class FeedRecord:
+class FeedRecord(BaseModel):
     """飼料記錄資料模型"""
 
     # 必填資料
@@ -23,6 +24,9 @@ class FeedRecord:
     feed_additive: str | None
     feed_remark: str | None
 
+    model_config = ConfigDict(from_attributes=True, frozen=True)
+
+    @computed_field
     @property
     def batch_state(self) -> BatchState:
         """取得批次當前狀態

@@ -200,7 +200,10 @@ def main() -> None:
                     search_name is None
                     or (aggr.batch_name and search_name in aggr.batch_name)
                 )
-                and any(breed in aggr.chicken_breed for breed in search_breed)
+                and any(
+                    breed in set(r.chicken_breed for r in aggr.batch_records)
+                    for breed in search_breed
+                )
             ]
             if not filtered_aggrs:
                 print("找不到符合條件的批次")

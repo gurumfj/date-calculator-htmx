@@ -3,7 +3,8 @@ from typing import TypeVar
 
 import wcwidth  # type: ignore
 from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import deprecated, override
+from pydantic.fields import computed_field
+from typing_extensions import override
 
 from cleansales_backend.domain.models.sales_summary import SalesSummary
 
@@ -82,16 +83,6 @@ class BatchAggregate:
         return self.breeds[0].farmer_name
 
     @property
-    @deprecated("Use batch_male instead")
-    def total_male(self) -> int:
-        return sum(breed.male for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_female instead")
-    def total_female(self) -> int:
-        return sum(breed.female for breed in self.breeds)
-
-    @property
     def veterinarian(self) -> str | None:
         return self.breeds[0].veterinarian
 
@@ -119,44 +110,6 @@ class BatchAggregate:
         return BatchState.BREEDING
 
     @property
-    @deprecated("Use batch_records instead")
-    def breed_date(self) -> tuple[date, ...]:
-        return tuple(breed.breed_date for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_records instead")
-    def supplier(self) -> tuple[str | None, ...]:
-        """種雞場"""
-        return tuple(breed.supplier for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_records instead")
-    def chicken_breed(self) -> tuple[str, ...]:
-        return tuple(breed.chicken_breed for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_records instead")
-    def batch_male(self) -> tuple[int, ...]:
-        return tuple(breed.male for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_records instead")
-    def batch_female(self) -> tuple[int, ...]:
-        return tuple(breed.female for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_records instead")
-    def day_age(self) -> tuple[int, ...]:
-        """日齡"""
-        return tuple(day_age(breed.breed_date) for breed in self.breeds)
-
-    @property
-    @deprecated("Use batch_records instead")
-    def week_age(self) -> tuple[str, ...]:
-        """週齡"""
-        return tuple(week_age(day_age(breed.breed_date)) for breed in self.breeds)
-
-    @property
     def sales_percentage(self) -> float | None:
         return self.sales_summary.sales_percentage if self.sales_summary else None
 
@@ -182,7 +135,7 @@ class BatchAggregate:
 
     @property
     def batch_records(self) -> list["BatchRecordModel"]:
-        return [BatchRecordModel.create_from(breed) for breed in self.breeds]
+        return [BatchRecordModel.model_validate(breed) for breed in self.breeds]
 
     @override
     def __str__(self) -> str:
@@ -191,16 +144,18 @@ class BatchAggregate:
         result.append(f"批次: {self.batch_name}")
         result.append(f"飼養戶: {self.farmer_name}")
         result.append(f"場址: {self.address}")
-        result.append(f"品種: {', '.join(self.chicken_breed)}")
         result.append(
-            f"入雛日期: {', '.join(d.strftime('%Y-%m-%d') for d in self.breed_date)}"
+            f"品種: {', '.join(set(breed.chicken_breed for breed in self.breeds))}"
         )
-        result.append(f"日齡: {', '.join(str(d) for d in self.day_age)}")
-        result.append(f"週齡: {', '.join(self.week_age)}")
-        result.append(f"公雞數: {sum(self.batch_male):,} 隻 {self.batch_male}")
-        result.append(f"母雞數: {sum(self.batch_female):,} 隻 {self.batch_female}")
+        result.append(f"入雛日期: {self.cycle_date[0].strftime('%Y-%m-%d')}")
+        result.append(f"公雞數: {sum(breed.breed_male for breed in self.breeds):,} 隻")
+        result.append(
+            f"母雞數: {sum(breed.breed_female for breed in self.breeds):,} 隻"
+        )
         result.append(f"獸醫師: {self.veterinarian}")
-        result.append(f"種雞場: {', '.join(filter(None, self.supplier))}")
+        result.append(
+            f"種雞場: {', '.join(filter(None, set(breed.supplier for breed in self.breeds)))}"
+        )
         result.append(f"批次狀態: {self.batch_state.value}")
         return "\n".join(result)
 
@@ -221,13 +176,6 @@ class BatchAggregate:
             veterinarian=self.veterinarian,
             batch_state=self.batch_state,
             feed_manufacturer=list(self.feed_manufacturer),
-            # breed_date=list(self.breed_date),
-            # supplier=list(self.supplier),
-            # chicken_breed=list(self.chicken_breed),
-            # batch_male=list(self.batch_male),
-            # batch_female=list(self.batch_female),
-            # day_age=list(self.day_age),
-            # week_age=list(self.week_age),
             cycle_date=self.cycle_date,
             sales_summary=self.sales_summary.to_model() if self.sales_summary else None,
             batch_records=self.batch_records,
@@ -235,25 +183,23 @@ class BatchAggregate:
 
 
 class BatchRecordModel(BaseModel):
-    breed_date: date
-    day_age: int
-    week_age: str
-    male: int
-    female: int
+    breed_date: datetime
+    breed_male: int
+    breed_female: int
     supplier: str | None
     chicken_breed: str
 
-    @classmethod
-    def create_from(cls, data: BreedRecord) -> "BatchRecordModel":
-        return cls(
-            breed_date=data.breed_date,
-            day_age=day_age(data.breed_date),
-            week_age=week_age(day_age(data.breed_date)),
-            male=data.male,
-            female=data.female,
-            supplier=data.supplier,
-            chicken_breed=data.chicken_breed,
-        )
+    model_config = ConfigDict(from_attributes=True)  # type: ignore
+
+    @computed_field
+    @property
+    def day_age(self) -> int:
+        return day_age(self.breed_date)
+
+    @computed_field
+    @property
+    def week_age(self) -> str:
+        return week_age(self.day_age)
 
 
 class BatchAggregateModel(BaseModel):
@@ -314,7 +260,7 @@ class BatchAggregateModel(BaseModel):
         default_factory=list, description="批次記錄"
     )
 
-    model_config = ConfigDict(from_attributes=True)  # type: ignore
+    model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
 
     @classmethod
     def create_from(cls, data: BatchAggregate) -> "BatchAggregateModel":
@@ -326,13 +272,6 @@ class BatchAggregateModel(BaseModel):
             veterinarian=data.veterinarian,
             batch_state=data.batch_state,
             feed_manufacturer=list(data.feed_manufacturer),
-            # breed_date=list(data.breed_date),
-            # supplier=list(data.supplier),
-            # chicken_breed=list(data.chicken_breed),
-            # batch_male=list(data.batch_male),
-            # batch_female=list(data.batch_female),
-            # day_age=list(data.day_age),
-            # week_age=list(data.week_age),
             cycle_date=data.cycle_date,
             sales_summary=SalesSummaryModel.create_from(data.sales_summary)
             if data.sales_summary

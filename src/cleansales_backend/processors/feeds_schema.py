@@ -23,7 +23,7 @@ from .interface.processors_interface import (
 )
 
 
-class FeedRecordBase(IBaseModel):
+class FeedRecordValidator(IBaseModel):
     # 必填資料
     batch_name: str = Field(..., description="場別", alias="場別")
     feed_date: datetime = Field(..., description="叫料日期", alias="日期")
@@ -116,7 +116,7 @@ class FeedRecordResponse(IResponse):
 
 
 class FeedRecordProcessor(
-    IProcessor[FeedRecordORM, FeedRecordBase, FeedRecordResponse],
+    IProcessor[FeedRecordORM, FeedRecordValidator, FeedRecordResponse],
     FeedRepositoryProtocol,
 ):
     @override
@@ -124,8 +124,8 @@ class FeedRecordProcessor(
         return FeedRecordResponse
 
     @override
-    def set_validator_schema(self) -> type[FeedRecordBase]:
-        return FeedRecordBase
+    def set_validator_schema(self) -> type[FeedRecordValidator]:
+        return FeedRecordValidator
 
     @override
     def set_orm_schema(self) -> type[FeedRecordORM]:
@@ -138,14 +138,4 @@ class FeedRecordProcessor(
 
     @staticmethod
     def orm_to_domain(orm: FeedRecordORM) -> FeedRecord:
-        return FeedRecord(
-            batch_name=orm.batch_name,
-            feed_date=datetime.combine(orm.feed_date, datetime.min.time()),
-            feed_manufacturer=orm.feed_manufacturer,
-            feed_item=orm.feed_item,
-            sub_location=orm.sub_location,
-            is_completed=orm.is_completed,
-            feed_week=orm.feed_week,
-            feed_additive=orm.feed_additive,
-            feed_remark=orm.feed_remark,
-        )
+        return FeedRecord.model_validate(orm)

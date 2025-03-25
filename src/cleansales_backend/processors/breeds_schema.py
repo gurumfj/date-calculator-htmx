@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from typing import Any, override
 
 import pandas as pd
@@ -24,7 +24,7 @@ from .interface.processors_interface import (
 )
 
 
-class BreedRecordBase(IBaseModel):
+class BreedRecordValidator(IBaseModel):
     """農場原始數據模型，用於驗證和轉換 Excel 數據。
 
     此模型處理從 Excel 匯入的原始數據，提供數據驗證和轉換功能。
@@ -197,7 +197,7 @@ class BreedRecordResponse(IResponse):
 
 
 class BreedRecordProcessor(
-    IProcessor[BreedRecordORM, BreedRecordBase, BreedRecordResponse],
+    IProcessor[BreedRecordORM, BreedRecordValidator, BreedRecordResponse],
     BreedRepositoryProtocol,
 ):
     @override
@@ -205,8 +205,8 @@ class BreedRecordProcessor(
         return BreedRecordResponse
 
     @override
-    def set_validator_schema(self) -> type[BreedRecordBase]:
-        return BreedRecordBase
+    def set_validator_schema(self) -> type[BreedRecordValidator]:
+        return BreedRecordValidator
 
     @override
     def set_orm_schema(self) -> type[BreedRecordORM]:
@@ -227,19 +227,4 @@ class BreedRecordProcessor(
 
     @staticmethod
     def orm_to_domain(orm: BreedRecordORM) -> BreedRecord:
-        return BreedRecord(
-            farm_name=orm.farm_name,
-            address=orm.address,
-            farm_license=orm.farm_license,
-            farmer_name=orm.farmer_name,
-            farmer_address=orm.farmer_address,
-            batch_name=orm.batch_name,
-            veterinarian=orm.veterinarian,
-            chicken_breed=orm.chicken_breed,
-            male=orm.breed_male,
-            female=orm.breed_female,
-            breed_date=datetime.combine(orm.breed_date, datetime.min.time()),
-            supplier=orm.supplier,
-            sub_location=orm.sub_location,
-            is_completed="結場" if orm.is_completed else None,
-        )
+        return BreedRecord.model_validate(orm)
