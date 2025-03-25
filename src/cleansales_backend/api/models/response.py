@@ -14,9 +14,11 @@
 ################################################################################
 """
 
-from typing import Any, Dict, Generic, TypeVar
+from datetime import datetime
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import deprecated
 
 # from .data_models import BatchAggregateModel
 
@@ -24,6 +26,7 @@ T = TypeVar("T")
 D = TypeVar("D", bound=BaseModel)
 
 
+@deprecated("No longer used")
 class ContextModel(BaseModel, Generic[D]):
     """包含資料列表的上下文模型"""
 
@@ -34,6 +37,7 @@ class ContextModel(BaseModel, Generic[D]):
     )
 
 
+@deprecated("No longer used")
 class ResponseModel(BaseModel, Generic[D]):
     """標準響應模型
 
@@ -42,8 +46,9 @@ class ResponseModel(BaseModel, Generic[D]):
 
     success: bool = True
     message: str = "操作成功"
+    last_updated_at: datetime | None = None
     content: ContextModel[D]
-    errors: list[Dict[str, Any]] | None = None
+    errors: list[dict[str, Any]] | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -56,18 +61,3 @@ class PaginationResponseModel(ResponseModel[ContextModel[D]], Generic[D]):
     total_pages: int = 0
 
     model_config = ConfigDict(from_attributes=True)
-
-
-# class BatchAggregateResponseModel(ResponseModel):
-#     """未結案入雛批次資料的回應模型
-
-#     Attributes:
-#         status (str): API 處理狀態 ('success' 或 'error')
-#         msg (str): 處理結果訊息
-#         content (dict): {
-#             "count": 批次總數,
-#             "batches": 批次資料列表
-#         }
-#     """
-
-#     content: dict[str, int | list[BatchAggregateModel]] = {"count": 0, "batches": []}

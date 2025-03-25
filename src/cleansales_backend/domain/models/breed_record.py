@@ -48,6 +48,9 @@ class BreedRecord(BaseModel):
     sub_location: str | None
     is_completed: bool
 
+    # metadata
+    updated_at: datetime
+
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
     @computed_field

@@ -100,4 +100,5 @@ app.add_middleware(
     allow_credentials=True,  # 允許攜帶認證信息
     allow_methods=["*"],  # 允許所有 HTTP 方法
     allow_headers=["*"],  # 允許所有 HTTP 頭部
+    expose_headers=["ETag"],
 )

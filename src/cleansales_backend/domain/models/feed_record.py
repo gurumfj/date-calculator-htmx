@@ -24,6 +24,9 @@ class FeedRecord(BaseModel):
     feed_additive: str | None
     feed_remark: str | None
 
+    # metadata
+    updated_at: datetime
+
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
     @computed_field

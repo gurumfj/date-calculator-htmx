@@ -1,14 +1,13 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import TypeVar
 
 import wcwidth  # type: ignore
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.fields import computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 from typing_extensions import override
 
 from cleansales_backend.domain.models.sales_summary import SalesSummary
 
-from ..utils import day_age, week_age
+from ..utils import day_age
 from .batch_state import BatchState
 from .breed_record import BreedRecord
 from .feed_record import FeedRecord
@@ -23,6 +22,7 @@ T = TypeVar("T")
 
 class BatchAggregate:
     """批次資料彙整類別
+    TODO: breeds, sales, feeds 各至成立ResponseModel
 
     將入雛記錄(BreedRecord)和銷售記錄(SaleRecord)整合在一起
     提供完整的批次資訊查詢和管理功能
@@ -65,6 +65,14 @@ class BatchAggregate:
                 raise ValueError("All feed records must be from the same batch")
             if feed_batch_name != batch_name:
                 raise ValueError("Feed batch name must match breed batch name")
+
+    @property
+    def last_updated_at(self) -> datetime:
+        return max(
+            [breed.updated_at for breed in self.breeds]
+            + [sale.updated_at for sale in self.sales]
+            + [feed.updated_at for feed in self.feeds]
+        )
 
     @property
     def batch_name(self) -> str | None:
@@ -161,6 +169,7 @@ class BatchAggregate:
 
     def to_model(self) -> "BatchAggregateModel":
         """將 BatchAggregate 轉換為 BatchAggregateModel
+        TODO: 改成轉換responseModel, Args可切換responseModel
 
         Args:
             batch: BatchAggregate 實例
@@ -169,6 +178,7 @@ class BatchAggregate:
             BatchAggregateModel: 對應的 BaseModel 實例
         """
         return BatchAggregateModel(
+            updated_at=self.last_updated_at,
             batch_name=self.batch_name,
             farm_name=self.farm_name,
             address=self.address,
@@ -176,7 +186,6 @@ class BatchAggregate:
             veterinarian=self.veterinarian,
             batch_state=self.batch_state,
             feed_manufacturer=list(self.feed_manufacturer),
-            cycle_date=self.cycle_date,
             sales_summary=self.sales_summary.to_model() if self.sales_summary else None,
             batch_records=self.batch_records,
         )
@@ -188,18 +197,70 @@ class BatchRecordModel(BaseModel):
     breed_female: int
     supplier: str | None
     chicken_breed: str
+    sub_location: str | None
+    updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)  # type: ignore
+    model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
+
+    # @computed_field
+    # @property
+    # def day_age(self) -> int:
+    #     return day_age(self.breed_date)
+
+    # @computed_field
+    # @property
+    # def week_age(self) -> str:
+    #     return week_age(self.day_age)
+
+
+class SaleRecordModel(BaseModel):
+    breed_date: list[datetime]
+    handler: str | None
+    sale_date: datetime
+    customer: str
+    male_count: int
+    female_count: int
+    total_weight: float | None
+    total_price: float | None
+    male_price: float | None
+    female_price: float | None
+    unpaid: bool
+    male_avg_weight: float | None
+    female_avg_weight: float | None
+    avg_price: float | None
+
+    model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
 
     @computed_field
     @property
-    def day_age(self) -> int:
-        return day_age(self.breed_date)
+    def day_age(self) -> list[int]:
+        return [day_age(date, self.sale_date) for date in self.breed_date]
 
-    @computed_field
-    @property
-    def week_age(self) -> str:
-        return week_age(self.day_age)
+    # @computed_field
+    # @property
+    # def week_age(self) -> list[str]:
+    #     return [week_age(age) for age in self.day_age]
+
+    @classmethod
+    def create_from(
+        cls, data: SaleRecord, breeds: list[BreedRecord]
+    ) -> "SaleRecordModel":
+        return cls(
+            breed_date=[breed.breed_date for breed in breeds],
+            handler=data.handler,
+            sale_date=data.sale_date,
+            customer=data.customer,
+            male_count=data.male_count,
+            female_count=data.female_count,
+            total_weight=data.total_weight,
+            total_price=data.total_price,
+            male_price=data.male_price,
+            female_price=data.female_price,
+            unpaid=data.unpaid,
+            male_avg_weight=data.male_avg_weight,
+            female_avg_weight=data.female_avg_weight,
+            avg_price=data.avg_price,
+        )
 
 
 class BatchAggregateModel(BaseModel):
@@ -208,6 +269,9 @@ class BatchAggregateModel(BaseModel):
     BatchAggregate 的 Pydantic BaseModel 版本
     用於 API 響應和資料驗證
     """
+
+    # metadata
+    updated_at: datetime
 
     # 基本資訊
     batch_name: str | None = Field(default=None, description="批次名稱")
@@ -221,43 +285,18 @@ class BatchAggregateModel(BaseModel):
     feed_manufacturer: list[str | None] = Field(
         default_factory=list, description="飼料製造商"
     )
-
-    # 列表資訊
-    # deprecated
-    breed_date: list[date] = Field(
-        default_factory=list, description="開始飼養（入雛）日期", deprecated=True
-    )
-    supplier: list[str | None] = Field(
-        default_factory=list, description="種雞場", deprecated=True
-    )
-
-    chicken_breed: list[str] = Field(
-        default_factory=list, description="飼養品種", deprecated=True
-    )
-    batch_male: list[int] = Field(
-        default_factory=list, description="飼養公雞數", deprecated=True
-    )
-    batch_female: list[int] = Field(
-        default_factory=list, description="飼養母雞數", deprecated=True
-    )
-    day_age: list[int] = Field(
-        default_factory=list, description="目前日齡", deprecated=True
-    )
-    week_age: list[str] = Field(
-        default_factory=list, description="目前週齡", deprecated=True
+    batch_records: list[BatchRecordModel] = Field(
+        default_factory=list, description="批次記錄"
     )
 
     # 日期資訊
-    cycle_date: tuple[date, date | None] = Field(
-        default=(date.min, None), description="周期日期"
-    )
+    # cycle_date: tuple[date, date | None] = Field(
+    #     default=(date.min, None), description="周期日期"
+    # )
 
     # 資料統計
     sales_summary: SalesSummaryModel | None = Field(
         default=None, description="銷售統計"
-    )
-    batch_records: list[BatchRecordModel] = Field(
-        default_factory=list, description="批次記錄"
     )
 
     model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
@@ -265,6 +304,7 @@ class BatchAggregateModel(BaseModel):
     @classmethod
     def create_from(cls, data: BatchAggregate) -> "BatchAggregateModel":
         return cls(
+            updated_at=data.last_updated_at,
             batch_name=data.batch_name,
             farm_name=data.farm_name,
             address=data.address,
@@ -272,7 +312,6 @@ class BatchAggregateModel(BaseModel):
             veterinarian=data.veterinarian,
             batch_state=data.batch_state,
             feed_manufacturer=list(data.feed_manufacturer),
-            cycle_date=data.cycle_date,
             sales_summary=SalesSummaryModel.create_from(data.sales_summary)
             if data.sales_summary
             else None,

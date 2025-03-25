@@ -109,7 +109,7 @@ class QueryService:
 
     def get_batch_aggregates_by_criteria(
         self,
-        all_aggrs: list[BatchAggregate],
+        all_aggregates: list[BatchAggregate],
         batch_name: str | None = None,
         breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
         batch_status: set[
@@ -134,29 +134,31 @@ class QueryService:
         """
         logger.info(f"criteria: {batch_status, batch_name, breed_type, period}")
         return [
-            aggr
-            for aggr in all_aggrs
+            aggregate
+            for aggregate in all_aggregates
             if (
                 (
                     batch_name is None
-                    or aggr.batch_name is not None
-                    and batch_name in aggr.batch_name
+                    or aggregate.batch_name is not None
+                    and batch_name in aggregate.batch_name
                 )
                 and (
                     batch_status is None
-                    or aggr.batch_state in [BatchState(s) for s in batch_status]
+                    or aggregate.batch_state in [BatchState(s) for s in batch_status]
                 )
                 and (
                     breed_type is None
-                    or any(breed_type in breed.chicken_breed for breed in aggr.breeds)
+                    or any(
+                        breed_type in breed.chicken_breed for breed in aggregate.breeds
+                    )
                 )
                 and (
                     period is None
                     or (
-                        aggr.cycle_date[0] <= period[1]
+                        aggregate.cycle_date[0] <= period[1]
                         and (
-                            aggr.cycle_date[1] is None
-                            or aggr.cycle_date[1] >= period[0]
+                            aggregate.cycle_date[1] is None
+                            or aggregate.cycle_date[1] >= period[0]
                         )
                     )
                 )

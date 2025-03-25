@@ -29,7 +29,7 @@ from .interface.sale_repository_protocol import SaleRepositoryProtocol
 logger = logging.getLogger(__name__)
 
 
-class SaleRecordBase(IBaseModel):
+class SaleRecordValidator(IBaseModel):
     """銷售記錄驗證模式
 
     負責驗證和轉換銷售記錄的原始數據，確保數據的完整性和一致性。
@@ -194,12 +194,12 @@ class SaleRecordResponse(IResponse):
 
 
 class SaleRecordProcessor(
-    IProcessor[SaleRecordORM, SaleRecordBase, SaleRecordResponse],
+    IProcessor[SaleRecordORM, SaleRecordValidator, SaleRecordResponse],
     SaleRepositoryProtocol,
 ):
     @override
-    def set_validator_schema(self) -> type[SaleRecordBase]:
-        return SaleRecordBase
+    def set_validator_schema(self) -> type[SaleRecordValidator]:
+        return SaleRecordValidator
 
     @override
     def set_orm_schema(self) -> type[SaleRecordORM]:
@@ -232,17 +232,4 @@ class SaleRecordProcessor(
 
     @staticmethod
     def orm_to_domain(orm: SaleRecordORM) -> SaleRecord:
-        return SaleRecord(
-            closed="結案" if orm.closed else None,
-            handler=orm.handler,
-            sale_date=datetime.combine(orm.sale_date, datetime.min.time()),
-            location=orm.location,
-            customer=orm.customer,
-            male_count=orm.male_count,
-            female_count=orm.female_count,
-            total_weight=orm.total_weight,
-            total_price=orm.total_price,
-            male_price=orm.male_price,
-            female_price=orm.female_price,
-            unpaid="未付" if orm.unpaid else None,
-        )
+        return SaleRecord.model_validate(orm)

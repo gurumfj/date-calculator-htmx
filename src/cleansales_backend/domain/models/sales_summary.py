@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime
 from typing import override
 
@@ -9,6 +10,8 @@ from .sale_record import SaleRecord
 
 # if TYPE_CHECKING:
 from .sales_pivot import SalesPivot
+
+logger = logging.getLogger(__name__)
 
 
 class SalesSummary:
@@ -111,7 +114,9 @@ class SalesSummary:
         if not self.sales:
             return 0
 
-        total_breeds = sum(breed.male + breed.female for breed in self.breeds)
+        total_breeds = sum(
+            breed.breed_male + breed.breed_female for breed in self.breeds
+        )
         return round(self.total_sales / total_breeds, 4)
 
     @property
