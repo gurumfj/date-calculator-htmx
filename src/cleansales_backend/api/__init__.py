@@ -15,10 +15,15 @@
 """
 
 import logging
-from enum import Enum
 
-from cleansales_backend.core import core_db, get_event_bus, settings
-from cleansales_backend.core.event_bus import TelegramNotifier
+from cleansales_backend.core import (
+    ProcessEvent,
+    ProcessExecutor,
+    TelegramNotifier,
+    core_db,
+    get_event_bus,
+    settings,
+)
 
 logger = logging.getLogger(__name__)
 # 設定根 logger
@@ -29,18 +34,14 @@ logging.basicConfig(
 )
 
 
-class ProcessEvent(str, Enum):
-    """處理事件枚舉"""
-
-    SALES_PROCESSING_STARTED = "販售資料上傳開始"
-    SALES_PROCESSING_COMPLETED = "販售資料上傳完成"
-    SALES_PROCESSING_FAILED = "販售資料上傳失敗"
-    BREEDS_PROCESSING_STARTED = "入雛資料上傳開始"
-    BREEDS_PROCESSING_COMPLETED = "入雛資料上傳完成"
-    BREEDS_PROCESSING_FAILED = "入雛資料上傳失敗"
-    FEEDS_PROCESSING_STARTED = "飼料記錄上傳開始"
-    FEEDS_PROCESSING_COMPLETED = "飼料記錄上傳完成"
-    FEEDS_PROCESSING_FAILED = "飼料記錄上傳失敗"
+_process_executor = ProcessExecutor(
+    event_bus=get_event_bus(),
+    register_events=[
+        ProcessEvent.SALES_PROCESSING_STARTED,
+        ProcessEvent.BREEDS_PROCESSING_STARTED,
+        ProcessEvent.FEEDS_PROCESSING_STARTED,
+    ],
+)
 
 
 _telegram_notifier = TelegramNotifier(
@@ -56,17 +57,4 @@ _telegram_notifier = TelegramNotifier(
 )
 
 
-# def main() -> None:
-#     """API 服務入口點"""
-#     import uvicorn
-
-#     uvicorn.run(
-#         "cleansales_backend.api.app:app",
-#         host=settings.API_HOST,
-#         port=settings.API_PORT,
-#         reload=settings.API_RELOAD,
-#         reload_dirs=["src/cleansales_backend"],
-#     )
-
-
-__all__ = ["core_db", "main", "get_event_bus", "ProcessEvent"]
+__all__ = ["core_db", "get_event_bus", "ProcessEvent"]

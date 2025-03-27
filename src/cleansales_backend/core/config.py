@@ -16,7 +16,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, override
 
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -50,6 +50,7 @@ class Settings(BaseSettings):
         case_sensitive=True,
     )
 
+    @override
     def model_post_init(self, _: None) -> None:
         """模型初始化後的處理
 
