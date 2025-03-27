@@ -21,7 +21,14 @@ import logging
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from fastapi.responses import JSONResponse
 
 from cleansales_backend.domain.models.batch_aggregate import (
@@ -185,8 +192,34 @@ async def get_batch_aggregates_by_criteria(
     response_model_exclude_unset=True,
     response_model_exclude_none=True,
 )
+async def get_sales_data_url_params(
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
+    batch_name: str,
+) -> Response:
+    return await get_sales_data(query_service, request, batch_name)
+
+
+@router.get(
+    "/sales",
+    response_model=list[SaleRecordModel],
+    response_model_exclude_unset=True,
+    response_model_exclude_none=True,
+)
+async def get_sales_data_query(
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
+    batch_name: str = Query(
+        ...,
+        description="批次名稱",
+    ),
+) -> Response:
+    return await get_sales_data(query_service, request, batch_name)
+
+
 async def get_sales_data(
     query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
     batch_name: str,
 ) -> Response:
     try:
@@ -200,9 +233,17 @@ async def get_sales_data(
             if aggregate.sales
             for sale in aggregate.sales
         ]
+        content_str = json.dumps([sale.model_dump(mode="json") for sale in sales])
+        content_bytes = content_str.encode("utf-8")
+        etag = hashlib.md5(content_bytes).hexdigest()
+
+        if request.headers.get("If-None-Match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+
         return JSONResponse(
             content=[sale.model_dump(mode="json") for sale in sales],
             status_code=200,
+            headers={"ETag": etag},
         )
     except Exception as e:
         logger.error(f"獲取銷售資料時發生錯誤: {e}")
@@ -217,8 +258,34 @@ async def get_sales_data(
     response_model_exclude_unset=True,
     response_model_exclude_none=True,
 )
+async def get_feeds_data_url_params(
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
+    batch_name: str,
+) -> Response:
+    return await get_feeds_data(query_service, request, batch_name)
+
+
+@router.get(
+    "/feeds",
+    response_model=list[FeedRecord],
+    response_model_exclude_unset=True,
+    response_model_exclude_none=True,
+)
+async def get_feeds_data_query(
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
+    batch_name: str = Query(
+        ...,
+        description="批次名稱",
+    ),
+) -> Response:
+    return await get_feeds_data(query_service, request, batch_name)
+
+
 async def get_feeds_data(
     query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
     batch_name: str,
 ) -> Response:
     try:
@@ -232,10 +299,17 @@ async def get_feeds_data(
             if aggregate.feeds
             for feed in aggregate.feeds
         ]
+        content_str = json.dumps([feed for feed in feeds])
+        content_bytes = content_str.encode("utf-8")
+        etag = hashlib.md5(content_bytes).hexdigest()
+
+        if request.headers.get("If-None-Match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
 
         response = JSONResponse(
             content=feeds,
             status_code=200,
+            headers={"ETag": etag},
         )
         return response
     except Exception as e:

@@ -290,9 +290,9 @@ class BatchAggregateModel(BaseModel):
     )
 
     # 日期資訊
-    # cycle_date: tuple[date, date | None] = Field(
-    #     default=(date.min, None), description="周期日期"
-    # )
+    cycle_date: tuple[datetime, datetime | None] = Field(
+        default=(datetime.min, None), description="周期日期"
+    )
 
     # 資料統計
     sales_summary: SalesSummaryModel | None = Field(
@@ -315,5 +315,6 @@ class BatchAggregateModel(BaseModel):
             sales_summary=SalesSummaryModel.create_from(data.sales_summary)
             if data.sales_summary
             else None,
+            cycle_date=data.cycle_date,
             batch_records=data.batch_records,
         )
