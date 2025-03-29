@@ -1,8 +1,8 @@
-from . import server
+from . import server, batch_tools
 
 
 def main() -> None:
     server.mcp.run()
 
 
-__all__ = ["main", "server"]
+__all__ = ["main", "server", "batch_tools"]
