@@ -22,4 +22,7 @@ wheels/
 # 資料庫
 data/
 
+# 日誌
+logs/
+
 /out
