@@ -65,6 +65,14 @@ class ProcessExecutor:
             )
             return
 
+        logger.debug(f"處理完成: {process_response}")
+        if (
+            process_response.content.get("new_keys", 0) == 0
+            and process_response.content.get("delete_keys", 0) == 0
+        ):
+            logger.info("沒有新記錄需要添加，沒有記錄需要刪除")
+            return
+
         self._event_bus.publish(
             Event(
                 event=ProcessEvent.SALES_PROCESSING_COMPLETED
