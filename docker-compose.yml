@@ -23,8 +23,6 @@ services:
       target: production
     env_file:
       - .env-prod
-    ports:
-      - "8888:8000"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

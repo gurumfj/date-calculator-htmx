@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     """應用程序設置模型"""
 
     BRANCH: str = Field(default="unset in env")
+    CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
     # 數據庫配置
     DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")

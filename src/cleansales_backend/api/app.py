@@ -16,9 +16,8 @@
 """
 
 import logging
-from collections.abc import Awaitable, Callable
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
@@ -97,27 +96,9 @@ async def cache_clear(
 # TODO: 在生產環境中應該限制 allow_origins 為特定域名
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 開發環境允許所有來源
+    allow_origins=settings.CORS_ORIGINS,  # 開發環境允許所有來源
     allow_credentials=True,  # 允許攜帶認證信息
     allow_methods=["*"],  # 允許所有 HTTP 方法
     allow_headers=["*"],  # 允許所有 HTTP 頭部
-    expose_headers=[
-        "ETag",
-        "etag",
-        "If-None-Match",
-    ],  # 增加小寫的 etag 和 If-None-Match
+    expose_headers=["ETag", "If-None-Match"],
 )
-
-
-# 添加處理前綴和 HTTPS 的中間件
-@app.middleware("http")
-async def custom_response_headers(
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    response = await call_next(request)
-
-    # 手動為每個響應添加 ETag（如果存在）到 Access-Control-Expose-Headers
-    if "etag" in response.headers or "ETag" in response.headers:
-        response.headers["Access-Control-Expose-Headers"] = "ETag, etag, If-None-Match"
-
-    return response
