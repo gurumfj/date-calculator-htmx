@@ -3,7 +3,7 @@
 # 批次工具模組
 #
 # 這個模組提供了與批次相關的工具函數，用於在 MCP 中訪問批次數據。
-# 
+#
 # 主要功能：
 # 1. 獲取批次數據
 # 2. 過濾批次數據
@@ -11,30 +11,27 @@
 ################################################################################
 """
 
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import List, Literal
 
 import requests
-from fastapi import HTTPException
 
 from cleansales_backend.processors.interface.processors_interface import IResponse
-
 
 logger = logging.getLogger(__name__)
 
 
 def get_batches(
-    batch_name: Optional[str] = None,
-    breed_type: Optional[Literal["黑羽", "古早", "舍黑", "閹雞"]] = None,
-    batch_status: Optional[List[Literal["completed", "breeding", "sale"]]] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    batch_name: str | None = None,
+    breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
+    batch_status: list[Literal["completed", "breeding", "sale"]] | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     api_url: str = "http://localhost:8888",
 ) -> IResponse:
     """獲取批次數據
-    
+
     Args:
         batch_name: 批次名稱，如果為 None 則不過濾
         breed_type: 雞種類型，如果為 None 則不過濾
@@ -42,7 +39,7 @@ def get_batches(
         start_date: 開始日期，如果為 None 則不過濾
         end_date: 結束日期，如果為 None 則不過濾
         api_url: API 基礎 URL，默認為 http://localhost:8888
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -59,11 +56,11 @@ def get_batches(
             params["start_date"] = start_date.isoformat()
         if end_date:
             params["end_date"] = end_date.isoformat()
-        
+
         # 發送請求
         url = f"{api_url}/api/batch"
         response = requests.get(url, params=params)
-        
+
         # 檢查響應
         if response.status_code == 200:
             data = response.json()
@@ -98,11 +95,11 @@ def get_batch_by_name(
     api_url: str = "http://localhost:8888",
 ) -> IResponse:
     """根據批次名稱獲取批次數據
-    
+
     Args:
         batch_name: 批次名稱
         api_url: API 基礎 URL，默認為 http://localhost:8888
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -114,11 +111,11 @@ def get_batches_by_breed(
     api_url: str = "http://localhost:8888",
 ) -> IResponse:
     """根據雞種類型獲取批次數據
-    
+
     Args:
         breed_type: 雞種類型
         api_url: API 基礎 URL，默認為 http://localhost:8888
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -130,11 +127,11 @@ def get_batches_by_status(
     api_url: str = "http://localhost:8888",
 ) -> IResponse:
     """根據批次狀態獲取批次數據
-    
+
     Args:
         batch_status: 批次狀態列表
         api_url: API 基礎 URL，默認為 http://localhost:8888
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -147,12 +144,12 @@ def get_batches_by_date_range(
     api_url: str = "http://localhost:8888",
 ) -> IResponse:
     """根據日期範圍獲取批次數據
-    
+
     Args:
         start_date: 開始日期
         end_date: 結束日期
         api_url: API 基礎 URL，默認為 http://localhost:8888
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """

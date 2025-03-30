@@ -15,12 +15,18 @@
 """
 
 from datetime import datetime
-from typing import Literal, Optional, List
+from typing import Literal
 
 import requests
 from mcp.server.fastmcp import FastMCP
 
 from cleansales_backend import Database, settings
+from cleansales_backend.mcp.batch_tools import (
+    get_batch_by_name,
+    get_batches,
+    get_batches_by_breed,
+    get_batches_by_status,
+)
 from cleansales_backend.processors import (
     BreedRecordProcessor,
     FeedRecordProcessor,
@@ -28,13 +34,6 @@ from cleansales_backend.processors import (
 )
 from cleansales_backend.processors.interface.processors_interface import IResponse
 from cleansales_backend.services import QueryService
-from cleansales_backend.mcp.batch_tools import (
-    get_batches,
-    get_batch_by_name,
-    get_batches_by_breed,
-    get_batches_by_status,
-    get_batches_by_date_range,
-)
 
 mcp = FastMCP("cleansales-server")
 
@@ -87,21 +86,21 @@ def get_not_completed_batches() -> IResponse:
 
 
 @mcp.tool(
-    name="get_batches", 
-    description="獲取批次數據，支持多種過濾條件"
+    name="get_batches",
+    description="獲取批次數據，支持多種過濾條件，選項: batch_name, breed_type, batch_status",
 )
 def get_batches_tool(
-    batch_name: Optional[str] = None,
-    breed_type: Optional[str] = None,
-    batch_status: Optional[List[str]] = None,
+    batch_name: str | None = None,
+    breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
+    batch_status: list[Literal["completed", "breeding", "sale"]] | None = None,
 ) -> IResponse:
     """獲取批次數據工具
-    
+
     Args:
         batch_name: 批次名稱，如果為 None 則不過濾
         breed_type: 雞種類型 (黑羽, 古早, 舍黑, 閹雞)，如果為 None 則不過濾
         batch_status: 批次狀態列表 (completed, breeding, sale)，如果為 None 則不過濾
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -113,7 +112,7 @@ def get_batches_tool(
             message=f"無效的雞種類型: {breed_type}，有效值為: {', '.join(valid_breed_types)}",
             content={"error": "INVALID_BREED_TYPE"},
         )
-    
+
     # 驗證 batch_status
     valid_statuses = ["completed", "breeding", "sale"]
     if batch_status:
@@ -124,7 +123,7 @@ def get_batches_tool(
                     message=f"無效的批次狀態: {status}，有效值為: {', '.join(valid_statuses)}",
                     content={"error": "INVALID_BATCH_STATUS"},
                 )
-    
+
     # 調用批次工具獲取數據
     return get_batches(
         batch_name=batch_name,
@@ -133,16 +132,13 @@ def get_batches_tool(
     )
 
 
-@mcp.tool(
-    name="get_batch_by_name", 
-    description="根據批次名稱獲取批次數據"
-)
+@mcp.tool(name="get_batch_by_name", description="根據批次名稱獲取批次數據")
 def get_batch_by_name_tool(batch_name: str) -> IResponse:
     """根據批次名稱獲取批次數據工具
-    
+
     Args:
         batch_name: 批次名稱
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -150,15 +146,17 @@ def get_batch_by_name_tool(batch_name: str) -> IResponse:
 
 
 @mcp.tool(
-    name="get_batches_by_breed", 
-    description="根據雞種類型獲取批次數據"
+    name="get_batches_by_breed",
+    description="根據雞種類型獲取批次數據，選項: 黑羽, 古早, 舍黑, 閹雞",
 )
-def get_batches_by_breed_tool(breed_type: str) -> IResponse:
+def get_batches_by_breed_tool(
+    breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"],
+) -> IResponse:
     """根據雞種類型獲取批次數據工具
-    
+
     Args:
         breed_type: 雞種類型 (黑羽, 古早, 舍黑, 閹雞)
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -170,20 +168,22 @@ def get_batches_by_breed_tool(breed_type: str) -> IResponse:
             message=f"無效的雞種類型: {breed_type}，有效值為: {', '.join(valid_breed_types)}",
             content={"error": "INVALID_BREED_TYPE"},
         )
-    
+
     return get_batches_by_breed(breed_type=breed_type)
 
 
 @mcp.tool(
-    name="get_batches_by_status", 
-    description="根據批次狀態獲取批次數據"
+    name="get_batches_by_status",
+    description="根據批次狀態獲取批次數據，選項: completed, breeding, sale",
 )
-def get_batches_by_status_tool(batch_status: List[str]) -> IResponse:
+def get_batches_by_status_tool(
+    batch_status: list[Literal["completed", "breeding", "sale"]],
+) -> IResponse:
     """根據批次狀態獲取批次數據工具
-    
+
     Args:
         batch_status: 批次狀態列表 (completed, breeding, sale)
-    
+
     Returns:
         IResponse: 包含批次數據的標準響應對象
     """
@@ -196,7 +196,7 @@ def get_batches_by_status_tool(batch_status: List[str]) -> IResponse:
                 message=f"無效的批次狀態: {status}，有效值為: {', '.join(valid_statuses)}",
                 content={"error": "INVALID_BATCH_STATUS"},
             )
-    
+
     return get_batches_by_status(batch_status=batch_status)
 
 
