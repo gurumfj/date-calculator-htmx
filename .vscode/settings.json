@@ -67,7 +67,7 @@
     "ruff.configuration": "./pyproject.toml",
     "ruff.importStrategy": "fromEnvironment",
 
-    
+
     "[python]": {
         "editor.formatOnSave": true,  // 存檔時自動格式化
         "editor.codeActionsOnSave": {
@@ -85,6 +85,8 @@
     "[html]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
-    "basedpyright.analysis.useTypingExtensions": false
+    "basedpyright.analysis.useTypingExtensions": false,
+    "[yaml]": {
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    }
 }
-    

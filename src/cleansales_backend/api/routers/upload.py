@@ -89,9 +89,6 @@ def validate_excel_file(file: UploadFile) -> None:
 @router.post("/breeds", response_model=IResponse)
 async def process_breeds_file(
     file_upload: Annotated[UploadFile, File(...)],
-    # session: Annotated[Session, Depends(core_db.get_session)],
-    # query_service: Annotated[QueryService, Depends(get_query_service)],
-    # processor: Annotated[BreedRecordProcessor, Depends(get_breeds_processor)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
 ) -> JSONResponse:
@@ -132,7 +129,8 @@ async def process_breeds_file(
     return JSONResponse(
         status_code=200,
         content={
-            "message": f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 處理入雛資料檔案開始"
+            "message": f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} +\
+                處理入雛資料檔案開始"
         },
     )
 
@@ -140,7 +138,6 @@ async def process_breeds_file(
 @router.post("/sales", response_model=IResponse)
 async def process_sales_file(
     file_upload: Annotated[UploadFile, File(...)],
-    # session: Annotated[Session, Depends(core_db.get_session)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
 ) -> JSONResponse:
@@ -181,7 +178,8 @@ async def process_sales_file(
     return JSONResponse(
         status_code=200,
         content={
-            "message": f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 處理銷售資料檔案開始"
+            "message": f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}+\
+                 處理銷售資料檔案開始"
         },
     )
 
@@ -189,7 +187,6 @@ async def process_sales_file(
 @router.post("/feeds", response_model=IResponse)
 async def process_feeds_file(
     file_upload: Annotated[UploadFile, File(...)],
-    # session: Annotated[Session, Depends(core_db.get_session)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     check_exists: bool = Query(default=True, description="是否檢查是否已存在"),
 ) -> JSONResponse:
@@ -230,6 +227,7 @@ async def process_feeds_file(
     return JSONResponse(
         status_code=200,
         content={
-            "message": f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 處理飼料記錄檔案開始"
+            "message": f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}+\
+                 處理飼料記錄檔案開始"
         },
     )

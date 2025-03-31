@@ -26,7 +26,7 @@ flowchart TB
     subgraph process[資料處理]
         direction TB
         prep["準備資料集合"] --> sync["同步操作"]
-        
+
         subgraph prep[準備資料集合]
             direction LR
             keys["建立唯一識別碼集合"]
@@ -36,10 +36,10 @@ flowchart TB
         subgraph sync[同步操作]
             direction TB
             add["新增資料"] --> del["刪除資料"]
-            
+
             subgraph add[新增資料]
                 direction LR
-                fkne1["_filter_key_not_exists()"] --> 
+                fkne1["_filter_key_not_exists()"] -->
                 fe1["_for_each()"] -->
                 save["_save_data()"] -->
                 rto["_record_to_orm()"]
@@ -60,7 +60,7 @@ flowchart TB
     %% 資料庫操作
     subgraph db[資料庫操作]
         direction TB
-        select["select()"] 
+        select["select()"]
         add_db["add()"]
         get["get()"]
         del_db["delete()"]
@@ -77,7 +77,7 @@ flowchart TB
     classDef secondary fill:#fff,stroke:#333
     classDef db fill:#e1f5fe,stroke:#333
     classDef pure fill:#98FB98,stroke:#333
-    
+
     class ed primary
     class process,prep,sync secondary
     class db db

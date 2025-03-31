@@ -8,17 +8,17 @@ classDiagram
         <<interface>>
         +process_data(data: DataFrame) ProcessingResult~T~
     }
-    
+
     class IExporter~T~ {
         <<interface>>
         +export_data(data: ProcessingResult~T~)
         +export_errors(data: ProcessingResult~T~)
     }
-    
+
     class BreedsProcessor {
         +process_data(data: DataFrame) ProcessingResult~BreedRecord~
     }
-    
+
     class BreedSQLiteExporter {
         +export_data(data: ProcessingResult~BreedRecord~)
         +export_errors(data: ProcessingResult~BreedRecord~)
@@ -26,7 +26,7 @@ classDiagram
         -save_data(session, record)
         -delete_data_by_key(session, key)
     }
-    
+
     class ProcessingResult~T~ {
         +processed_data: List~T~
         +errors: List~ErrorMessage~
@@ -45,24 +45,24 @@ sequenceDiagram
     participant Client
     participant Exporter as BreedSQLiteExporter
     participant DB as SQLite Database
-    
+
     Client->>Exporter: export_data(ProcessingResult)
     activate Exporter
-    
+
     Exporter->>DB: get_all_existing_keys()
     DB-->>Exporter: existing_keys
-    
+
     Note over Exporter: Compare keys to determine<br/>updates and deletions
-    
+
     loop For new/updated records
         Exporter->>Exporter: record_to_orm(record)
         Exporter->>DB: save_data(record)
     end
-    
+
     loop For deleted records
         Exporter->>DB: delete_data_by_key(key)
     end
-    
+
     Exporter->>DB: commit transaction
     Exporter-->>Client: void
     deactivate Exporter
@@ -74,15 +74,15 @@ sequenceDiagram
 flowchart TD
     A[ProcessingResult] --> B[Get Existing Keys]
     B --> C[Compare Keys]
-    
+
     C --> D[New Records]
     C --> E[Records to Delete]
-    
+
     D --> F[Convert to ORM]
     F --> G[Save to Database]
-    
+
     E --> H[Delete from Database]
-    
+
     G --> I[Commit Changes]
     H --> I
 ```
@@ -139,4 +139,4 @@ processor = BreedsProcessor()
 result = processor.process_data(df)
 
 # 匯出資料
-exporter.export_data(result) 
+exporter.export_data(result)

@@ -45,13 +45,13 @@ def get_batches(
     """
     try:
         # 構建請求參數
-        params = {}
+        params: dict[str, str | None] = {}
         if batch_name:
             params["batch_name"] = batch_name
         if breed_type:
             params["breed_type"] = breed_type
         if batch_status:
-            params["batch_status"] = batch_status
+            params["batch_status"] = ",".join(batch_status)
         if start_date:
             params["start_date"] = start_date.isoformat()
         if end_date:

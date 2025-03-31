@@ -9,7 +9,7 @@ graph TD
     A[ProcessingResult<BreedRecord>] --> B[export_data]
     B --> C[Session 開始]
     C --> D[取得現有唯一識別碼]
-    
+
     subgraph 資料同步流程
         D --> E1[建立記錄字典]
         D --> E2[取得所有記錄 ID]
@@ -113,4 +113,4 @@ def filter_key_not_exists(self, keys_to_compare: set[str], exist_keys: set[str])
 ## 錯誤處理
 - 資料庫連線異常處理
 - 交易回滾機制
-- 資料驗證和轉換異常處理 
+- 資料驗證和轉換異常處理

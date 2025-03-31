@@ -147,7 +147,7 @@ class BreedRecordValidator(IBaseModel):
             raise ValueError(f"計算母雞數量錯誤: {str(e)}")
 
 
-class BreedRecordORM(IORMModel, table=True):  # type: ignore
+class BreedRecordORM(IORMModel, table=True):
     """入雛記錄資料模型
 
     記錄每批雞隻的入雛基本資料，包含農場資訊、畜主資料及批次詳細資訊

@@ -7,7 +7,7 @@ ENV UV_LINK_MODE=copy
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
-COPY pyproject.toml uv.lock ./ 
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
 # 2. Development 階段：基於 base，安裝開發工具和 dev 依賴，並複製源代碼

@@ -21,6 +21,7 @@ import requests
 from mcp.server.fastmcp import FastMCP
 
 from cleansales_backend import Database, settings
+from cleansales_backend.core.event_bus import EventBus
 from cleansales_backend.mcp.batch_tools import (
     get_batch_by_name,
     get_batches,
@@ -46,6 +47,7 @@ query_service = QueryService(
     breed_repository=breed_repository,
     sale_repository=sale_repository,
     feed_repository=feed_repository,
+    event_bus=EventBus(),
 )
 
 

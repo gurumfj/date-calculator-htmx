@@ -90,7 +90,7 @@ class FeedRecordValidator(IBaseModel):
             return False  # 發生異常時返回 False
 
 
-class FeedRecordORM(IORMModel, table=True):  # type: ignore
+class FeedRecordORM(IORMModel, table=True):
     """飼料記錄資料模型"""
 
     unique_id: str = SQLModelField(..., primary_key=True, description="內容比對唯一值")

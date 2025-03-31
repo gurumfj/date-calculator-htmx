@@ -31,6 +31,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
+from cleansales_backend.core import get_event_bus
 from cleansales_backend.domain.models.batch_aggregate import (
     BatchAggregateModel,
     SaleRecordModel,
@@ -58,6 +59,7 @@ _query_service = QueryService(
     _sale_repository,
     _feed_repository,
     core_db,
+    get_event_bus(),
 )
 
 

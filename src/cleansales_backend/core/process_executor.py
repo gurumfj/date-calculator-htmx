@@ -2,7 +2,7 @@ import logging
 from enum import Enum
 
 from cleansales_backend.core.event_bus import Event, EventBus
-from cleansales_backend.core.events import ProcessEvent
+from cleansales_backend.core.events import ProcessEvent, SystemEvent
 from cleansales_backend.processors import (
     BreedRecordProcessor,
     FeedRecordProcessor,
@@ -82,5 +82,12 @@ class ProcessExecutor:
                 else ProcessEvent.FEEDS_PROCESSING_COMPLETED,
                 message="處理完成",
                 content=process_response.content,
+            )
+        )
+        self._event_bus.publish(
+            Event(
+                event=SystemEvent.CACHE_CLEAR,
+                message=f"{event.event} 完成，開始清除緩存",
+                content={},
             )
         )

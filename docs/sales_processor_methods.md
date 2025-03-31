@@ -70,20 +70,20 @@ sequenceDiagram
 
     Client->>SalesProcessor: process_data(DataFrame)
     activate SalesProcessor
-    
+
     SalesProcessor->>SalesProcessor: _validate_and_clean_records()
     activate SalesProcessor
     SalesProcessor->>SaleRecordUpdate: create_from(ValidatorSchema)
     SalesProcessor-->>SalesProcessor: tuple[PreRecords, list[ErrorMessage]]
     deactivate SalesProcessor
-    
+
     SalesProcessor->>ProcessingState: 創建初始狀態
-    
+
     loop 對每個記錄
         SalesProcessor->>SalesProcessor: _process_group_and_assign_keys()
         activate SalesProcessor
         SalesProcessor->>ProcessingState: add_to_group()
-        
+
         alt 需要新群組
             SalesProcessor->>SalesProcessor: _should_create_new_group()
             SalesProcessor->>SalesProcessor: _assign_group_key_to_location()
@@ -92,7 +92,7 @@ sequenceDiagram
         end
         deactivate SalesProcessor
     end
-    
+
     SalesProcessor-->>Client: ProcessingResult
     deactivate SalesProcessor
 ```
@@ -206,4 +206,4 @@ sequenceDiagram
 3. **DEBUG 級別**
    - 位置變更追蹤
    - 日期差異檢查
-   - 鍵值生成過程 
+   - 鍵值生成過程

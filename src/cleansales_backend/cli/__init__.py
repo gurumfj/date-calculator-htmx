@@ -7,6 +7,7 @@ import pandas as pd
 
 from cleansales_backend.core import core_db, settings
 from cleansales_backend.core.database import Database
+from cleansales_backend.core.event_bus import EventBus
 from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
@@ -141,7 +142,9 @@ def main() -> None:
     breed_processor = BreedRecordProcessor()
     sale_processor = SaleRecordProcessor()
     feed_processor = FeedRecordProcessor()
-    query_service = QueryService(breed_processor, sale_processor, feed_processor, _db)
+    query_service = QueryService(
+        breed_processor, sale_processor, feed_processor, _db, EventBus()
+    )
 
     try:
         if args.subcommand == "import":

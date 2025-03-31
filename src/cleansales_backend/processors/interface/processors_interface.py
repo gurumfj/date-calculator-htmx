@@ -150,7 +150,8 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
             df (pd.DataFrame): DataFrame to validate.
 
         Returns:
-            tuple[dict[str, IBaseModel], list[dict[str, Any]]]: Tuple of validated records and error records.
+            tuple[dict[str, IBaseModel], list[dict[str, Any]]]:
+            Tuple of validated records and error records.
         """
 
         validated_records: dict[str, IBaseModel] = {}
@@ -174,7 +175,8 @@ class IProcessor(ABC, Generic[ORMT, VT, RT]):
                 logger.debug(f"資料驗證失敗: {error}")
                 error_records.append(error)
         logger.info(
-            f"{len(validated_records)} records validated, {len(error_records)} records failed validation"
+            f"{len(validated_records)} records validated,\n+\
+             {len(error_records)} records failed validation"
         )
         return validated_records, error_records
 

@@ -1,4 +1,4 @@
-from . import server, batch_tools
+from . import batch_tools, server
 
 
 def main() -> None:

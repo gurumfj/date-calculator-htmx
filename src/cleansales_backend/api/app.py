@@ -39,12 +39,12 @@ app = FastAPI(
     title="銷售資料處理 API",
     description=f"""
     提供銷售資料處理服務的 API
-    
+
     ## 功能
     - 上傳 Excel 檔案進行處理
     - 支援 .xlsx 和 .xls 格式
     - 返回處理結果和錯誤訊息
-    
+
     ## 使用方式
     1. 使用 POST `/upload/sales` 上傳販售資料 Excel 檔案
     2. 使用 POST `/upload/breeds` 上傳入雛資料 Excel 檔案

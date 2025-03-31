@@ -4,10 +4,12 @@
 #
 # 這個模組提供了系統中使用的所有事件類型定義，包括：
 # 1. 處理事件枚舉
-# 2. 其他事件類型
+# 2. 系統事件枚舉
+# 3. 其他事件類型
 #
 # 主要功能：
 # - 定義處理事件枚舉
+# - 定義系統事件枚舉
 ################################################################################
 """
 
@@ -26,3 +28,9 @@ class ProcessEvent(str, Enum):
     FEEDS_PROCESSING_STARTED = "飼料記錄上傳開始"
     FEEDS_PROCESSING_COMPLETED = "飼料記錄上傳完成"
     FEEDS_PROCESSING_FAILED = "飼料記錄上傳失敗"
+
+
+class SystemEvent(str, Enum):
+    """系統事件枚舉"""
+
+    CACHE_CLEAR = "清除緩存"

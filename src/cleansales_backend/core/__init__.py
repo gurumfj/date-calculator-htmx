@@ -14,7 +14,7 @@
 from .config import settings
 from .database import Database
 from .event_bus import Event, EventBus
-from .events import ProcessEvent
+from .events import ProcessEvent, SystemEvent
 from .process_executor import ProcessExecutor
 from .telegram_notifier import TelegramNotifier
 
@@ -31,6 +31,7 @@ __all__ = [
     "settings",
     "Database",
     "ProcessExecutor",
+    "SystemEvent",
     "Event",
     "EventBus",
     "TelegramNotifier",

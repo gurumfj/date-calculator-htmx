@@ -275,7 +275,7 @@ class SalesSummaryModel(BaseModel):
     sales_percentage: float
     total_revenue: float
 
-    model_config = ConfigDict(from_attributes=True)  # type: ignore
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def create_from(cls, data: SalesSummary) -> "SalesSummaryModel":

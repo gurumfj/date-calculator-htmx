@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TypeVar
 
-import wcwidth  # type: ignore
+import wcwidth
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from typing_extensions import override
 
@@ -200,7 +200,7 @@ class BatchRecordModel(BaseModel):
     sub_location: str | None
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
+    model_config = ConfigDict(from_attributes=True, frozen=True)
 
     # @computed_field
     # @property
@@ -229,7 +229,7 @@ class SaleRecordModel(BaseModel):
     female_avg_weight: float | None
     avg_price: float | None
 
-    model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
+    model_config = ConfigDict(from_attributes=True, frozen=True)
 
     @computed_field
     @property
@@ -299,7 +299,7 @@ class BatchAggregateModel(BaseModel):
         default=None, description="銷售統計"
     )
 
-    model_config = ConfigDict(from_attributes=True, frozen=True)  # type: ignore
+    model_config = ConfigDict(from_attributes=True, frozen=True)
 
     @classmethod
     def create_from(cls, data: BatchAggregate) -> "BatchAggregateModel":

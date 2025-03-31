@@ -173,7 +173,7 @@ class SaleRecordValidator(IBaseModel):
             return None
 
 
-class SaleRecordORM(IORMModel, table=True):  # type: ignore
+class SaleRecordORM(IORMModel, table=True):
     unique_id: str = SQLModelField(..., primary_key=True, description="內容比對唯一值")
     closed: bool = Field(False, description="結案狀態")
     handler: str | None = Field(None, description="會磅狀態")

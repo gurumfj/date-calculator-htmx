@@ -7,7 +7,11 @@ from typing import Literal
 from sqlmodel import Session
 from typing_extensions import Any
 
+from cleansales_backend.core import Event
 from cleansales_backend.core.database import Database
+from cleansales_backend.core.event_bus import EventBus
+from cleansales_backend.core.events import SystemEvent
+from cleansales_backend.domain import utils
 from cleansales_backend.domain.models import (
     BatchAggregate,
     BreedRecord,
@@ -36,6 +40,7 @@ class QueryService:
     _feed_repository: FeedRepositoryProtocol
     _db_hint: dict[str, str]
     _db: Database
+    _event_bus: EventBus
 
     def __init__(
         self,
@@ -43,22 +48,29 @@ class QueryService:
         sale_repository: SaleRepositoryProtocol,
         feed_repository: FeedRepositoryProtocol,
         db: Database,
+        event_bus: EventBus,
     ) -> None:
         self._breed_repository = breed_repository
         self._sale_repository = sale_repository
         self._feed_repository = feed_repository
         self._db = db
         self._db_hint = {datetime.now().isoformat(): "Started"}
+        self._event_bus = event_bus
+        self._event_bus.register(SystemEvent.CACHE_CLEAR, self.event_clear_cache)
+
+    def event_clear_cache(self, event: Event) -> None:
+        if event.event == SystemEvent.CACHE_CLEAR:
+            self.cache_clear()
 
     def get_batch_cache_info(self) -> dict[str, Any]:
         cache_info = {
-            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict(),
+            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict(),  # noqa: E501
             "db session hint": self._db_hint,
         }
         return cache_info
 
     def cache_clear(self) -> None:
-        logger.info("Clearing cache")
+        logger.info("Cleaning cached data")
         self.get_batch_aggregates.cache_clear()
         self._db_hint = {**self._db_hint, datetime.now().isoformat(): "cache cleared"}
 
@@ -164,7 +176,7 @@ class QueryService:
                 )
             )
         ]
-        
+
     def get_paginated_sales_data(
         self,
         all_aggregates: list[BatchAggregate],
@@ -185,9 +197,9 @@ class QueryService:
         sort_desc: bool = False,
     ) -> tuple[list[dict[str, Any]], dict[str, int]]:
         """獲取分頁的銷售數據
-        
+
         返回適合Excel/Google Apps Script使用的格式化銷售數據
-        
+
         Args:
             all_aggregates: 所有批次聚合
             page: 當前頁碼，從1開始
@@ -198,56 +210,56 @@ class QueryService:
             period: 時間範圍過濾條件
             sort_by: 排序字段
             sort_desc: 是否降序排序
-            
+
         Returns:
             tuple[list[dict], dict]: 包含銷售記錄列表和分頁信息的元組
         """
         from cleansales_backend.domain.models.excel_sale_record import ExcelSaleRecord
-        
+
         # 首先按條件過濾批次
         filtered_aggregates = self.get_batch_aggregates_by_criteria(
             all_aggregates, batch_name, breed_type, batch_status, period
         )
-        
+
         # 從批次中收集所有銷售記錄並格式化
-        all_sales = []
+        all_sales: list[dict[str, Any]] = []
         for aggregate in filtered_aggregates:
             if not aggregate.sales:
                 continue
-                
+
             for sale in aggregate.sales:
-                # 對每個雞種創建一個記錄
-                for breed in aggregate.breeds:
-                    # 計算日齡
-                    day_age = (sale.sale_date - breed.breed_date).days
-                    
-                    excel_sale = ExcelSaleRecord.create_from_sale_and_batch(
-                        sale=sale,
-                        batch_name=aggregate.batch_name or "",
-                        farm_name=aggregate.farm_name,
-                        breed_type=breed.chicken_breed,
-                        breed_date=breed.breed_date,
-                        day_age=day_age,
-                    )
-                    all_sales.append(excel_sale.to_dict())
-        
+                excel_sale = ExcelSaleRecord.create_from_sale_and_batch(
+                    sale=sale,
+                    batch_name=aggregate.batch_name or "",
+                    farm_name=aggregate.farm_name,
+                    breed_type=aggregate.breeds[0].chicken_breed,
+                    breed_date=aggregate.breeds[0].breed_date,
+                    day_age=[
+                        utils.day_age(breed.breed_date, sale.sale_date)
+                        for breed in sorted(
+                            aggregate.breeds, key=lambda x: x.breed_date
+                        )
+                    ],
+                )
+                all_sales.append(excel_sale.model_dump(mode="json"))
+
         # 排序
         if sort_by:
             reverse = sort_desc
             all_sales.sort(key=lambda x: x.get(sort_by, ""), reverse=reverse)
-        
+
         # 計算分頁信息
         total = len(all_sales)
         total_pages = (total + page_size - 1) // page_size if total > 0 else 1
-        
+
         # 確保頁碼在有效範圍內
         page = max(1, min(page, total_pages))
-        
+
         # 選擇當前頁的數據
         start_idx = (page - 1) * page_size
         end_idx = min(start_idx + page_size, total)
         page_data = all_sales[start_idx:end_idx]
-        
+
         # 構建分頁信息
         pagination = {
             "page": page,
@@ -255,7 +267,7 @@ class QueryService:
             "total": total,
             "total_pages": total_pages,
         }
-        
+
         return page_data, pagination
 
     def get_not_completed_batches_summary(
