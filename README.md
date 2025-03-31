@@ -1,31 +1,24 @@
-# CleanSales-refactor
+# CleanSales Backend
 
-銷售資料處理系統的重構版本。
+## 開發方式
 
-## 功能
+本專案使用 Trunk-Based Development 進行版本控制：
 
-- Excel 檔案處理
-- 銷售資料驗證和清理
-- RESTful API 介面
+1. **主分支**: `main` 是唯一的長期分支，所有開發工作最終都整合到這個分支
+2. **功能分支**: 所有新功能開發都從 `main` 分支創建短期功能分支（存活1-2天），命名格式 `feature/功能名稱`
+3. **合併流程**: 功能完成後立即透過 Pull Request 合併回 `main` 分支，然後刪除該分支
+4. **功能開關**: 使用功能開關（Feature Flags）包裝新功能，在合併到 `main` 後控制功能可見性
 
-## 安裝
+## 分支命名規範
 
-使用 uv 安裝依賴：
+- 功能分支: `feature/功能描述`
+- 修復分支: `fix/問題描述`
+- 重構分支: `refactor/模組名稱`
+- 優化分支: `optimize/優化描述`
 
-```bash
-uv pip install -e .
-```
+## 合併要求
 
-## 使用方式
+- 所有合併到 `main` 的代碼必須通過所有測試
+- 大功能應使用功能開關控制，以便在合併後可以控制功能的可見性
+- 提交信息應清晰描述變更內容
 
-啟動 API 服務：
-
-```bash
-python src/api.py
-```
-
-服務將在 http://localhost:8000 上運行。
-
-## API 文檔
-
-訪問 http://localhost:8000/docs 查看完整的 API 文檔。
