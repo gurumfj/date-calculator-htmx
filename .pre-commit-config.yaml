@@ -37,7 +37,7 @@ repos:
       hooks:
           - id: fastapi-root-test
             name: FastAPI Root Endpoint Test
-            entry: python -m pytest tests/api/test_root_endpoint.py -v
+            entry: uv run pytest tests/api/test_root_endpoint.py -v
             language: system
             pass_filenames: false
             types: [python]
