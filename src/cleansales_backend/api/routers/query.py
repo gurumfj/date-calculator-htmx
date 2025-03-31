@@ -19,7 +19,7 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import (
     APIRouter,
@@ -35,6 +35,7 @@ from cleansales_backend.domain.models.batch_aggregate import (
     BatchAggregateModel,
     SaleRecordModel,
 )
+from cleansales_backend.domain.models.excel_sale_record import ExcelSaleRecord
 from cleansales_backend.domain.models.feed_record import FeedRecord
 from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
 from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
@@ -314,6 +315,120 @@ async def get_feeds_data(
         return response
     except Exception as e:
         logger.error(f"獲取飼料資料時發生錯誤: {e}")
+        raise HTTPException(
+            status_code=500, detail={"error": str(e), "type": type(e).__name__}
+        )
+
+
+@router.get(
+    "/excel-sales",
+    response_model_exclude_unset=True,
+    response_model_exclude_none=True,
+)
+async def get_excel_sales_data(
+    query_service: Annotated[QueryService, Depends(get_query_service)],
+    request: Request,
+    page: int = Query(default=1, ge=1, description="當前頁碼，從1開始"),
+    page_size: int = Query(default=100, ge=1, le=1000, description="每頁記錄數量"),
+    batch_name: str | None = Query(
+        default=None,
+        description="批次名稱過濾條件",
+    ),
+    breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = Query(
+        default=None,
+        description="雞種類型過濾條件",
+    ),
+    batch_status: list[Literal["completed", "breeding", "sale"]] | None = Query(
+        default=None,
+        description="批次狀態過濾條件，可包含多個狀態",
+    ),
+    start_date: datetime | None = Query(
+        default=None,
+        description="開始日期過濾條件",
+    ),
+    end_date: datetime | None = Query(
+        default=None,
+        description="結束日期過濾條件",
+    ),
+    sort_by: str | None = Query(
+        default=None,
+        description="排序字段，例如'sale_date'、'batch_name'等",
+    ),
+    sort_desc: bool = Query(
+        default=False,
+        description="是否降序排序",
+    ),
+) -> Response:
+    """獲取格式化的銷售數據，適合Excel或Google Apps Script使用
+    
+    此API提供分頁功能，並以扁平化格式返回銷售數據，
+    方便Excel或Google Apps Script進行處理和展示。
+    """
+    try:
+        # 處理批次狀態過濾條件
+        batch_status_set = set(batch_status) if batch_status else None
+        
+        # 處理日期範圍過濾條件
+        period = (start_date, end_date) if start_date and end_date else None
+        
+        # 獲取所有批次數據
+        all_aggregates = query_service.get_batch_aggregates()
+        
+        # 獲取分頁的銷售數據
+        sales_data, pagination = query_service.get_paginated_sales_data(
+            all_aggregates=all_aggregates,
+            page=page,
+            page_size=page_size,
+            batch_name=batch_name,
+            breed_type=breed_type,
+            batch_status=batch_status_set,
+            period=period,
+            sort_by=sort_by,
+            sort_desc=sort_desc,
+        )
+        
+        # 準備元數據
+        meta = {
+            "generated_at": datetime.now().isoformat(),
+            "filters": {
+                "batch_name": batch_name,
+                "breed_type": breed_type,
+                "batch_status": batch_status,
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None,
+            },
+            "sorting": {
+                "sort_by": sort_by,
+                "sort_desc": sort_desc,
+            }
+        }
+        
+        # 準備響應數據
+        response_data = {
+            "data": sales_data,
+            "pagination": pagination,
+            "meta": meta,
+        }
+        
+        # 生成ETag
+        content_str = json.dumps(response_data)
+        content_bytes = content_str.encode("utf-8")
+        etag = hashlib.md5(content_bytes).hexdigest()
+        
+        # 檢查是否有變更
+        if request.headers.get("If-None-Match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        
+        # 返回數據
+        return JSONResponse(
+            content=response_data,
+            status_code=200,
+            headers={"ETag": etag},
+        )
+    except Exception as e:
+        logger.error(f"獲取Excel格式銷售數據時發生錯誤: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500, detail={"error": str(e), "type": type(e).__name__}
         )

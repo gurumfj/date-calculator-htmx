@@ -164,6 +164,99 @@ class QueryService:
                 )
             )
         ]
+        
+    def get_paginated_sales_data(
+        self,
+        all_aggregates: list[BatchAggregate],
+        page: int = 1,
+        page_size: int = 100,
+        batch_name: str | None = None,
+        breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
+        batch_status: set[
+            Literal[
+                "completed",
+                "breeding",
+                "sale",
+            ]
+        ]
+        | None = None,
+        period: tuple[datetime, datetime] | None = None,
+        sort_by: str | None = None,
+        sort_desc: bool = False,
+    ) -> tuple[list[dict[str, Any]], dict[str, int]]:
+        """獲取分頁的銷售數據
+        
+        返回適合Excel/Google Apps Script使用的格式化銷售數據
+        
+        Args:
+            all_aggregates: 所有批次聚合
+            page: 當前頁碼，從1開始
+            page_size: 每頁記錄數量
+            batch_name: 批次名稱過濾條件
+            breed_type: 雞種類型過濾條件
+            batch_status: 批次狀態過濾條件
+            period: 時間範圍過濾條件
+            sort_by: 排序字段
+            sort_desc: 是否降序排序
+            
+        Returns:
+            tuple[list[dict], dict]: 包含銷售記錄列表和分頁信息的元組
+        """
+        from cleansales_backend.domain.models.excel_sale_record import ExcelSaleRecord
+        
+        # 首先按條件過濾批次
+        filtered_aggregates = self.get_batch_aggregates_by_criteria(
+            all_aggregates, batch_name, breed_type, batch_status, period
+        )
+        
+        # 從批次中收集所有銷售記錄並格式化
+        all_sales = []
+        for aggregate in filtered_aggregates:
+            if not aggregate.sales:
+                continue
+                
+            for sale in aggregate.sales:
+                # 對每個雞種創建一個記錄
+                for breed in aggregate.breeds:
+                    # 計算日齡
+                    day_age = (sale.sale_date - breed.breed_date).days
+                    
+                    excel_sale = ExcelSaleRecord.create_from_sale_and_batch(
+                        sale=sale,
+                        batch_name=aggregate.batch_name or "",
+                        farm_name=aggregate.farm_name,
+                        breed_type=breed.chicken_breed,
+                        breed_date=breed.breed_date,
+                        day_age=day_age,
+                    )
+                    all_sales.append(excel_sale.to_dict())
+        
+        # 排序
+        if sort_by:
+            reverse = sort_desc
+            all_sales.sort(key=lambda x: x.get(sort_by, ""), reverse=reverse)
+        
+        # 計算分頁信息
+        total = len(all_sales)
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+        
+        # 確保頁碼在有效範圍內
+        page = max(1, min(page, total_pages))
+        
+        # 選擇當前頁的數據
+        start_idx = (page - 1) * page_size
+        end_idx = min(start_idx + page_size, total)
+        page_data = all_sales[start_idx:end_idx]
+        
+        # 構建分頁信息
+        pagination = {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": total_pages,
+        }
+        
+        return page_data, pagination
 
     def get_not_completed_batches_summary(
         self, all_aggrs: list[BatchAggregate]
