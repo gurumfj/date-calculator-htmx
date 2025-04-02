@@ -116,12 +116,12 @@ class FeedRecordResponse(IResponse):
 
 
 class FeedRecordProcessor(
-    IProcessor[FeedRecordORM, FeedRecordValidator, FeedRecordResponse],
+    IProcessor[FeedRecordORM, FeedRecordValidator],
     FeedRepositoryProtocol,
 ):
     @override
-    def set_response_schema(self) -> type[FeedRecordResponse]:
-        return FeedRecordResponse
+    def set_processor_name(self) -> str:
+        return "飼料"
 
     @override
     def set_validator_schema(self) -> type[FeedRecordValidator]:
@@ -130,6 +130,10 @@ class FeedRecordProcessor(
     @override
     def set_orm_schema(self) -> type[FeedRecordORM]:
         return FeedRecordORM
+
+    @override
+    def set_orm_foreign_key(self) -> str:
+        return "batch_name"
 
     @override
     def get_by_batch_name(self, session: Session, batch_name: str) -> list[FeedRecord]:

@@ -194,9 +194,13 @@ class SaleRecordResponse(IResponse):
 
 
 class SaleRecordProcessor(
-    IProcessor[SaleRecordORM, SaleRecordValidator, SaleRecordResponse],
+    IProcessor[SaleRecordORM, SaleRecordValidator],
     SaleRepositoryProtocol,
 ):
+    @override
+    def set_processor_name(self) -> str:
+        return "販售"
+
     @override
     def set_validator_schema(self) -> type[SaleRecordValidator]:
         return SaleRecordValidator
@@ -206,8 +210,8 @@ class SaleRecordProcessor(
         return SaleRecordORM
 
     @override
-    def set_response_schema(self) -> type[SaleRecordResponse]:
-        return SaleRecordResponse
+    def set_orm_foreign_key(self) -> str:
+        return "location"
 
     @override
     def get_sales_by_location(

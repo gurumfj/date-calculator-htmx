@@ -18,7 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar, override
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
@@ -27,6 +27,7 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 class Settings(BaseSettings):
     """應用程序設置模型"""
 
+    TIMEZONE: str = Field(default="Asia/Taipei")
     BRANCH: str = Field(default="unset in env")
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
@@ -49,9 +50,9 @@ class Settings(BaseSettings):
     )
 
     # Telegram 通知配置
+    FEATURES_TELEGRAM: bool = Field(default=True)
     TELEGRAM_BOT_TOKEN: str | None = Field(default=None)
     TELEGRAM_CHAT_ID: str | None = Field(default=None)
-    CUSTOM_TELEGRAM_WEBHOOK_URL: AnyHttpUrl | None = Field(default=None)
 
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),

@@ -197,12 +197,12 @@ class BreedRecordResponse(IResponse):
 
 
 class BreedRecordProcessor(
-    IProcessor[BreedRecordORM, BreedRecordValidator, BreedRecordResponse],
+    IProcessor[BreedRecordORM, BreedRecordValidator],
     BreedRepositoryProtocol,
 ):
     @override
-    def set_response_schema(self) -> type[BreedRecordResponse]:
-        return BreedRecordResponse
+    def set_processor_name(self) -> str:
+        return "入雛"
 
     @override
     def set_validator_schema(self) -> type[BreedRecordValidator]:
@@ -213,9 +213,13 @@ class BreedRecordProcessor(
         return BreedRecordORM
 
     @override
+    def set_orm_foreign_key(self) -> str:
+        return "batch_name"
+
+    @override
     def get_all(self, session: Session) -> list[BreedRecord]:
-        stmt = select(self._orm_schema).where(
-            self._orm_schema.event == RecordEvent.ADDED
+        stmt = select(self.set_orm_schema()).where(
+            self.set_orm_schema().event == RecordEvent.ADDED
         )
         result = session.exec(stmt).all()
         return [BreedRecordProcessor.orm_to_domain(orm) for orm in result]
