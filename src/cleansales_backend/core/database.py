@@ -38,44 +38,44 @@ logger = logging.getLogger(__name__)
 
 class Database:
     _engine: Engine
-    _db_path: Path
 
-    def __init__(self, db_path: Path | str) -> None:
-        self._db_path = Path(db_path) if isinstance(db_path, str) else db_path
-        self._db_path.parent.mkdir(exist_ok=True)
+    def __init__(self, sqlite_db_path: Path | str | None = None) -> None:
+        try:
+            self._engine = (
+                self.create_supabase_db()
+                if settings.FEATURES_SUPABASE
+                else self.create_sqlite_db(sqlite_db_path)
+            )
+        except Exception as e:
+            logger.error(f"初始化數據庫時發生錯誤{e}")
+            self._engine = self.create_sqlite_db(sqlite_db_path)
+        finally:
+            # 啟動數據庫監控
+            monitor.start_monitoring(self._engine)
+            # 啟動數據庫監控
+            monitor.start_monitoring(self._engine)
 
-        # 創建引擎時啟用連接池，並添加 SQLite 優化設置
-        connect_args = {
-            "timeout": 30,  # 連接超時時間
-            "check_same_thread": False,  # 允許跨線程訪問
-        }
-
-        self._engine = create_engine(
-            f"sqlite:///{self._db_path}",
-            echo=settings.DB_ECHO,
-            pool_size=5,  # 減小連接池大小以避免資源爭用
-            max_overflow=10,
-            pool_timeout=30,
-            pool_recycle=300,  # 更頻繁地回收連接
-            pool_pre_ping=True,  # 在使用前測試連接
-            connect_args=connect_args,
+    def create_sqlite_db(self, sqlite_db_path: Path | str | None = None) -> Engine:
+        """創建 SQLite 數據庫"""
+        db_path = (
+            Path(sqlite_db_path) if sqlite_db_path else Path(settings.SQLITE_DB_PATH)
         )
-
-        # 啟用外鍵約束
-        with self._engine.connect() as conn:
+        logger.info(f"Creating database at {db_path.absolute()}")
+        db_path.parent.mkdir(exist_ok=True)
+        logger.info(f"Database created at {db_path.absolute()}")
+        engine = create_engine(f"sqlite:///{db_path}")
+        with engine.connect() as conn:
             _ = conn.execute(text("PRAGMA foreign_keys=ON"))
             conn.commit()
+        SQLModel.metadata.create_all(engine)
+        return engine
 
-        # 創建表
-        SQLModel.metadata.create_all(self._engine)
-
-        # 應用數據庫優化
-        # setup_db_optimizations(self._engine)
-
-        # 啟動數據庫監控
-        monitor.start_monitoring(self._engine)
-
-        logger.info(f"Database created at {self._db_path.absolute()}")
+    def create_supabase_db(self) -> Engine:
+        """創建 Supabase 數據庫"""
+        database_url = f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}?sslmode=require"
+        engine = create_engine(database_url)
+        SQLModel.metadata.create_all(engine)
+        return engine
 
     def get_session(self) -> Generator[Session, None, None]:
         """獲取數據庫會話，用於 FastAPI 依賴注入
@@ -111,7 +111,6 @@ class Database:
 
         while retry_count < max_retries:
             try:
-                logger.debug(f"Database path: {self._db_path}")
                 session = Session(self._engine)
                 logger.debug("開始數據庫會話")
 

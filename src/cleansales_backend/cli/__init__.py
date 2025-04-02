@@ -34,7 +34,7 @@ def create_parser() -> argparse.ArgumentParser:
             "-db": {
                 "dest": "db_path",
                 "type": Path,
-                "help": f"資料庫檔案路徑 (預設: {settings.DB_PATH})",
+                "help": f"資料庫檔案路徑 (預設: {settings.SQLITE_DB_PATH})",
             },
         },
         "commands": {
@@ -136,7 +136,7 @@ def main() -> None:
     args = parse_args()
     _db = (
         Database(args.db_path)
-        if args.db_path and args.db_path != settings.DB_PATH
+        if args.db_path and args.db_path != settings.SQLITE_DB_PATH
         else core_db
     )
     breed_processor = BreedRecordProcessor()

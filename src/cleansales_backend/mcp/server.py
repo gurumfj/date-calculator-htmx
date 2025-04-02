@@ -38,7 +38,7 @@ from cleansales_backend.services import QueryService
 
 mcp = FastMCP("cleansales-server")
 
-db = Database(settings.DB_PATH)
+db = Database(settings.SQLITE_DB_PATH)
 sale_repository = SaleRecordProcessor()
 breed_repository = BreedRecordProcessor()
 feed_repository = FeedRecordProcessor()

@@ -19,7 +19,11 @@ from .process_executor import ProcessExecutor
 from .telegram_notifier import TelegramNotifier
 
 # 創建核心數據庫實例和事件總線實例
-core_db = Database(settings.DB_PATH)
+if settings.FEATURES_SUPABASE:
+    core_db = Database()
+else:
+    core_db = Database(settings.SQLITE_DB_PATH)
+
 _event_bus = EventBus()
 
 

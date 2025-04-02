@@ -31,8 +31,16 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
     # 數據庫配置
-    DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")
     DB_ECHO: bool = Field(default=False)
+    SQLITE_DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")
+
+    # supabase
+    FEATURES_SUPABASE: bool = Field(default=False)
+    SUPABASE_DB_HOST: str = Field(default="")
+    SUPABASE_DB_PASSWORD: str = Field(default="")
+    SUPABASE_DB_USER: str = Field(default="")
+    SUPABASE_DB_PORT: int = Field(default=5432)
+    SUPABASE_DB_NAME: str = Field(default="")
 
     # 日誌配置
     LOG_LEVEL: str = Field(default="DEBUG")
@@ -58,7 +66,7 @@ class Settings(BaseSettings):
         在這裡處理目錄創建和 Telegram 配置
         """
         # 確保必要的目錄存在
-        self.DB_PATH.parent.mkdir(exist_ok=True)
+        self.SQLITE_DB_PATH.parent.mkdir(exist_ok=True)
 
 
 @lru_cache
