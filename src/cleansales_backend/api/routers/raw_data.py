@@ -29,8 +29,12 @@ from fastapi import (
     Response,
 )
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
+from cleansales_backend.domain.models import BreedRecord, FeedRecord, SaleRecord
 from cleansales_backend.services import QueryService
+
+from .. import get_query_service
 
 # 配置查詢路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
@@ -39,21 +43,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/raw", tags=["raw"])
 
 
-def get_query_service() -> QueryService:
-    """依賴注入：獲取查詢服務實例
-
-    此函數在全局使用同一個QueryService實例，避免重複創建
-
-    Returns:
-        QueryService: 查詢服務實例
-    """
-    from cleansales_backend.api.routers.query import _query_service
-
-    return _query_service
+class RawBatchDataResponse(BaseModel):
+    batch_name: str | None
+    farm_name: str
+    address: str | None
+    farmer_name: str | None
+    veterinarian: str | None
+    breeds: list[BreedRecord]
+    sales: list[SaleRecord]
+    feeds: list[FeedRecord]
 
 
 @router.get(
     "/batch",
+    response_model=RawBatchDataResponse,
     response_model_exclude_unset=True,
     response_model_exclude_none=True,
 )
@@ -109,32 +112,19 @@ async def get_raw_batch_data(
         )
 
         # 根據參數選擇性返回數據
-        result = []
-        for aggregate in filtered_aggregates:
-            batch_data = {
-                "batch_name": aggregate.batch_name,
-                "farm_name": aggregate.farm_name,
-                "address": aggregate.address,
-                "farmer_name": aggregate.farmer_name,
-                "veterinarian": aggregate.veterinarian,
-            }
-
-            if include_breeds:
-                batch_data["breeds"] = [
-                    breed.model_dump(mode="json") for breed in aggregate.breeds
-                ]
-
-            if include_sales:
-                batch_data["sales"] = [
-                    sale.model_dump(mode="json") for sale in aggregate.sales
-                ]
-
-            if include_feeds:
-                batch_data["feeds"] = [
-                    feed.model_dump(mode="json") for feed in aggregate.feeds
-                ]
-
-            result.append(batch_data)
+        result = [
+            RawBatchDataResponse(
+                batch_name=aggregate.batch_name,
+                farm_name=aggregate.farm_name,
+                address=aggregate.address,
+                farmer_name=aggregate.farmer_name,
+                veterinarian=aggregate.veterinarian,
+                breeds=aggregate.breeds if include_breeds else [],
+                sales=aggregate.sales if include_sales else [],
+                feeds=aggregate.feeds if include_feeds else [],
+            ).model_dump(mode="json")
+            for aggregate in filtered_aggregates
+        ]
 
         # 生成 ETag 並處理 304 響應
         content_str = json.dumps(result)
@@ -198,28 +188,16 @@ async def get_raw_batch_data_by_name(
         # 只處理第一個匹配的批次
         aggregate = filtered_aggregates[0]
 
-        batch_data = {
-            "batch_name": aggregate.batch_name,
-            "farm_name": aggregate.farm_name,
-            "address": aggregate.address,
-            "farmer_name": aggregate.farmer_name,
-            "veterinarian": aggregate.veterinarian,
-        }
-
-        if include_breeds:
-            batch_data["breeds"] = [
-                breed.model_dump(mode="json") for breed in aggregate.breeds
-            ]
-
-        if include_sales:
-            batch_data["sales"] = [
-                sale.model_dump(mode="json") for sale in aggregate.sales
-            ]
-
-        if include_feeds:
-            batch_data["feeds"] = [
-                feed.model_dump(mode="json") for feed in aggregate.feeds
-            ]
+        batch_data = RawBatchDataResponse(
+            batch_name=aggregate.batch_name,
+            farm_name=aggregate.farm_name,
+            address=aggregate.address,
+            farmer_name=aggregate.farmer_name,
+            veterinarian=aggregate.veterinarian,
+            breeds=aggregate.breeds if include_breeds else [],
+            sales=aggregate.sales if include_sales else [],
+            feeds=aggregate.feeds if include_feeds else [],
+        ).model_dump(mode="json")
 
         # 生成 ETag 並處理 304 響應
         content_str = json.dumps(batch_data)

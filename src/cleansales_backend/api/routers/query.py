@@ -31,17 +31,14 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
-from cleansales_backend.core import get_event_bus
 from cleansales_backend.domain.models.batch_aggregate import (
     BatchAggregateModel,
     SaleRecordModel,
 )
 from cleansales_backend.domain.models.feed_record import FeedRecord
-from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
-from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
 from cleansales_backend.services import QueryService
 
-from .. import core_db
+from .. import get_query_service
 from ..models import ContextModel, ResponseModel
 
 # 配置查詢路由器專用的日誌記錄器
@@ -50,26 +47,6 @@ logger = logging.getLogger(__name__)
 
 # 創建路由器實例，設置前綴和標籤
 router = APIRouter(prefix="/api", tags=["api"])
-
-_breed_repository = BreedRecordProcessor()
-_sale_repository = SaleRecordProcessor()
-_feed_repository = FeedRecordProcessor()
-_query_service = QueryService(
-    _breed_repository,
-    _sale_repository,
-    _feed_repository,
-    core_db,
-    get_event_bus(),
-)
-
-
-def get_query_service() -> QueryService:
-    """依賴注入：獲取查詢服務實例
-
-    Returns:
-        QueryService: 查詢服務實例
-    """
-    return _query_service
 
 
 @router.get(

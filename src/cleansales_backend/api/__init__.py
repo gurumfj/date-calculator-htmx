@@ -24,6 +24,10 @@ from cleansales_backend.core import (
     get_event_bus,
     settings,
 )
+from cleansales_backend.processors.breeds_schema import BreedRecordProcessor
+from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
+from cleansales_backend.processors.sales_schema import SaleRecordProcessor
+from cleansales_backend.services.query_service import QueryService
 
 logger = logging.getLogger(__name__)
 # 設定根 logger
@@ -55,6 +59,27 @@ _telegram_notifier = TelegramNotifier(
         ProcessEvent.FEEDS_PROCESSING_FAILED,
     ],
 )
+
+
+_breed_repository = BreedRecordProcessor()
+_sale_repository = SaleRecordProcessor()
+_feed_repository = FeedRecordProcessor()
+_query_service = QueryService(
+    _breed_repository,
+    _sale_repository,
+    _feed_repository,
+    core_db,
+    get_event_bus(),
+)
+
+
+def get_query_service() -> QueryService:
+    """依賴注入：獲取查詢服務實例
+
+    Returns:
+        QueryService: 查詢服務實例
+    """
+    return _query_service
 
 
 __all__ = ["core_db", "get_event_bus", "ProcessEvent"]
