@@ -60,6 +60,13 @@ app = FastAPI(
 app.include_router(query.router)  # 這會處理 /api/not-completed
 app.include_router(upload.router)  # 這會處理 /api/upload
 
+# 根據功能開關載入原始數據 API 路由
+if settings.FEATURES_RAW_DATA_API:
+    from .routers import raw_data
+
+    app.include_router(raw_data.router)  # 這會處理 /api/raw/* 相關端點
+    logger.info("已啟用原始數據API")
+
 
 # 健康檢查端點
 @app.get("/")
@@ -69,12 +76,23 @@ async def health_check() -> JSONResponse:
     返回服務狀態和版本信息
     """
     cache_state = get_query_service().get_batch_cache_info()
+
+    # 收集已啟用的功能列表
+    enabled_features = []
+    if settings.FEATURES_TELEGRAM:
+        enabled_features.append("TELEGRAM")
+    if settings.FEATURES_RAW_DATA_API:
+        enabled_features.append("RAW_DATA_API")
+    if settings.FEATURES_SUPABASE:
+        enabled_features.append("SUPABASE")
+
     return JSONResponse(
         {
             "status": "healthy",
             "branch": settings.BRANCH,
             "cache_state": cache_state,
             "api_version": app.version,
+            "enabled_features": enabled_features,
         }
     )
 

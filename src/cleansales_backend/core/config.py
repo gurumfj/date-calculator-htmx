@@ -49,8 +49,11 @@ class Settings(BaseSettings):
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
-    # Telegram 通知配置
+    # 功能開關配置
     FEATURES_TELEGRAM: bool = Field(default=True)
+    FEATURES_RAW_DATA_API: bool = Field(default=True)  # 是否啟用原始數據API
+
+    # Telegram 通知配置
     TELEGRAM_BOT_TOKEN: str | None = Field(default=None)
     TELEGRAM_CHAT_ID: str | None = Field(default=None)
 
