@@ -202,16 +202,6 @@ class BatchRecordModel(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
-    # @computed_field
-    # @property
-    # def day_age(self) -> int:
-    #     return day_age(self.breed_date)
-
-    # @computed_field
-    # @property
-    # def week_age(self) -> str:
-    #     return week_age(self.day_age)
-
 
 class SaleRecordModel(BaseModel):
     breed_date: list[datetime]

@@ -31,7 +31,9 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from cleansales_backend.domain.models import BreedRecord, FeedRecord, SaleRecord
+from cleansales_backend.domain.models.batch_aggregate import BatchRecordModel
+from cleansales_backend.domain.models.feed_record import FeedRecord
+from cleansales_backend.domain.models.sale_record import SaleRecord
 from cleansales_backend.services import QueryService
 
 from .. import get_query_service
@@ -49,7 +51,7 @@ class RawBatchDataResponse(BaseModel):
     address: str | None
     farmer_name: str | None
     veterinarian: str | None
-    breeds: list[BreedRecord]
+    breeds: list[BatchRecordModel]
     sales: list[SaleRecord]
     feeds: list[FeedRecord]
 
@@ -119,7 +121,7 @@ async def get_raw_batch_data(
                 address=aggregate.address,
                 farmer_name=aggregate.farmer_name,
                 veterinarian=aggregate.veterinarian,
-                breeds=aggregate.breeds if include_breeds else [],
+                breeds=aggregate.batch_records if include_breeds else [],
                 sales=aggregate.sales if include_sales else [],
                 feeds=aggregate.feeds if include_feeds else [],
             ).model_dump(mode="json")
@@ -194,12 +196,12 @@ async def get_raw_batch_data_by_name(
             address=aggregate.address,
             farmer_name=aggregate.farmer_name,
             veterinarian=aggregate.veterinarian,
-            breeds=aggregate.breeds if include_breeds else [],
+            breeds=aggregate.batch_records if include_breeds else [],
             sales=aggregate.sales if include_sales else [],
             feeds=aggregate.feeds if include_feeds else [],
         ).model_dump(mode="json")
 
-        # 生成 ETag 並處理 304 響應
+        # 生成 ETag 並處理 304 韉應
         content_str = json.dumps(batch_data)
         content_bytes = content_str.encode("utf-8")
         etag = hashlib.md5(content_bytes).hexdigest()
