@@ -31,6 +31,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
+from cleansales_backend.api import get_query_service
 from cleansales_backend.domain.models.batch_aggregate import (
     BatchAggregateModel,
     SaleRecordModel,
@@ -38,7 +39,6 @@ from cleansales_backend.domain.models.batch_aggregate import (
 from cleansales_backend.domain.models.feed_record import FeedRecord
 from cleansales_backend.services import QueryService
 
-from .. import get_query_service
 from ..models import ContextModel, ResponseModel
 
 # 配置查詢路由器專用的日誌記錄器
@@ -411,3 +411,12 @@ async def get_excel_sales_data(
         raise HTTPException(
             status_code=500, detail={"error": str(e), "type": type(e).__name__}
         )
+
+
+__all__ = [
+    "router",
+    "get_batch_aggregates_by_criteria",
+    "get_sales_data",
+    "get_feeds_data",
+    "get_query_service",
+]

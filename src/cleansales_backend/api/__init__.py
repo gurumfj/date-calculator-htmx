@@ -82,4 +82,4 @@ def get_query_service() -> QueryService:
     return _query_service
 
 
-__all__ = ["core_db", "get_event_bus", "ProcessEvent"]
+__all__ = ["core_db", "get_event_bus", "ProcessEvent", "get_query_service"]
