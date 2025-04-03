@@ -100,15 +100,7 @@ class BatchAggregate:
         if all(b.batch_state == BatchState.COMPLETED for b in self.breeds):
             return BatchState.COMPLETED
 
-        # 如果所有飼料紀錄都已結案，則整個批次結案
-        if all(f.batch_state == BatchState.COMPLETED for f in self.feeds):
-            return BatchState.COMPLETED
-
-        if self.sales and all(
-            sale.sale_state == BatchState.COMPLETED for sale in self.sales
-        ):
-            return BatchState.COMPLETED
-
+        # 如果有銷售紀錄，則批次狀態為銷售中
         if self.sales and any(
             sale.sale_state == BatchState.SALE for sale in self.sales
         ):

@@ -32,6 +32,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from cleansales_backend.domain.models.batch_aggregate import BatchRecordModel
+from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.domain.models.feed_record import FeedRecord
 from cleansales_backend.domain.models.sale_record import SaleRecord
 from cleansales_backend.services import QueryService
@@ -51,6 +52,7 @@ class RawBatchDataResponse(BaseModel):
     address: str | None
     farmer_name: str | None
     veterinarian: str | None
+    batch_state: BatchState
     breeds: list[BatchRecordModel]
     sales: list[SaleRecord]
     feeds: list[FeedRecord]
@@ -121,6 +123,7 @@ async def get_raw_batch_data(
                 address=aggregate.address,
                 farmer_name=aggregate.farmer_name,
                 veterinarian=aggregate.veterinarian,
+                batch_state=aggregate.batch_state,
                 breeds=aggregate.batch_records if include_breeds else [],
                 sales=aggregate.sales if include_sales else [],
                 feeds=aggregate.feeds if include_feeds else [],
@@ -196,6 +199,7 @@ async def get_raw_batch_data_by_name(
             address=aggregate.address,
             farmer_name=aggregate.farmer_name,
             veterinarian=aggregate.veterinarian,
+            batch_state=aggregate.batch_state,
             breeds=aggregate.batch_records if include_breeds else [],
             sales=aggregate.sales if include_sales else [],
             feeds=aggregate.feeds if include_feeds else [],
