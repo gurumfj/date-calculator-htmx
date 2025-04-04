@@ -6,7 +6,7 @@ services:
     env_file:
       - .env-dev
     ports:
-      - "8888:8000"
+      - "8888:8001"
     volumes:
       - ./data:/app/data
       - ./src:/app/src
@@ -14,12 +14,9 @@ services:
       - ./uv.lock:/app/uv.lock
       - ./logs:/app/logs
     restart: unless-stopped
-    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8000 --reload --log-config=/app/src/log_config.json
-    # networks:
-    #   - supabase-network
-
-
-
+    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8001 --reload --log-config=/app/src/log_config.json
+    networks:
+      - supabase_default
 
 
   prod:
@@ -41,8 +38,7 @@ services:
         compress: "true"
 
 
-# networks:
-#   supabase-network:
-#     name: supabase-network
-#     driver: bridge
-#     external: true
+networks:
+  supabase_default:
+    name: supabase_default
+    external: true

@@ -41,21 +41,18 @@ class Database:
 
     def __init__(self, sqlite_db_path: Path | str | None = None) -> None:
         try:
-            self._engine = (
-                self.create_supabase_db()
-                if settings.FEATURES_SUPABASE
-                else self.create_sqlite_db(sqlite_db_path)
-            )
+            if settings.DB == "sqlite":
+                self._engine = self.create_sqlite_db(sqlite_db_path)
+            elif settings.DB == "supabase":
+                self._engine = self.create_supabase_db()
+            else:
+                raise ValueError(f"Invalid DB value: {settings.DB}")
         except Exception:
             logger.error("初始化數據庫時發生錯誤")
             raise Exception("初始化數據庫時發生錯誤")
         finally:
             # 啟動數據庫監控
             monitor.start_monitoring(self._engine)
-
-    def get_db_state(self) -> str:
-        """獲取數據庫狀態"""
-        return "Supabase" if settings.FEATURES_SUPABASE else "SQLite"
 
     def create_sqlite_db(self, sqlite_db_path: Path | str | None = None) -> Engine:
         """創建 SQLite 數據庫"""

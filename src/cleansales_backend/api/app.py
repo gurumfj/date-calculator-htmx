@@ -53,7 +53,7 @@ app = FastAPI(
     ## 分支信息
     - 分支: {settings.BRANCH}
     """,
-    version="1.0.1",
+    version="1.1.0",
 )
 
 # 註冊 API 路由
@@ -77,22 +77,13 @@ async def health_check() -> JSONResponse:
     """
     cache_state = get_query_service().get_batch_cache_info()
 
-    # 收集已啟用的功能列表
-    enabled_features = []
-    if settings.FEATURES_TELEGRAM:
-        enabled_features.append("TELEGRAM")
-    if settings.FEATURES_RAW_DATA_API:
-        enabled_features.append("RAW_DATA_API")
-    if settings.FEATURES_SUPABASE:
-        enabled_features.append("SUPABASE")
-
+    config = settings.to_dict()
     return JSONResponse(
         {
             "status": "healthy",
-            "branch": settings.BRANCH,
-            "cache_state": cache_state,
             "api_version": app.version,
-            "enabled_features": enabled_features,
+            "config": config,
+            "cache_state": cache_state,
         }
     )
 

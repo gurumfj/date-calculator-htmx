@@ -19,10 +19,12 @@ from .process_executor import ProcessExecutor
 from .telegram_notifier import TelegramNotifier
 
 # 創建核心數據庫實例和事件總線實例
-if settings.FEATURES_SUPABASE:
+if settings.DB == "supabase":
     core_db = Database()
-else:
+elif settings.DB == "sqlite":
     core_db = Database(settings.SQLITE_DB_PATH)
+else:
+    raise ValueError(f"Invalid DB value: {settings.DB}")
 
 _event_bus = EventBus()
 
