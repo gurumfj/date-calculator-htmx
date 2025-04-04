@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     # supabase
     FEATURES_SUPABASE: bool = Field(default=False)
+    SUPABASE_DB_POOL: bool = Field(default=False)
     SUPABASE_DB_HOST: str = Field(default="")
     SUPABASE_DB_PASSWORD: str = Field(default="")
     SUPABASE_DB_USER: str = Field(default="")
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
         env_file=str(ROOT_DIR / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",
     )
 
     @override

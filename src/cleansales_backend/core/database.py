@@ -46,14 +46,16 @@ class Database:
                 if settings.FEATURES_SUPABASE
                 else self.create_sqlite_db(sqlite_db_path)
             )
-        except Exception as e:
-            logger.error(f"初始化數據庫時發生錯誤{e}")
-            self._engine = self.create_sqlite_db(sqlite_db_path)
+        except Exception:
+            logger.error("初始化數據庫時發生錯誤")
+            raise Exception("初始化數據庫時發生錯誤")
         finally:
             # 啟動數據庫監控
             monitor.start_monitoring(self._engine)
-            # 啟動數據庫監控
-            monitor.start_monitoring(self._engine)
+
+    def get_db_state(self) -> str:
+        """獲取數據庫狀態"""
+        return "Supabase" if settings.FEATURES_SUPABASE else "SQLite"
 
     def create_sqlite_db(self, sqlite_db_path: Path | str | None = None) -> Engine:
         """創建 SQLite 數據庫"""
@@ -72,10 +74,24 @@ class Database:
 
     def create_supabase_db(self) -> Engine:
         """創建 Supabase 數據庫"""
-        database_url = f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}?sslmode=require"
-        engine = create_engine(database_url)
-        SQLModel.metadata.create_all(engine)
-        return engine
+        try:
+            database_url = f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}"
+            engine = create_engine(
+                database_url,
+                pool_pre_ping=settings.SUPABASE_DB_POOL,
+            )
+            SQLModel.metadata.create_all(engine)
+            logger.info("Supabase 數據庫創建成功")
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT 1"))
+                print("Supabase 數據庫連接成功") if result.scalar() else print(
+                    "Supabase 數據庫連接失敗"
+                )
+                conn.commit()
+            return engine
+        except Exception as e:
+            logger.error(f"創建 Supabase 數據庫時發生錯誤: {e}")
+            raise
 
     def get_session(self) -> Generator[Session, None, None]:
         """獲取數據庫會話，用於 FastAPI 依賴注入
