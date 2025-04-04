@@ -28,14 +28,18 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+    ports:
+      - "8888:8001"
     restart: unless-stopped
-    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8000 --log-config=/app/src/log_config.json
+    command: uv run uvicorn cleansales_backend.api.app:app --host 0.0.0.0 --port 8001 --log-config=/app/src/log_config.json
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
         compress: "true"
+    networks:
+      - supabase_default
 
 
 networks:

@@ -14,7 +14,6 @@
 ################################################################################
 """
 
-from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar, Literal, override
 
@@ -91,14 +90,4 @@ class Settings(BaseSettings):
         }
 
 
-@lru_cache
-def get_settings() -> Settings:
-    """獲取設置實例（使用緩存）
-
-    Returns:
-        Settings: 設置實例
-    """
-    return Settings()
-
-
-settings: Settings = get_settings()
+settings: Settings = Settings()
