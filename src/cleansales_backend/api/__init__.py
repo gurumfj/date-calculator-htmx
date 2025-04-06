@@ -16,20 +16,27 @@
 
 import logging
 
+from rich.logging import RichHandler
+
 from cleansales_backend.core import (
-    ProcessEvent,
-    ProcessExecutor,
-    TelegramNotifier,
-    core_db,
-    get_event_bus,
-    settings,
+    get_core_db,
+    get_settings,
 )
-from cleansales_backend.processors.breeds_schema import BreedRecordProcessor
-from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
-from cleansales_backend.processors.sales_schema import SaleRecordProcessor
+from cleansales_backend.event_bus.event_bus import get_event_bus
+from cleansales_backend.event_bus.executor.process_executor import ProcessExecutor
+from cleansales_backend.event_bus.executor.telegram_notifier import TelegramNotifier
+from cleansales_backend.processors import RespositoryServiceImpl
 from cleansales_backend.services.query_service import QueryService
 
 logger = logging.getLogger(__name__)
+
+logging.basicConfig(
+    level=get_settings().LOG_LEVEL,
+    handlers=[RichHandler(rich_tracebacks=True, markup=True)],
+)
+
+settings = get_settings()
+core_db = get_core_db()
 # 設定根 logger
 logging.basicConfig(
     level=settings.LOG_LEVEL,
@@ -38,38 +45,18 @@ logging.basicConfig(
 )
 
 
-_process_executor = ProcessExecutor(
-    event_bus=get_event_bus(),
-    register_events=[
-        ProcessEvent.SALES_PROCESSING_STARTED,
-        ProcessEvent.BREEDS_PROCESSING_STARTED,
-        ProcessEvent.FEEDS_PROCESSING_STARTED,
-    ],
-)
+_process_executor = ProcessExecutor(event_bus=get_event_bus())
 
 
 _telegram_notifier = TelegramNotifier(
     event_bus=get_event_bus(),
-    register_events=[
-        ProcessEvent.SALES_PROCESSING_COMPLETED,
-        ProcessEvent.SALES_PROCESSING_FAILED,
-        ProcessEvent.BREEDS_PROCESSING_COMPLETED,
-        ProcessEvent.BREEDS_PROCESSING_FAILED,
-        ProcessEvent.FEEDS_PROCESSING_COMPLETED,
-        ProcessEvent.FEEDS_PROCESSING_FAILED,
-    ],
+    settings=settings,
 )
 
-
-_breed_repository = BreedRecordProcessor()
-_sale_repository = SaleRecordProcessor()
-_feed_repository = FeedRecordProcessor()
 _query_service = QueryService(
-    _breed_repository,
-    _sale_repository,
-    _feed_repository,
-    core_db,
-    get_event_bus(),
+    repository_service=RespositoryServiceImpl(),
+    db=core_db,
+    event_bus=get_event_bus(),
 )
 
 
@@ -82,4 +69,4 @@ def get_query_service() -> QueryService:
     return _query_service
 
 
-__all__ = ["core_db", "get_event_bus", "ProcessEvent", "get_query_service"]
+__all__ = ["core_db", "get_event_bus", "get_query_service"]

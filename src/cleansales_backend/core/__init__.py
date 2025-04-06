@@ -11,37 +11,11 @@
 ################################################################################
 """
 
-from .config import settings
-from .database import Database
-from .event_bus import Event, EventBus
-from .events import ProcessEvent, SystemEvent
-from .process_executor import ProcessExecutor
-from .telegram_notifier import TelegramNotifier
-
-# 創建核心數據庫實例和事件總線實例
-if settings.DB == "supabase":
-    core_db = Database()
-elif settings.DB == "sqlite":
-    core_db = Database(settings.SQLITE_DB_PATH)
-else:
-    raise ValueError(f"Invalid DB value: {settings.DB}")
-
-_event_bus = EventBus()
-
-
-def get_event_bus() -> EventBus:
-    return _event_bus
-
+from .config import get_settings
+from .database import Database, get_core_db
 
 __all__ = [
-    "settings",
     "Database",
-    "ProcessExecutor",
-    "SystemEvent",
-    "Event",
-    "EventBus",
-    "TelegramNotifier",
-    "ProcessEvent",
-    "core_db",
-    "get_event_bus",
+    "get_settings",
+    "get_core_db",
 ]

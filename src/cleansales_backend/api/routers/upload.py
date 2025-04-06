@@ -22,7 +22,12 @@ import pandas as pd
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import JSONResponse
 
-from cleansales_backend.core import Event, EventBus
+from cleansales_backend.event_bus.event_bus import EventBus, get_event_bus
+from cleansales_backend.event_bus.events import ProcessedEvent
+from cleansales_backend.event_bus.executor.process_executor import (
+    ProcessContent,
+    ProcessorEventPayload,
+)
 from cleansales_backend.processors import (
     BreedRecordProcessor,
     FeedRecordProcessor,
@@ -30,10 +35,6 @@ from cleansales_backend.processors import (
     SaleRecordProcessor,
 )
 from cleansales_backend.shared.models import SourceData
-
-from .. import ProcessEvent, get_event_bus
-
-# from .. import batch_aggrs_cache
 
 # 配置路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
@@ -116,13 +117,14 @@ async def process_breeds_file(
 
     # 執行數據處理
     event_bus.publish(
-        Event(
-            event=ProcessEvent.BREEDS_PROCESSING_STARTED,
-            message="處理入雛資料檔案開始",
-            content={
-                "source": source_data,
-                "check_md5": check_exists,
-            },
+        ProcessorEventPayload(
+            event=ProcessedEvent.BREEDS_PROCESSING_STARTED,
+            content=ProcessContent(
+                source_params={
+                    "source": source_data,
+                    "check_md5": check_exists,
+                },
+            ),
         )
     )
 
@@ -165,13 +167,14 @@ async def process_sales_file(
 
     # 執行數據處理
     event_bus.publish(
-        Event(
-            event=ProcessEvent.SALES_PROCESSING_STARTED,
-            message="處理銷售資料檔案開始",
-            content={
-                "source": source_data,
-                "check_md5": check_exists,
-            },
+        ProcessorEventPayload(
+            event=ProcessedEvent.SALES_PROCESSING_STARTED,
+            content=ProcessContent(
+                source_params={
+                    "source": source_data,
+                    "check_md5": check_exists,
+                },
+            ),
         )
     )
 
@@ -214,13 +217,14 @@ async def process_feeds_file(
 
     # 執行數據處理
     event_bus.publish(
-        Event(
-            event=ProcessEvent.FEEDS_PROCESSING_STARTED,
-            message="處理飼料記錄檔案開始",
-            content={
-                "source": source_data,
-                "check_md5": check_exists,
-            },
+        ProcessorEventPayload(
+            event=ProcessedEvent.FEEDS_PROCESSING_STARTED,
+            content=ProcessContent(
+                source_params={
+                    "source": source_data,
+                    "check_md5": check_exists,
+                },
+            ),
         )
     )
 

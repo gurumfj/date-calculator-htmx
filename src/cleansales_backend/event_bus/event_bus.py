@@ -26,7 +26,7 @@ from typing_extensions import Protocol
 logger = logging.getLogger(__name__)
 
 
-class IEventContent(Protocol):
+class IEventPayload(Protocol):
     event: Enum
     content: Any
 
@@ -40,17 +40,15 @@ class EventBus:
     def __init__(self) -> None:
         self.callbacks: dict[Enum, list[Callable[[Any], None]]] = defaultdict(list)
 
-    def publish(self, event: IEventContent) -> None:
+    def publish(self, payload: IEventPayload) -> None:
         """發布事件
 
         Args:
-            event (IEventContent): 事件內容
+            payload (IEventPayload): 事件內容
         """
-        for callback in self.callbacks[event.event]:
-            threading.Thread(
-                target=callback, args=(event.content,), daemon=False
-            ).start()
-            logger.debug(f"Published event: {event}")
+        for callback in self.callbacks[payload.event]:
+            threading.Thread(target=callback, args=(payload,), daemon=False).start()
+            logger.debug(f"Published event: {payload}")
 
     def register(self, event_type: Enum, callback: Callable[[Any], None]) -> None:
         """註冊事件處理器

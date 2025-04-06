@@ -1,22 +1,8 @@
-"""
-################################################################################
-# 事件定義模組
-#
-# 這個模組提供了系統中使用的所有事件類型定義，包括：
-# 1. 處理事件枚舉
-# 2. 系統事件枚舉
-# 3. 其他事件類型
-#
-# 主要功能：
-# - 定義處理事件枚舉
-# - 定義系統事件枚舉
-################################################################################
-"""
-
+from dataclasses import dataclass
 from enum import Enum
 
 
-class ProcessEvent(str, Enum):
+class ProcessedEvent(str, Enum):
     """處理事件枚舉"""
 
     SALES_PROCESSING_STARTED = "販售資料上傳開始"
@@ -30,7 +16,30 @@ class ProcessEvent(str, Enum):
     FEEDS_PROCESSING_FAILED = "飼料記錄上傳失敗"
 
 
-class SystemEvent(str, Enum):
-    """系統事件枚舉"""
+class BroadcastEvent(Enum):
+    SEND_MESSAGE = "Send Message"
+    SEND_DOCUMENT = "Send Document"
 
-    CACHE_CLEAR = "清除緩存"
+
+class Head(Enum):
+    TITLE = "title"
+    TEXT = "text"
+    BULLET = "bullet"
+
+
+@dataclass
+class LineObject:
+    head: Head
+    text: str
+
+
+@dataclass
+class BroadcastEventPayload:
+    event: Enum
+    content: list[LineObject]
+
+
+__all__ = [
+    "ProcessedEvent",
+    "BroadcastEvent",
+]

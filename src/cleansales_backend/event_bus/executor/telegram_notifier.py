@@ -1,38 +1,51 @@
-import datetime
 import html
 import logging
 import time
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Literal
+from typing import Protocol
 
-import pytz
 import requests
 from pydantic import AnyHttpUrl
+from rich.console import Console
+from rich.logging import RichHandler
 
-from .config import settings
-from .event_bus import Event, EventBus
+from cleansales_backend.event_bus import EventBus
+from cleansales_backend.event_bus.events import (
+    BroadcastEvent,
+    BroadcastEventPayload,
+    Head,
+    LineObject,
+)
 
 logger = logging.getLogger(__name__)
+console = Console()
+
+# 使用 rich 的 RichHandler 來美化日誌輸出
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(message)s",
+    handlers=[RichHandler(rich_tracebacks=True, markup=True)],
+)
 
 
-@dataclass
-class LineObject:
-    format: Literal["title", "text", "bullet"]
-    text: str
-
-
-class TelegramInitEvent(Enum):
-    INIT = "INIT"
+class TelegramSettings(Protocol):
+    FEATURES_TELEGRAM: bool
+    TELEGRAM_BOT_TOKEN: str | None
+    TELEGRAM_CHAT_ID: str | None
+    TIMEZONE: str
 
 
 class TelegramNotifier:
     """Telegram 通知處理器"""
 
     _event_bus: EventBus
-    _post_url: AnyHttpUrl | None
+    _post_url: AnyHttpUrl
+    _settings: TelegramSettings
 
-    def __init__(self, event_bus: EventBus, register_events: list[Enum]) -> None:
+    def __init__(
+        self,
+        event_bus: EventBus,
+        settings: TelegramSettings,
+    ) -> None:
         """初始化 Telegram 通知處理器
 
         Args:
@@ -40,135 +53,107 @@ class TelegramNotifier:
             register_events (list[Enum]): 要註冊的事件列表
         """
         self._event_bus = event_bus
-        self._post_url = None
-
-        # 註冊事件處理器，但根據功能是否啟用決定是否發送通知
-        self._register_event_handlers(register_events + [TelegramInitEvent.INIT])
+        self._settings = settings
 
         if not settings.FEATURES_TELEGRAM:
             logger.warning("Telegram notification is disabled in feature flags.")
             return
 
-        try:
-            self._post_url = self._configure_post_url()
-        except Exception as e:
-            logger.error(f"Failed to configure Telegram URL: {str(e)}")
-            return
-
-        if not self._post_url:
+        # 配置 Telegram URL
+        if not self._settings.TELEGRAM_BOT_TOKEN or not self._settings.TELEGRAM_CHAT_ID:
             logger.warning("Telegram notification is configured but invalid.")
             return
 
-        logger.info("Telegram notification configured successfully.")
-        self.hello()
-
-    def hello(self) -> None:
-        """發送初始化通知"""
-        logger.info("Hello from TelegramNotifier")
-        current_time = datetime.datetime.now(tz=pytz.timezone(settings.TIMEZONE))
-        formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
-
-        self._event_bus.publish(
-            Event(
-                event=TelegramInitEvent.INIT,
-                message="Telegram notification initialized",
-                content={
-                    "telegram_message": [
-                        LineObject(
-                            format="title",
-                            text=f"Telegram notification initialized at {formatted_time}",
-                        ),
-                    ],
-                },
-            )
+        self._post_url = self._configure_post_url(
+            token=self._settings.TELEGRAM_BOT_TOKEN,
+            chat_id=self._settings.TELEGRAM_CHAT_ID,
         )
+        # 註冊事件處理器
+        self._register_event_handlers()
 
-    def _configure_post_url(self) -> AnyHttpUrl | None:
+        logger.info("Telegram notification configured successfully.")
+
+    def _configure_post_url(self, token: str, chat_id: str) -> AnyHttpUrl:
         """配置 Telegram 通知 URL
 
+        Args:
+            token (str): 通知 token
+            chat_id (str): 通知 chat_id
+
         Returns:
-            AnyHttpUrl | None: 配置的URL或None
+            AnyHttpUrl: 配置的URL
         """
-        if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID:
-            try:
-                return AnyHttpUrl(
-                    f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={settings.TELEGRAM_CHAT_ID}"
-                )
-            except Exception as e:
-                logger.error(f"Invalid URL configuration: {e}")
+        if token.strip() == "" or chat_id.strip() == "":
+            raise ValueError("Telegram token and chat ID are required.")
+        return AnyHttpUrl(
+            f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}"
+        )
 
-        return None
-
-    def _register_event_handlers(self, events: list[Enum]) -> None:
+    def _register_event_handlers(self) -> None:
         """註冊事件處理器
 
         Args:
             events (list[Enum]): 要註冊的事件列表
         """
-        for event in events:
-            self._event_bus.register(event, self.notify)
+        self._event_bus.register(BroadcastEvent.SEND_MESSAGE, self.send_message)
+        # self._event_bus.register(TelegramEvent.SEND_DOCUMENT, self.send_document)
 
-    def _format_message(self, event: Event) -> str:
+    def _format_message(self, msg: list[LineObject]) -> str:
         """將事件格式化為消息文本
 
         Args:
-            event (Event): 事件對象
+            msg (list[LineObject]): 消息對象
 
         Returns:
             str: 格式化後的消息文本
         """
-        if not isinstance(event.content.get("telegram_message"), list):
-            logger.warning("Invalid telegram_message format")
-            return ""
-
-        message_objects: list[LineObject] = event.content["telegram_message"]
         message: list[str] = []
 
-        for line in message_objects:
+        for line in msg:
             # 確保所有文本都經過HTML轉義以防止注入
             escaped_text = html.escape(line.text)
 
-            if line.format == "title":
+            if line.head == Head.TITLE:
                 message.append(f"<b>{escaped_text}</b>")
-            elif line.format == "text":
+            elif line.head == Head.TEXT:
                 message.append(f"{'  ' + escaped_text}")
-            elif line.format == "bullet":
+            elif line.head == Head.BULLET:
                 message.append(f"{'    - ' + escaped_text}")
 
         return "\n".join(message)
 
-    def _prepare_payload(self, event: Event) -> dict[str, Any]:
+    def _prepare_payload(self, msg: list[LineObject]) -> dict[str, str | bool]:
         """準備要發送的資料
 
         Args:
-            event (Event): 事件對象
+            msg (list[LineObject]): 消息對象
 
         Returns:
-            Dict[str, Any]: 準備好的資料
+            Dict[str, str|bool]: 準備好的資料
         """
         return {
-            "text": self._format_message(event),
+            "text": self._format_message(msg),
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
 
-    def notify(self, event: Event) -> None:
+    def send_message(self, payload: BroadcastEventPayload) -> None:
         """發送 Telegram 通知
 
         Args:
-            event (Event): 要發送的事件
+            payload (BroadcastEventPayload): 要發送的消息
         """
         # 如果Telegram功能被禁用或配置無效，直接返回
-        if not settings.FEATURES_TELEGRAM or not self._post_url:
+        if not self._settings.FEATURES_TELEGRAM or not self._post_url:
             return
 
         try:
-            payload = self._prepare_payload(event)
-            if not payload["text"]:
+            body = self._prepare_payload(payload.content)
+            if not body["text"]:
                 logger.warning("Empty message, skipping notification")
                 return
 
-            response = self._send_notification(payload)
+            response = self._send_notification(body)
             self._handle_response(response)
 
         except requests.Timeout:
@@ -178,11 +163,11 @@ class TelegramNotifier:
         except Exception as e:
             logger.error(f"Unexpected error during Telegram notification: {str(e)}")
 
-    def _send_notification(self, payload: dict[str, Any]) -> requests.Response:
+    def _send_notification(self, payload: dict[str, str | bool]) -> requests.Response:
         """發送通知請求，包含重試邏輯
 
         Args:
-            payload (dict[str, Any]): 要發送的資料
+            payload (dict[str, str|bool]): 要發送的資料
 
         Returns:
             requests.Response: 請求響應
@@ -240,3 +225,29 @@ class TelegramNotifier:
         finally:
             # 確保響應對象被正確關閉
             response.close()
+
+
+if __name__ == "__main__":
+    from cleansales_backend.core.config import get_settings
+    from cleansales_backend.event_bus import get_event_bus
+
+    telegram_notifier = TelegramNotifier(
+        event_bus=get_event_bus(),
+        settings=get_settings(),
+    )
+    msg = [
+        LineObject(Head.TITLE, text="Telegram notification initialized"),
+    ]
+    msg.extend(
+        [
+            LineObject(Head.BULLET, text=f"{k}: {v}")
+            for k, v in get_settings().to_dict_safety().items()
+        ]
+    )
+
+    get_event_bus().publish(
+        payload=BroadcastEventPayload(
+            event=BroadcastEvent.SEND_MESSAGE,
+            content=msg,
+        ),
+    )

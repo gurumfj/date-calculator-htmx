@@ -14,9 +14,12 @@
 ################################################################################
 """
 
+from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar, Literal, override
 
+import pytz
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,7 +29,14 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 class Settings(BaseSettings):
     """應用程序設置模型"""
 
+    # ENV_FILE: str = Field(default=ENV_FILE)
+
     TIMEZONE: str = Field(default="Asia/Taipei")
+    NOW: str = Field(
+        default_factory=lambda: datetime.now(tz=pytz.timezone("Asia/Taipei")).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    )
     BRANCH: str = Field(default="unset in env")
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
@@ -74,7 +84,7 @@ class Settings(BaseSettings):
         # 確保必要的目錄存在
         self.SQLITE_DB_PATH.parent.mkdir(exist_ok=True)
 
-    def to_dict(self) -> dict[str, str | None | bool]:
+    def to_dict_safety(self) -> dict[str, str | None | bool]:
         db_path = None
         if self.DB == "sqlite":
             db_path = str(self.SQLITE_DB_PATH)
@@ -87,7 +97,14 @@ class Settings(BaseSettings):
             "LOG_LEVEL": self.LOG_LEVEL,
             "FEATURES_RAW_DATA_API": self.FEATURES_RAW_DATA_API,
             "FEATURES_TELEGRAM": self.FEATURES_TELEGRAM,
+            "NOW": self.NOW,
         }
 
 
-settings: Settings = Settings()
+@lru_cache(maxsize=None)
+def get_settings() -> Settings:
+    return Settings()
+
+
+if __name__ == "__main__":
+    print(Settings().model_dump_json())

@@ -18,15 +18,14 @@ import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Literal, Protocol
 
 from sqlalchemy import Engine, text
 from sqlmodel import Session, SQLModel, create_engine
 
+from cleansales_backend.core.config import get_settings
 from cleansales_backend.processors import BreedRecordORM, FeedRecordORM, SaleRecordORM
 from cleansales_backend.processors.interface.processors_interface import IORMModel
-
-from .config import settings
-from .db_monitor import monitor
 
 # from .db_optimizations import setup_db_optimizations
 
@@ -36,29 +35,41 @@ _orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM, FeedRecordO
 logger = logging.getLogger(__name__)
 
 
+class DatabaseSettings(Protocol):
+    DB: Literal["sqlite", "supabase"]
+    DB_ECHO: bool
+    SQLITE_DB_PATH: Path
+    SUPABASE_DB_POOL: bool
+    SUPABASE_DB_HOST: str
+    SUPABASE_DB_PASSWORD: str
+    SUPABASE_DB_USER: str
+    SUPABASE_DB_PORT: int
+    SUPABASE_DB_NAME: str
+
+
 class Database:
+    _db_settings: DatabaseSettings
     _engine: Engine
 
-    def __init__(self, sqlite_db_path: Path | str | None = None) -> None:
+    def __init__(self, db_settings: DatabaseSettings) -> None:
         try:
-            if settings.DB == "sqlite":
-                self._engine = self.create_sqlite_db(sqlite_db_path)
-            elif settings.DB == "supabase":
+            self._db_settings = db_settings
+            if db_settings.DB == "sqlite":
+                self._engine = self.create_sqlite_db()
+            elif db_settings.DB == "supabase":
                 self._engine = self.create_supabase_db()
             else:
-                raise ValueError(f"Invalid DB value: {settings.DB}")
+                raise ValueError(f"Invalid DB value: {db_settings.DB}")
         except Exception:
             logger.error("初始化數據庫時發生錯誤")
             raise Exception("初始化數據庫時發生錯誤")
-        finally:
-            # 啟動數據庫監控
-            monitor.start_monitoring(self._engine)
+        # finally:
+        # 啟動數據庫監控
+        # monitor.start_monitoring(self._engine)
 
-    def create_sqlite_db(self, sqlite_db_path: Path | str | None = None) -> Engine:
+    def create_sqlite_db(self) -> Engine:
         """創建 SQLite 數據庫"""
-        db_path = (
-            Path(sqlite_db_path) if sqlite_db_path else Path(settings.SQLITE_DB_PATH)
-        )
+        db_path = Path(self._db_settings.SQLITE_DB_PATH)
         logger.info(f"Creating database at {db_path.absolute()}")
         db_path.parent.mkdir(exist_ok=True)
         logger.info(f"Database created at {db_path.absolute()}")
@@ -72,23 +83,26 @@ class Database:
     def create_supabase_db(self) -> Engine:
         """創建 Supabase 數據庫"""
         try:
-            database_url = f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}"
+            database_url = f"postgresql+psycopg2://{self._db_settings.SUPABASE_DB_USER}:{self._db_settings.SUPABASE_DB_PASSWORD}@{self._db_settings.SUPABASE_DB_HOST}:{self._db_settings.SUPABASE_DB_PORT}/{self._db_settings.SUPABASE_DB_NAME}"
             engine = create_engine(
                 database_url,
-                pool_pre_ping=settings.SUPABASE_DB_POOL,
+                pool_pre_ping=self._db_settings.SUPABASE_DB_POOL,
             )
             SQLModel.metadata.create_all(engine)
             logger.info("Supabase 數據庫創建成功")
-            with engine.connect() as conn:
-                result = conn.execute(text("SELECT 1"))
-                print("Supabase 數據庫連接成功") if result.scalar() else print(
-                    "Supabase 數據庫連接失敗"
-                )
-                conn.commit()
             return engine
         except Exception as e:
             logger.error(f"創建 Supabase 數據庫時發生錯誤: {e}")
             raise
+
+    def db_health_check(self) -> bool:
+        """檢查數據庫連接"""
+        try:
+            with self._engine.connect() as conn:
+                result = conn.execute(text("SELECT 1"))
+                return result.scalar() is not None
+        except Exception:
+            return False
 
     def get_session(self) -> Generator[Session, None, None]:
         """獲取數據庫會話，用於 FastAPI 依賴注入
@@ -156,3 +170,13 @@ class Database:
         # 如果所有重試都失敗了，拋出最後一個錯誤
         if last_error:
             raise last_error
+
+
+_core_db: Database | None = None
+
+
+def get_core_db() -> Database:
+    global _core_db
+    if _core_db is None:
+        _core_db = Database(db_settings=get_settings())
+    return _core_db

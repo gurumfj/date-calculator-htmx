@@ -37,18 +37,32 @@ class IORMModel(SQLModel):
 
 
 @dataclass
+class ValidationResponse:
+    data_existed: bool = Field(default=False)
+    validated_records: dict[str, IBaseModel] = Field(default_factory=dict)
+    error_records: list[dict[str, Any]] = Field(default_factory=list)
+
+
+@dataclass
 class InfrastructureResponse:
+    new_keys: set[str] = Field(default_factory=set)
+    new_names: set[str] = Field(default_factory=set)
+    delete_keys: set[str] = Field(default_factory=set)
+    delete_names: set[str] = Field(default_factory=set)
+
+
+@dataclass
+class ResponseContent:
     processor_name: str
-    new_keys: set[str]
-    new_names: set[str]
-    delete_keys: set[str]
-    delete_names: set[str]
+    validation: ValidationResponse = Field(default_factory=ValidationResponse)
+    infrastructure: InfrastructureResponse = Field(
+        default_factory=InfrastructureResponse
+    )
 
 
 class IResponse(SQLModel):
     success: bool
-    message: str
-    content: InfrastructureResponse | None = None
+    content: ResponseContent
 
 
 ORMT = TypeVar("ORMT", bound=IORMModel)
@@ -94,8 +108,20 @@ class IProcessor(ABC, Generic[ORMT, VT]):
                 logger.info("MD5 already exists, skipping execution")
                 return IResponse(
                     success=False,
-                    message="MD5 already exists",
-                    content=None,
+                    content=ResponseContent(
+                        processor_name=self.set_processor_name(),
+                        validation=ValidationResponse(
+                            data_existed=True,
+                            validated_records={},
+                            error_records=[],
+                        ),
+                        infrastructure=InfrastructureResponse(
+                            new_keys=set(),
+                            new_names=set(),
+                            delete_keys=set(),
+                            delete_names=set(),
+                        ),
+                    ),
                 )
 
             validated_records, error_records = self._validate_data(df)
@@ -105,8 +131,15 @@ class IProcessor(ABC, Generic[ORMT, VT]):
             )
             return IResponse(
                 success=True,
-                message="Success",
-                content=infrastructure_response,
+                content=ResponseContent(
+                    processor_name=self.set_processor_name(),
+                    validation=ValidationResponse(
+                        data_existed=False,
+                        validated_records=validated_records,
+                        error_records=error_records,
+                    ),
+                    infrastructure=infrastructure_response,
+                ),
             )
 
         except FileNotFoundError:
@@ -172,10 +205,10 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         error_records: list[dict[str, Any]],
         md5: str,
     ) -> InfrastructureResponse:
+        _ = error_records
         if not validated_records:
             logger.info("沒有有效記錄")
             return InfrastructureResponse(
-                processor_name=self.set_processor_name(),
                 new_keys=set(),
                 new_names=set(),
                 delete_keys=set(),
@@ -212,7 +245,6 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         if not new_keys and not delete_keys:
             logger.info("沒有記錄變動")
             return InfrastructureResponse(
-                processor_name=self.set_processor_name(),
                 new_keys=new_keys,
                 new_names=set(),
                 delete_keys=delete_keys,
@@ -232,7 +264,6 @@ class IProcessor(ABC, Generic[ORMT, VT]):
 
         logger.info(f"成功添加 {len(new_keys)} 條記錄")
         return InfrastructureResponse(
-            processor_name=self.set_processor_name(),
             new_keys=new_keys,
             new_names=new_names,
             delete_keys=delete_keys,

@@ -23,7 +23,8 @@ from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from typing_extensions import Annotated
 
-from cleansales_backend.core import settings
+from cleansales_backend.core import get_settings
+from cleansales_backend.core.database import get_core_db
 from cleansales_backend.services.query_service import QueryService
 
 from .routers import query, upload
@@ -31,6 +32,8 @@ from .routers.query import get_query_service
 
 # 配置日誌記錄器
 logger = logging.getLogger(__name__)
+
+settings = get_settings()
 
 
 # FastAPI 應用程式配置
@@ -77,12 +80,14 @@ async def health_check() -> JSONResponse:
     """
     cache_state = get_query_service().get_batch_cache_info()
 
-    config = settings.to_dict()
+    config = settings.to_dict_safety()
+
     return JSONResponse(
         {
             "status": "healthy",
             "api_version": app.version,
             "config": config,
+            "db_health": get_core_db().db_health_check(),
             "cache_state": cache_state,
         }
     )

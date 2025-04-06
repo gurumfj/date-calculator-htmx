@@ -7,20 +7,17 @@ from typing import Literal
 from sqlmodel import Session
 from typing_extensions import Any
 
-from cleansales_backend.core import Event
 from cleansales_backend.core.database import Database
-from cleansales_backend.core.event_bus import EventBus
-from cleansales_backend.core.events import SystemEvent
 from cleansales_backend.domain import utils
 from cleansales_backend.domain.models import (
     BatchAggregate,
     BreedRecord,
 )
 from cleansales_backend.domain.models.batch_state import BatchState
+from cleansales_backend.event_bus.event_bus import EventBus
+from cleansales_backend.event_bus.events import ProcessedEvent
 from cleansales_backend.processors import (
-    BreedRepositoryProtocol,
-    FeedRepositoryProtocol,
-    SaleRepositoryProtocol,
+    IRespositoryService,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,56 +32,49 @@ class QueryService:
     3. 協調過濾服務進行資料過濾
     """
 
-    _breed_repository: BreedRepositoryProtocol
-    _sale_repository: SaleRepositoryProtocol
-    _feed_repository: FeedRepositoryProtocol
-    _db_hint: dict[str, str]
+    _repository_service: IRespositoryService
     _db: Database
     _event_bus: EventBus
 
     def __init__(
         self,
-        breed_repository: BreedRepositoryProtocol,
-        sale_repository: SaleRepositoryProtocol,
-        feed_repository: FeedRepositoryProtocol,
+        repository_service: IRespositoryService,
         db: Database,
         event_bus: EventBus,
     ) -> None:
-        self._breed_repository = breed_repository
-        self._sale_repository = sale_repository
-        self._feed_repository = feed_repository
+        self._repository_service = repository_service
         self._db = db
-        self._db_hint = {datetime.now().isoformat(): "Started"}
         self._event_bus = event_bus
-        self._event_bus.register(SystemEvent.CACHE_CLEAR, self.event_clear_cache)
 
-    def event_clear_cache(self, event: Event) -> None:
-        if event.event == SystemEvent.CACHE_CLEAR:
-            self.cache_clear()
+        completed_events = [
+            ProcessedEvent.SALES_PROCESSING_COMPLETED,
+            ProcessedEvent.BREEDS_PROCESSING_COMPLETED,
+            ProcessedEvent.FEEDS_PROCESSING_COMPLETED,
+        ]
+        for event in completed_events:
+            self._event_bus.register(event, self.event_clear_cache)
+
+    def event_clear_cache(self, content: Any) -> None:
+        _ = content
+        self.cache_clear()
+        logger.info("Event received: Clearing cached data")
 
     def get_batch_cache_info(self) -> dict[str, Any]:
-        cache_info = {
-            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict(),  # noqa: E501
-            "db session hint": self._db_hint,
+        return {
+            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict()
         }
-        return cache_info
 
     def cache_clear(self) -> None:
         logger.info("Cleaning cached data")
         self.get_batch_aggregates.cache_clear()
-        self._db_hint = {**self._db_hint, datetime.now().isoformat(): "cache cleared"}
 
     @lru_cache
     def get_batch_aggregates(self) -> list[BatchAggregate]:
         with self._db.with_session() as session:
-            all_aggrs, self._db_hint = self._get_batch_aggregates(
-                session, self._db_hint
-            )
+            all_aggrs = self._get_batch_aggregates(session)
             return all_aggrs
 
-    def _get_batch_aggregates(
-        self, session: Session, hint: dict[str, str]
-    ) -> tuple[list[BatchAggregate], dict[str, str]]:
+    def _get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
         """獲取所有批次聚合
 
         將養殖記錄按批次分組並聚合相關銷售記錄
@@ -98,7 +88,7 @@ class QueryService:
         try:
             # 使用 defaultdict 進行分組
             breed_groups: dict[str, list[BreedRecord]] = defaultdict(list)
-            for breed in self._breed_repository.get_all(session):
+            for breed in self._repository_service.breed_repository.get_all(session):
                 if breed.batch_name:  # 確保 batch_name 不為 None
                     breed_groups[breed.batch_name].append(breed)
 
@@ -106,15 +96,17 @@ class QueryService:
             aggrs = [
                 BatchAggregate(
                     breeds=breeds,
-                    sales=self._sale_repository.get_sales_by_location(
+                    sales=self._repository_service.sale_repository.get_sales_by_location(
                         session, batch_name
                     ),
-                    feeds=self._feed_repository.get_by_batch_name(session, batch_name),
+                    feeds=self._repository_service.feed_repository.get_by_batch_name(
+                        session, batch_name
+                    ),
                 )
                 for batch_name, breeds in breed_groups.items()
             ]
             logger.info("使用資料庫獲取批次聚合數據")
-            return aggrs, {**hint, datetime.now().isoformat(): "getted from database"}
+            return aggrs
         except Exception as e:
             logger.error(f"獲取批次聚合數據時發生錯誤: {e}")
             raise ValueError(f"獲取批次聚合數據時發生錯誤: {str(e)}")
