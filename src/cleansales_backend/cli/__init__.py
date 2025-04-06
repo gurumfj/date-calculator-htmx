@@ -4,21 +4,25 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from rich.logging import RichHandler
 
-from cleansales_backend.core import core_db, settings
+from cleansales_backend.core.config import get_settings
 from cleansales_backend.core.database import Database
-from cleansales_backend.core.event_bus import EventBus
 from cleansales_backend.domain.models.batch_state import BatchState
-from cleansales_backend.processors import BreedRecordProcessor, SaleRecordProcessor
-from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
+from cleansales_backend.event_bus import EventBus
+from cleansales_backend.processors import RespositoryServiceImpl
+from cleansales_backend.processors.breeds_schema import BreedRecordProcessor
+from cleansales_backend.processors.sales_schema import SaleRecordProcessor
 from cleansales_backend.services import QueryService
 from cleansales_backend.shared.models import SourceData
+
+settings = get_settings()
 
 # 設定根 logger
 logging.basicConfig(
     level=settings.LOG_LEVEL,
     format=settings.LOG_FORMAT,
-    # handlers=[logging.StreamHandler()],
+    handlers=[RichHandler(rich_tracebacks=True, markup=True)],
 )
 
 logger = logging.getLogger(__name__)
@@ -134,16 +138,14 @@ def main() -> None:
     3. 從其他程式中導入：from cleansales_backend import main
     """
     args = parse_args()
-    _db = (
-        Database(args.db_path)
-        if args.db_path and args.db_path != settings.SQLITE_DB_PATH
-        else core_db
-    )
-    breed_processor = BreedRecordProcessor()
-    sale_processor = SaleRecordProcessor()
-    feed_processor = FeedRecordProcessor()
+    _db = Database(settings)
+
+    sales_repository = SaleRecordProcessor()
+    breeds_repository = BreedRecordProcessor()
+    # feeds_repository = FeedRecordProcessor()
+
     query_service = QueryService(
-        breed_processor, sale_processor, feed_processor, _db, EventBus()
+        repository_service=RespositoryServiceImpl(), db=_db, event_bus=EventBus()
     )
 
     try:
@@ -155,33 +157,31 @@ def main() -> None:
                         dataframe=pd.read_excel(args.input_file),
                     )
                     with _db.with_session() as session:
-                        print(
-                            sale_processor.execute(
-                                session,
-                                source_data,
-                                check_md5=args.check_md5,
-                            ).message
+                        _ = sales_repository.execute(
+                            session,
+                            source_data,
+                            check_md5=args.check_md5,
                         )
                         query_service.cache_clear()
+                        print("OK")
                 case "breeds":
                     source_data = SourceData(
                         file_name=str(args.input_file),
                         dataframe=pd.read_excel(args.input_file),
                     )
                     with _db.with_session() as session:
-                        print(
-                            breed_processor.execute(
-                                session,
-                                source_data,
-                                check_md5=args.check_md5,
-                            ).message
+                        _ = breeds_repository.execute(
+                            session,
+                            source_data,
+                            check_md5=args.check_md5,
                         )
                         query_service.cache_clear()
+                        print("OK")
                 case _:
                     pass
         elif args.subcommand == "query":
             with _db.with_session() as session:
-                all_aggrs = query_service.get_batch_aggregates(session)
+                all_aggrs = query_service.get_batch_aggregates()
             search_name = args.name or None
             search_breed: list[str] = args.breed or [
                 "黑羽",
