@@ -17,54 +17,53 @@
 import logging
 import threading
 from collections import defaultdict
-from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Callable
+
+from typing_extensions import Protocol
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Event:
-    """事件數據類"""
-
+class IEventContent(Protocol):
     event: Enum
-    message: str
-    content: dict[str, Any]
+    content: Any
 
 
 class EventBus:
-    """事件總線類"""
+    """事件總線類
 
-    __instance: "EventBus | None" = None
-    _initialized: bool = False
-
-    def __new__(cls) -> "EventBus":
-        if cls.__instance is None:
-            cls.__instance = super().__new__(cls)
-        return cls.__instance
+    Do not create EventBus instance directly, use get_event_bus() instead
+    """
 
     def __init__(self) -> None:
-        if not self._initialized:
-            self._initialized = True
-            self.callbacks: dict[Enum, list[Callable[[Event], None]]] = defaultdict(
-                list
-            )
+        self.callbacks: dict[Enum, list[Callable[[Any], None]]] = defaultdict(list)
 
-    def publish(self, event: Event) -> None:
+    def publish(self, event: IEventContent) -> None:
         """發布事件
 
         Args:
-            event (Event): 要發布的事件
+            event (IEventContent): 事件內容
         """
         for callback in self.callbacks[event.event]:
-            threading.Thread(target=callback, args=(event,), daemon=True).start()
+            threading.Thread(
+                target=callback, args=(event.content,), daemon=False
+            ).start()
+            logger.debug(f"Published event: {event}")
 
-    def register(self, event: Enum, callback: Callable[[Event], None]) -> None:
+    def register(self, event_type: Enum, callback: Callable[[Any], None]) -> None:
         """註冊事件處理器
 
         Args:
-            event (Enum): 事件類型
-            callback (Callable[[Event], None]): 事件處理器
+            event_type (Enum): 事件類型
+            callback (Callable[[Any], None]): 事件處理器
         """
-        self.callbacks.setdefault(event, []).append(callback)
+        self.callbacks.setdefault(event_type, []).append(callback)
+        logger.debug(f"Registered callback for event: {event_type}")
+
+
+@lru_cache(maxsize=None)
+def get_event_bus() -> EventBus:
+    logger.info("Creating event bus")
+    return EventBus()
