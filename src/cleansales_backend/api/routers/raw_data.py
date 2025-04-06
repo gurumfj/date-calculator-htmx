@@ -35,6 +35,9 @@ from cleansales_backend.domain.models.batch_aggregate import BatchRecordModel
 from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.domain.models.feed_record import FeedRecord
 from cleansales_backend.domain.models.sale_record import SaleRecord
+from cleansales_backend.processors.interface.breed_repository_protocol import (
+    BreedRepositoryCriteria,
+)
 from cleansales_backend.services import QueryService
 
 from .. import get_query_service
@@ -107,13 +110,23 @@ async def get_raw_batch_data(
         Response: 包含原始批次數據的JSON響應
     """
     try:
-        batch_status_set = set(batch_status) if batch_status is not None else None
-        period = (start_date, end_date) if start_date and end_date else None
-
-        all_aggregates = query_service.get_batch_aggregates()
-        filtered_aggregates = query_service.get_batch_aggregates_by_criteria(
-            all_aggregates, batch_name, breed_type, batch_status_set, period
+        criteria = BreedRepositoryCriteria(
+            batch_name=batch_name,
+            chicken_breed=breed_type,
+            is_completed=None
+            if batch_status is None
+            else True
+            if "completed" in batch_status
+            else False,
+            period=(
+                start_date.replace(hour=0, minute=0, second=0, microsecond=0),
+                end_date.replace(hour=0, minute=0, second=0, microsecond=0),
+            )
+            if start_date and end_date
+            else None,
         )
+
+        filtered_aggregates = query_service.get_batch_aggregates_by_repository(criteria)
 
         # 根據參數選擇性返回數據
         result = [

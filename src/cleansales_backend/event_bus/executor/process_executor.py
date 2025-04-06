@@ -89,10 +89,10 @@ class ProcessExecutor:
         for k, workflow in self._process_event_dict.items():
             if payload.event != workflow["started"]:
                 continue
-            with get_core_db().with_session() as session:
-                response = self._process_dict[k].execute(
-                    session=session, **payload.content.source_params
-                )
+
+            response = get_core_db().with_transaction(
+                self._process_dict[k].execute, **payload.content.source_params
+            )
             if not response.success:
                 logger.error("處理失敗")
                 self._event_bus.publish(

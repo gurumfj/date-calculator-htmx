@@ -19,6 +19,9 @@ from cleansales_backend.event_bus.events import ProcessedEvent
 from cleansales_backend.processors import (
     IRespositoryService,
 )
+from cleansales_backend.processors.interface.breed_repository_protocol import (
+    BreedRepositoryCriteria,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,18 +64,67 @@ class QueryService:
 
     def get_batch_cache_info(self) -> dict[str, Any]:
         return {
-            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict()
+            "get_batch_aggregates_cache_info": self.get_batch_aggregates.cache_info()._asdict(),
+            "get_batch_aggregates_by_repository_cache_info": self.get_batch_aggregates_by_repository.cache_info()._asdict(),
         }
 
     def cache_clear(self) -> None:
         logger.info("Cleaning cached data")
         self.get_batch_aggregates.cache_clear()
+        self.get_batch_aggregates_by_repository.cache_clear()
 
     @lru_cache
     def get_batch_aggregates(self) -> list[BatchAggregate]:
-        with self._db.with_session() as session:
-            all_aggrs = self._get_batch_aggregates(session)
-            return all_aggrs
+        all_aggrs = self._db.with_transaction(self._get_batch_aggregates)
+        return all_aggrs
+
+    @lru_cache
+    def get_batch_aggregates_by_repository(
+        self, criteria: BreedRepositoryCriteria
+    ) -> list[BatchAggregate]:
+        return self._db.with_transaction(
+            self._get_batch_aggregates_by_repository, criteria
+        )
+
+    def _get_batch_aggregates_by_repository(
+        self, session: Session, criteria: BreedRepositoryCriteria
+    ) -> list[BatchAggregate]:
+        """
+        獲取所有批次聚合
+
+        將養殖記錄按批次分組並聚合相關銷售記錄
+
+        Args:
+            session (Session): 數據庫會話
+            criteria (BreedRepositoryCriteria): 批次過濾條件
+
+        Returns:
+            list[BatchAggregate]: 批次聚合列表，包含每個批次的養殖和銷售記錄
+        """
+        breeds = self._repository_service.breed_repository.get_by_criteria(
+            session, criteria
+        )
+        breeds_dict: dict[str, list[BreedRecord]] = defaultdict(list)
+        batch_aggregates: dict[str, BatchAggregate] = {}
+        for breed in breeds:
+            if breed.batch_name is None:
+                continue
+            breeds_dict[breed.batch_name].append(breed)
+
+        for batch_name, breeds in breeds_dict.items():
+            sales = self._repository_service.sale_repository.get_sales_by_location(
+                session, batch_name
+            )
+            feeds = self._repository_service.feed_repository.get_by_batch_name(
+                session, batch_name
+            )
+            batch_aggregates[batch_name] = BatchAggregate(
+                breeds=breeds,
+                sales=sales,
+                feeds=feeds,
+            )
+
+        return list(batch_aggregates.values())
 
     def _get_batch_aggregates(self, session: Session) -> list[BatchAggregate]:
         """獲取所有批次聚合

@@ -47,12 +47,20 @@ class Settings(BaseSettings):
 
     # supabase
     # FEATURES_SUPABASE: bool = Field(default=False)
-    SUPABASE_DB_POOL: bool = Field(default=False)
     SUPABASE_DB_HOST: str = Field(default="")
     SUPABASE_DB_PASSWORD: str = Field(default="")
     SUPABASE_DB_USER: str = Field(default="")
     SUPABASE_DB_PORT: int = Field(default=5432)
     SUPABASE_DB_NAME: str = Field(default="")
+
+    # supabase pooler
+    SUPABASE_POOLER: bool = Field(default=False)
+    SUPABASE_POOLER_PORT: int = Field(default=6543)
+    SUPABASE_POOLER_TENANT_ID: str = Field(default="")
+
+    # supabase client
+    SUPABASE_CLIENT_URL: str = Field(default="")
+    SUPABASE_KEY: str = Field(default="")
 
     # 日誌配置
     LOG_LEVEL: str = Field(default="INFO")

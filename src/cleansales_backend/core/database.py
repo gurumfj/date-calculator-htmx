@@ -3,22 +3,20 @@
 # 數據庫模組
 #
 # 這個模組提供了數據庫的初始化和管理功能，包括：
-# 1. 數據庫引擎創建
+# 1. 數據庫連接工廠和策略
 # 2. 會話管理
-# 3. 數據庫創建
-#
-# 主要功能：
-# - 提供數據庫引擎
-# - 提供數據庫會話管理
-# - 提供數據庫創建功能
+# 3. 數據庫健康檢查
 ################################################################################
 """
 
 import logging
+from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Callable, Literal, Protocol, TypeVar, override
 
 from sqlalchemy import Engine, text
 from sqlmodel import Session, SQLModel, create_engine
@@ -27,73 +25,157 @@ from cleansales_backend.core.config import get_settings
 from cleansales_backend.processors import BreedRecordORM, FeedRecordORM, SaleRecordORM
 from cleansales_backend.processors.interface.processors_interface import IORMModel
 
-# from .db_optimizations import setup_db_optimizations
-
 # 註冊所有的 ORM 模型
 _orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM, FeedRecordORM]
 
 logger = logging.getLogger(__name__)
 
+# 類型定義
+T = TypeVar("T")
+DbFactory = Callable[[], Engine]
+
 
 class DatabaseSettings(Protocol):
+    """數據庫設置協議"""
+
     DB: Literal["sqlite", "supabase"]
     DB_ECHO: bool
     SQLITE_DB_PATH: Path
-    SUPABASE_DB_POOL: bool
     SUPABASE_DB_HOST: str
     SUPABASE_DB_PASSWORD: str
     SUPABASE_DB_USER: str
     SUPABASE_DB_PORT: int
     SUPABASE_DB_NAME: str
+    SUPABASE_POOLER: bool
+    SUPABASE_POOLER_PORT: int
+    SUPABASE_POOLER_TENANT_ID: str
 
 
-class Database:
-    _db_settings: DatabaseSettings
-    _engine: Engine
+class DbConnectionStrategy(ABC):
+    """數據庫連接策略抽象類，定義統一接口"""
 
-    def __init__(self, db_settings: DatabaseSettings) -> None:
-        try:
-            self._db_settings = db_settings
-            if db_settings.DB == "sqlite":
-                self._engine = self.create_sqlite_db()
-            elif db_settings.DB == "supabase":
-                self._engine = self.create_supabase_db()
-            else:
-                raise ValueError(f"Invalid DB value: {db_settings.DB}")
-        except Exception:
-            logger.error("初始化數據庫時發生錯誤")
-            raise Exception("初始化數據庫時發生錯誤")
-        # finally:
-        # 啟動數據庫監控
-        # monitor.start_monitoring(self._engine)
+    @abstractmethod
+    def create_engine(self, settings: DatabaseSettings) -> Engine:
+        """創建數據庫引擎"""
+        pass
 
-    def create_sqlite_db(self) -> Engine:
-        """創建 SQLite 數據庫"""
-        db_path = Path(self._db_settings.SQLITE_DB_PATH)
-        logger.info(f"Creating database at {db_path.absolute()}")
+    def initialize_tables(self, engine: Engine) -> None:
+        """初始化數據表"""
+        SQLModel.metadata.create_all(engine)
+
+
+class SqliteConnectionStrategy(DbConnectionStrategy):
+    """SQLite 數據庫連接策略"""
+
+    @override
+    def create_engine(self, settings: DatabaseSettings) -> Engine:
+        """創建 SQLite 數據庫引擎"""
+        db_path = Path(settings.SQLITE_DB_PATH)
+        logger.info(f"Creating SQLite database at {db_path.absolute()}")
         db_path.parent.mkdir(exist_ok=True)
-        logger.info(f"Database created at {db_path.absolute()}")
-        engine = create_engine(f"sqlite:///{db_path}")
+
+        engine = create_engine(
+            f"sqlite:///{db_path}",
+            echo=settings.DB_ECHO,
+            connect_args={"check_same_thread": False},
+        )
+
+        # 啟用外鍵約束
         with engine.connect() as conn:
             _ = conn.execute(text("PRAGMA foreign_keys=ON"))
             conn.commit()
-        SQLModel.metadata.create_all(engine)
+
+        self.initialize_tables(engine)
+        logger.info(f"SQLite database ready at {db_path.absolute()}")
         return engine
 
-    def create_supabase_db(self) -> Engine:
-        """創建 Supabase 數據庫"""
+
+class SupabaseConnectionStrategy(DbConnectionStrategy):
+    """Supabase 數據庫連接策略"""
+
+    @override
+    def create_engine(self, settings: DatabaseSettings) -> Engine:
+        """創建 Supabase 數據庫引擎"""
+        logger.info("Creating Supabase database connection")
+
+        database_url = (
+            f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}"
+            f"@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}"
+            f"/{settings.SUPABASE_DB_NAME}"
+        )
+
+        engine = create_engine(
+            database_url,
+            echo=settings.DB_ECHO,
+        )
+
+        self.initialize_tables(engine)
+        logger.info("Supabase database connection ready")
+        return engine
+
+
+class SupabasePoolerConnectionStrategy(DbConnectionStrategy):
+    """Supabase Pooler 連接策略"""
+
+    @override
+    def create_engine(self, settings: DatabaseSettings) -> Engine:
+        """創建 Supabase Pooler 連接"""
+        logger.info("Creating Supabase Pooler connection")
+
+        database_url = (
+            f"postgresql+psycopg2://"
+            f"{settings.SUPABASE_DB_USER}.{settings.SUPABASE_POOLER_TENANT_ID}"
+            f":{settings.SUPABASE_DB_PASSWORD}"
+            f"@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_POOLER_PORT}"
+            f"/{settings.SUPABASE_DB_NAME}"
+        )
+
+        engine = create_engine(
+            database_url,
+            echo=settings.DB_ECHO,
+            pool_pre_ping=True,
+        )
+
+        self.initialize_tables(engine)
+        logger.info("Supabase Pooler connection ready")
+        return engine
+
+
+@dataclass
+class DatabaseConnector:
+    """數據庫連接器，管理不同數據庫類型的連接策略"""
+
+    settings: DatabaseSettings
+
+    def get_connection_strategy(self) -> DbConnectionStrategy:
+        """根據設置選擇合適的連接策略"""
+        if self.settings.DB == "sqlite":
+            return SqliteConnectionStrategy()
+        elif self.settings.DB == "supabase" and self.settings.SUPABASE_POOLER:
+            return SupabasePoolerConnectionStrategy()
+        elif self.settings.DB == "supabase":
+            return SupabaseConnectionStrategy()
+        else:
+            raise ValueError(f"不支援的數據庫類型: {self.settings.DB}")
+
+    def create_engine(self) -> Engine:
+        """創建數據庫引擎"""
+        strategy = self.get_connection_strategy()
+        return strategy.create_engine(self.settings)
+
+
+class Database:
+    """數據庫管理類，提供會話管理和健康檢查"""
+
+    def __init__(self, db_settings: DatabaseSettings) -> None:
+        """初始化數據庫管理器"""
         try:
-            database_url = f"postgresql+psycopg2://{self._db_settings.SUPABASE_DB_USER}:{self._db_settings.SUPABASE_DB_PASSWORD}@{self._db_settings.SUPABASE_DB_HOST}:{self._db_settings.SUPABASE_DB_PORT}/{self._db_settings.SUPABASE_DB_NAME}"
-            engine = create_engine(
-                database_url,
-                pool_pre_ping=self._db_settings.SUPABASE_DB_POOL,
-            )
-            SQLModel.metadata.create_all(engine)
-            logger.info("Supabase 數據庫創建成功")
-            return engine
+            self._db_settings: DatabaseSettings = db_settings
+            connector = DatabaseConnector(db_settings)
+            self._engine: Engine = connector.create_engine()
         except Exception as e:
-            logger.error(f"創建 Supabase 數據庫時發生錯誤: {e}")
-            raise
+            logger.error(f"初始化數據庫時發生錯誤: {e}", exc_info=True)
+            raise RuntimeError(f"無法初始化數據庫: {e}") from e
 
     def db_health_check(self) -> bool:
         """檢查數據庫連接"""
@@ -101,37 +183,26 @@ class Database:
             with self._engine.connect() as conn:
                 result = conn.execute(text("SELECT 1"))
                 return result.scalar() is not None
-        except Exception:
+        except Exception as e:
+            logger.error(f"數據庫健康檢查失敗: {e}")
             return False
 
     def get_session(self) -> Generator[Session, None, None]:
-        """獲取數據庫會話，用於 FastAPI 依賴注入
-
-        Returns:
-            Generator[Session, None, None]: 數據庫會話實例
-        """
+        """獲取數據庫會話，用於 FastAPI 依賴注入"""
         session = Session(self._engine)
         try:
             yield session
             session.commit()
-        except Exception:
+        except Exception as e:
             session.rollback()
+            logger.error(f"數據庫會話操作失敗: {e}")
             raise
         finally:
             session.close()
 
     @contextmanager
     def with_session(self) -> Generator[Session, None, None]:
-        """
-        提供上下文管理器，確保 session 的生命週期管理
-        包含重試機制和錯誤恢復
-
-        Yields:
-            Session: 數據庫會話實例，可用於執行查詢和修改操作
-
-        Raises:
-            Exception: 當資料庫操作失敗時拋出相應異常
-        """
+        """提供上下文管理器，確保 session 的生命週期管理，包含重試機制和錯誤恢復"""
         max_retries = 3
         retry_count = 0
         last_error = None
@@ -153,7 +224,7 @@ class Database:
                     error_msg = f"數據庫操作失敗 {retry_info}: {str(e)}"
                     logger.error(error_msg)
                     if retry_count == max_retries - 1:
-                        raise last_error  # 拋出最後一個錯誤
+                        raise  # 拋出最後一個錯誤
                     retry_count += 1
                 finally:
                     session.close()
@@ -161,22 +232,56 @@ class Database:
             except Exception as e:
                 last_error = e
                 retry_info = f"(嘗試 {retry_count + 1}/{max_retries})"
-                error_msg = f"創建數據庫會話失敗 {retry_info}: {str(e)}"
+                error_msg = f"創建數據庫會話失敗 {retry_info}: {str(last_error)}"
                 logger.error(error_msg)
                 if retry_count == max_retries - 1:
-                    raise last_error
+                    raise
                 retry_count += 1
 
-        # 如果所有重試都失敗了，拋出最後一個錯誤
-        if last_error:
-            raise last_error
+    def with_transaction(
+        self,
+        fn: Callable[..., T],
+        *args: Any,
+        isolation_level: str | None = None,
+        **kwargs: Any,
+    ) -> T:
+        """執行具有事務性質的數據庫操作，可傳遞額外參數給回調函數
+
+        Args:
+            fn: 回調函數，第一個參數必須是Session，其後可接受任意額外參數
+            *args: 傳遞給回調函數的位置參數
+            isolation_level: 事務隔離級別（如 "READ COMMITTED"、"SERIALIZABLE"等）
+            **kwargs: 傳遞給回調函數的關鍵字參數
+
+        Returns:
+            函數執行的結果
+
+        Raises:
+            Exception: 當資料庫操作失敗時拋出相應異常
+        """
+        with self.with_session() as session:
+            if isolation_level:
+                if self._db_settings.DB == "supabase":
+                    # 為Supabase/PostgreSQL設置隔離級別
+                    stmt = f"SET TRANSACTION ISOLATION LEVEL {isolation_level}"
+                    _ = session.execute(text(stmt))
+                elif (
+                    self._db_settings.DB == "sqlite"
+                    and isolation_level.upper() != "SERIALIZABLE"
+                ):
+                    # SQLite只支持SERIALIZABLE隔離級別，記錄警告
+                    logger.warning(
+                        f"SQLite只支持SERIALIZABLE隔離級別，忽略指定的{isolation_level}隔離級別"
+                    )
+
+            return fn(session, *args, **kwargs)
 
 
-_core_db: Database | None = None
-
-
+@lru_cache(maxsize=1)
 def get_core_db() -> Database:
-    global _core_db
-    if _core_db is None:
-        _core_db = Database(db_settings=get_settings())
-    return _core_db
+    """獲取全局數據庫實例，使用LRU緩存確保單例模式
+
+    Returns:
+        Database: 數據庫管理器實例
+    """
+    return Database(db_settings=get_settings())

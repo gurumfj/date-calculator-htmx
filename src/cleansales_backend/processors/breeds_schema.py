@@ -10,11 +10,14 @@ from pydantic import (
     model_validator,
 )
 from sqlmodel import Field as SQLModelField
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from cleansales_backend.domain.models import BreedRecord
 
-from .interface.breed_repository_protocol import BreedRepositoryProtocol
+from .interface.breed_repository_protocol import (
+    BreedRepositoryCriteria,
+    BreedRepositoryProtocol,
+)
 from .interface.processors_interface import (
     IBaseModel,
     IORMModel,
@@ -232,3 +235,29 @@ class BreedRecordProcessor(
     @staticmethod
     def orm_to_domain(orm: BreedRecordORM) -> BreedRecord:
         return BreedRecord.model_validate(orm)
+
+    @override
+    def get_by_criteria(
+        self, session: Session, criteria: BreedRepositoryCriteria
+    ) -> list[BreedRecord]:
+        stmt = select(self.set_orm_schema()).where(
+            self.set_orm_schema().event == RecordEvent.ADDED
+        )
+        if criteria.batch_name:
+            stmt = stmt.where(self.set_orm_schema().batch_name == criteria.batch_name)
+        if criteria.chicken_breed:
+            stmt = stmt.where(
+                self.set_orm_schema().chicken_breed == criteria.chicken_breed
+            )
+        if criteria.is_completed is not None:
+            stmt = stmt.where(
+                self.set_orm_schema().is_completed == criteria.is_completed
+            )
+        if criteria.period:
+            stmt = stmt.where(
+                col(self.set_orm_schema().breed_date).between(
+                    criteria.period[0], criteria.period[1]
+                )
+            )
+        result = session.exec(stmt).all()
+        return [BreedRecordProcessor.orm_to_domain(orm) for orm in result]

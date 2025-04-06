@@ -37,9 +37,10 @@ from cleansales_backend.domain.models.batch_aggregate import (
     SaleRecordModel,
 )
 from cleansales_backend.domain.models.feed_record import FeedRecord
+from cleansales_backend.processors.interface.breed_repository_protocol import (
+    BreedRepositoryCriteria,
+)
 from cleansales_backend.services import QueryService
-
-from ..models import ContextModel, ResponseModel
 
 # 配置查詢路由器專用的日誌記錄器
 logger = logging.getLogger(__name__)
@@ -51,14 +52,15 @@ router = APIRouter(prefix="/api", tags=["api"])
 
 @router.get(
     "/not-completed",
-    response_model=ResponseModel[BatchAggregateModel],
+    # response_model=list[BatchAggregateModel],
     response_model_exclude_unset=True,
     response_model_exclude_none=True,
-    deprecated=True,
+    # deprecated=True,
 )
 async def get_not_completed_batches(
     query_service: Annotated[QueryService, Depends(get_query_service)],
-) -> ResponseModel[BatchAggregateModel]:
+    request: Request,
+) -> Response:
     """獲取未結案的批次列表
 
     Args:
@@ -68,16 +70,23 @@ async def get_not_completed_batches(
         Response[BatchAggregateModel]: 包含未結案批次列表的響應
     """
     try:
-        all_aggregates = query_service.get_batch_aggregates()
-        data = query_service.get_batch_aggregates_by_criteria(
-            all_aggregates, period=(datetime.now() - timedelta(days=60), datetime.now())
+        criteria = BreedRepositoryCriteria(
+            is_completed=False,
         )
-        return ResponseModel(
-            success=True if data else False,
-            message=f"獲取{len(data)}筆未結案批次" if data else "未找到未結案批次",
-            content=ContextModel(
-                data=[BatchAggregateModel.create_from(aggregate) for aggregate in data]
-            ),
+        data = query_service.get_batch_aggregates_by_repository(criteria)
+        result = [
+            BatchAggregateModel.create_from(aggregate).model_dump(mode="json")
+            for aggregate in data
+        ]
+
+        content_bytes = json.dumps(result).encode("utf-8")
+        etag = hashlib.md5(content_bytes).hexdigest()
+        if request.headers.get("If-None-Match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        return JSONResponse(
+            content=result,
+            status_code=200,
+            headers={"ETag": etag},
         )
     except Exception as e:
         logger.error(f"獲取未結案批次時發生錯誤: {e}")
@@ -107,11 +116,11 @@ async def get_batch_aggregates_by_criteria(
         description="可包含多個狀態。空列表或 None 表示不過濾狀態",
     ),
     start_date: datetime | None = Query(
-        default=None,
+        default=datetime.now() - timedelta(days=60),
         description="開始日期。空列表或 None 表示不過濾狀態",
     ),
     end_date: datetime | None = Query(
-        default=None,
+        default=datetime.now(),
         description="結束日期。空列表或 None 表示不過濾狀態",
     ),
 ) -> Response:
@@ -127,20 +136,22 @@ async def get_batch_aggregates_by_criteria(
         Response[BatchAggregateModel]: 包含特定批次名稱的批次聚合列表的響應
     """
     try:
-        batch_status_set = set(batch_status) if batch_status is not None else None
-        period = (start_date, end_date) if start_date and end_date else None
-
-        all_aggregates = query_service.get_batch_aggregates()
-        filtered_aggregates = query_service.get_batch_aggregates_by_criteria(
-            all_aggregates, batch_name, breed_type, batch_status_set, period
+        criteria = BreedRepositoryCriteria(
+            batch_name=batch_name,
+            chicken_breed=breed_type,
+            is_completed=True
+            if batch_status and "completed" in batch_status
+            else False,
+            period=(start_date, end_date) if start_date and end_date else None,
         )
+        filtered_aggregates = query_service.get_batch_aggregates_by_repository(criteria)
 
-        result = [
+        data = [
             BatchAggregateModel.create_from(aggregate).model_dump(mode="json")
             for aggregate in filtered_aggregates
         ]
         # 先將結果轉換為 JSON 字符串
-        content_str = json.dumps(result)
+        content_str = json.dumps(data)
         content_bytes = content_str.encode("utf-8")
 
         etag = hashlib.md5(content_bytes).hexdigest()
@@ -153,7 +164,7 @@ async def get_batch_aggregates_by_criteria(
             return response
 
         response = JSONResponse(
-            content=result,
+            content=data,
             status_code=200,
             headers={"ETag": etag},
         )
