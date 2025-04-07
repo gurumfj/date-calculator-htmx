@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     SUPABASE_POOLER_PORT: int = Field(default=6543)
     SUPABASE_POOLER_TENANT_ID: str = Field(default="")
 
+    # supabase production
+    SUPABASE_PRODUCTION_URL: str = Field(default="")
+
     # supabase client
     SUPABASE_CLIENT_URL: str = Field(default="")
     SUPABASE_KEY: str = Field(default="")

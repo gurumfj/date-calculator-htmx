@@ -26,3 +26,8 @@ data/
 logs/
 
 /out
+
+# alembic
+# migrations/versions
+# migrations/README
+# alembic.ini
