@@ -22,11 +22,8 @@ from sqlalchemy import Engine, text
 from sqlmodel import Session, SQLModel, create_engine
 
 from cleansales_backend.core.config import get_settings
-from cleansales_backend.processors import BreedRecordORM, FeedRecordORM, SaleRecordORM
-from cleansales_backend.processors.interface.processors_interface import IORMModel
 
-# 註冊所有的 ORM 模型
-_orm_models: list[type[IORMModel]] = [BreedRecordORM, SaleRecordORM, FeedRecordORM]
+# 將模型導入和註冊移至方法內部，避免循環導入
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +58,23 @@ class DbConnectionStrategy(ABC):
 
     def initialize_tables(self, engine: Engine) -> None:
         """初始化數據表"""
+        # 延遲導入 ORM 模型，避免循環依賴
+        from cleansales_backend.processors import (
+            BreedRecordORM,
+            FeedRecordORM,
+            SaleRecordORM,
+        )
+        from cleansales_backend.processors.interface.processors_interface import (
+            IORMModel,
+        )
+
+        # 註冊所有的 ORM 模型
+        _orm_models: list[type[IORMModel]] = [
+            BreedRecordORM,
+            SaleRecordORM,
+            FeedRecordORM,
+        ]
+
         SQLModel.metadata.create_all(engine)
 
 

@@ -51,7 +51,6 @@ class ExcelSaleRecord(BaseModel):
     day_age: str = Field(default="", description="日齡")
     week_age: str = Field(default="", description="週齡")
     handler: str = Field(default="", description="經手人")
-    location: str = Field(default="", description="銷售地點")
     customer: str = Field(default="", description="客戶名稱")
 
     # 數量和重量
@@ -116,7 +115,6 @@ class ExcelSaleRecord(BaseModel):
             day_age=",".join(map(str, day_age)),
             week_age=",".join(map(str, week_age)),
             handler=sale.handler or "",
-            location=sale.location,
             customer=sale.customer,
             # 數量和重量
             male_count=sale.male_count,

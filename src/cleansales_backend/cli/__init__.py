@@ -12,6 +12,7 @@ from cleansales_backend.domain.models.batch_state import BatchState
 from cleansales_backend.event_bus import EventBus
 from cleansales_backend.processors import RespositoryServiceImpl
 from cleansales_backend.processors.breeds_schema import BreedRecordProcessor
+from cleansales_backend.processors.feeds_schema import FeedRecordProcessor
 from cleansales_backend.processors.sales_schema import SaleRecordProcessor
 from cleansales_backend.services import QueryService
 from cleansales_backend.shared.models import SourceData
@@ -46,8 +47,8 @@ def create_parser() -> argparse.ArgumentParser:
                 "help": "匯入資料",
                 "args": {
                     "type": {
-                        "choices": ["sales", "breeds"],
-                        "help": "要處理的資料類型: sales (銷售資料) 或 breeds (品種資料)",
+                        "choices": ["sales", "breeds", "feeds"],
+                        "help": "要處理的資料類型: sales (銷售資料) 或 breeds (品種資料) 或 feeds (飼料資料)",
                     },
                     "-i": {
                         "dest": "input_file",
@@ -56,8 +57,8 @@ def create_parser() -> argparse.ArgumentParser:
                     },
                     "--force": {
                         "action": "store_false",
-                        "dest": "check_md5",
-                        "help": "關閉 MD5 檢查",
+                        "dest": "force",
+                        "help": "強制執行 (不檢查 MD5)",
                     },
                 },
             },
@@ -142,46 +143,51 @@ def main() -> None:
 
     sales_repository = SaleRecordProcessor()
     breeds_repository = BreedRecordProcessor()
-    # feeds_repository = FeedRecordProcessor()
+    feeds_repository = FeedRecordProcessor()
 
     query_service = QueryService(
         repository_service=RespositoryServiceImpl(), db=_db, event_bus=EventBus()
     )
 
+    def get_source(source: str) -> SourceData:
+        return SourceData(
+            file_name=str(source),
+            dataframe=pd.read_excel(source),
+        )
+
     try:
         if args.subcommand == "import":
+            source_data = get_source(str(args.input_file))
             match args.type:
                 case "sales":
-                    source_data = SourceData(
-                        file_name=str(args.input_file),
-                        dataframe=pd.read_excel(args.input_file),
+                    response = _db.with_transaction(
+                        sales_repository.execute, source_data, check_md5=args.force
                     )
-                    with _db.with_session() as session:
-                        _ = sales_repository.execute(
-                            session,
-                            source_data,
-                            check_md5=args.check_md5,
-                        )
+                    if response.success:
                         query_service.cache_clear()
-                        print("OK")
+                    # print("response", response)
+                    # print("OK")
                 case "breeds":
-                    source_data = SourceData(
-                        file_name=str(args.input_file),
-                        dataframe=pd.read_excel(args.input_file),
+                    response = _db.with_transaction(
+                        breeds_repository.execute, source_data, check_md5=args.force
                     )
-                    with _db.with_session() as session:
-                        _ = breeds_repository.execute(
-                            session,
-                            source_data,
-                            check_md5=args.check_md5,
-                        )
+                    if response.success:
                         query_service.cache_clear()
-                        print("OK")
+                    # print("response", response)
+                    # print("OK")
+                case "feeds":
+                    response = _db.with_transaction(
+                        feeds_repository.execute, source_data, check_md5=args.force
+                    )
+                    if response.success:
+                        query_service.cache_clear()
+                    # print("response", response)
+                    # print("OK")
                 case _:
                     pass
         elif args.subcommand == "query":
-            with _db.with_session() as session:
-                all_aggrs = query_service.get_batch_aggregates()
+            # with _db.with_session() as session:
+            all_aggrs = query_service.get_batch_aggregates()
             search_name = args.name or None
             search_breed: list[str] = args.breed or [
                 "黑羽",

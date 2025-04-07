@@ -44,10 +44,10 @@ class SaleRecordValidator(IBaseModel):
     - from_attributes=True：支持從對象屬性讀取
     """
 
-    closed: bool = Field(False, description="結案狀態", alias="結案")
+    is_completed: bool = Field(False, description="結案狀態", alias="結案")
     handler: str | None = Field(None, description="會磅狀態", alias="會磅")
     sale_date: date = Field(..., description="銷售日期", alias="日期")
-    location: str = Field(description="場別", alias="場別")
+    batch_name: str = Field(description="場別", alias="場別")
     customer: str = Field(description="客戶名稱", alias="客戶名稱")
     male_count: int = Field(0, ge=0, description="公豬數量", alias="公-隻數")
     female_count: int = Field(0, ge=0, description="母豬數量", alias="母-隻數")
@@ -77,9 +77,9 @@ class SaleRecordValidator(IBaseModel):
             logger.warning(f"無法將 {v} 轉換為日期，使用預設值 None")
             return None
 
-    @field_validator("location", mode="before")
+    @field_validator("batch_name", mode="before")
     @classmethod
-    def clean_location(cls, v: Any) -> str | None:
+    def clean_batch_name(cls, v: Any) -> str | None:
         try:
             if pd.isna(v):
                 return None
@@ -104,15 +104,13 @@ class SaleRecordValidator(IBaseModel):
             logger.warning(f"無法將 {v} 轉換為整數，使用預設值 None")
             return 0
 
-    @field_validator("closed", mode="before")
+    @field_validator("is_completed", mode="before")
     @classmethod
-    def clean_closed(cls, v: Any) -> bool:
+    def clean_is_completed(cls, v: Any) -> bool:
         try:
-            if pd.isna(v):
-                return False
             if isinstance(v, str):
-                return v == "結案"
-            return bool(v)
+                return v.replace(" ", "").strip() == "結案"
+            return False
         except (ValueError, TypeError):
             logger.warning(f"無法將 {v} 轉換為布林值，使用預設值 False")
             return False
@@ -175,10 +173,10 @@ class SaleRecordValidator(IBaseModel):
 
 class SaleRecordORM(IORMModel, table=True):
     unique_id: str = SQLModelField(..., primary_key=True, description="內容比對唯一值")
-    closed: bool = Field(False, description="結案狀態")
+    is_completed: bool = Field(False, description="結案狀態")
     handler: str | None = Field(None, description="會磅狀態")
     sale_date: date = Field(..., description="銷售日期")
-    location: str = SQLModelField(description="場別", index=True)
+    batch_name: str = SQLModelField(description="場別", index=True)
     customer: str = Field(description="客戶名稱")
     male_count: int = Field(0, ge=0, description="公豬數量")
     female_count: int = Field(0, ge=0, description="母豬數量")
@@ -211,7 +209,7 @@ class SaleRecordProcessor(
 
     @override
     def set_orm_foreign_key(self) -> str:
-        return "location"
+        return "batch_name"
 
     @override
     def get_sales_by_location(
@@ -219,7 +217,7 @@ class SaleRecordProcessor(
     ) -> list[SaleRecord]:
         stmt = select(SaleRecordORM).where(
             and_(
-                SaleRecordORM.location == location,
+                SaleRecordORM.batch_name == location,
                 SaleRecordORM.event == RecordEvent.ADDED,
             )
         )

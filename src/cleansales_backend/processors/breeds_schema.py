@@ -120,8 +120,8 @@ class BreedRecordValidator(IBaseModel):
     def validate_is_completed(cls, value: Any) -> bool:
         try:
             if isinstance(value, str):
-                return value.strip() == "結場"
-            return bool(value)
+                return value.replace(" ", "").strip() == "結場"
+            return False
         except Exception:
             return False  # 發生異常時返回 False
 
@@ -164,8 +164,8 @@ class BreedRecordORM(IORMModel, table=True):
     - batch_name: 批次編號
     - veterinarian: 負責獸醫
     - chicken_breed: 雞種
-    - male: 公雞數量
-    - female: 母雞數量
+    - breed_male: 入雛公雞數量
+    - breed_female: 入雛母雞數量
     - breed_date: 入雛日期
     - supplier: 種雞場供應商
     - sub_location: 子場位置

@@ -54,11 +54,11 @@ class BatchAggregate:
         if len(batch_name) > 1:
             raise ValueError("All breed records must be from the same batch")
         if len(self.sales) > 0:
-            sale_batch_name = set([record.location for record in self.sales])
+            sale_batch_name = set([record.batch_name for record in self.sales])
             if len(sale_batch_name) > 1:
-                raise ValueError("All sale records must be from the same location")
+                raise ValueError("All sale records must be from the same batch")
             if sale_batch_name != batch_name:
-                raise ValueError("Sale location must match breed batch name")
+                raise ValueError("Sale batch name must match breed batch name")
         if len(self.feeds) > 0:
             feed_batch_name = set([record.batch_name for record in self.feeds])
             if len(feed_batch_name) > 1:

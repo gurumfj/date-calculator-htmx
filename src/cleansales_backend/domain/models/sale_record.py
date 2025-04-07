@@ -13,10 +13,10 @@ class SaleRecord(BaseModel):
     frozen=True 確保資料不可變性
 
     屬性說明:
-    - closed: 結案狀態
+    - is_completed: 結案狀態
     - handler: 經手人
     - sale_date: 銷售日期
-    - location: 銷售地點
+    - batch_name: 批次名稱
     - customer: 客戶名稱
     - male_count: 公雞銷售數量
     - female_count: 母雞銷售數量
@@ -28,10 +28,10 @@ class SaleRecord(BaseModel):
     - unpaid: 未付款狀態
     """
 
-    closed: bool
+    is_completed: bool
     handler: str | None
     sale_date: datetime
-    location: str
+    batch_name: str
     customer: str
     male_count: int
     female_count: int
@@ -52,11 +52,11 @@ class SaleRecord(BaseModel):
     def sale_state(self) -> BatchState:
         """取得銷售狀態
 
-        根據是否結案(closed)判斷狀態:
+        根據是否結案(is_completed)判斷狀態:
         - 若已結案，回傳 COMPLETED
         - 否則回傳 SALE
         """
-        return BatchState.COMPLETED if self.closed else BatchState.SALE
+        return BatchState.COMPLETED if self.is_completed else BatchState.SALE
 
     def _base_weight(self) -> float | None:
         """計算基礎重量

@@ -87,6 +87,30 @@ class IProcessor(ABC, Generic[ORMT, VT]):
     def set_orm_foreign_key(self) -> str:
         pass
 
+    def _get_df(self, source: SourceData | Path | pd.DataFrame) -> pd.DataFrame:
+        if isinstance(source, SourceData):
+            return source.dataframe
+        elif isinstance(source, Path):
+            return pd.read_excel(source.resolve())
+        else:
+            return source
+
+    def _create_response(
+        self,
+        success: bool,
+        processor_name: str,
+        validation: ValidationResponse,
+        infrastructure: InfrastructureResponse,
+    ) -> IResponse:
+        return IResponse(
+            success=success,
+            content=ResponseContent(
+                processor_name=processor_name,
+                validation=validation,
+                infrastructure=infrastructure,
+            ),
+        )
+
     def execute(
         self,
         session: Session,
@@ -94,34 +118,16 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         check_md5: bool = True,
     ) -> IResponse:
         try:
-            df = None
-            if isinstance(source, SourceData):
-                df = source.dataframe
-            elif isinstance(source, Path):
-                df = pd.read_excel(source.resolve())
-            else:
-                df = source
-
+            df = self._get_df(source)
             md5 = hashlib.md5(df.to_csv(index=False).encode("utf-8")).hexdigest()
 
             if check_md5 and self._is_md5_exist(session, md5):
                 logger.info("MD5 already exists, skipping execution")
-                return IResponse(
+                return self._create_response(
                     success=False,
-                    content=ResponseContent(
-                        processor_name=self.set_processor_name(),
-                        validation=ValidationResponse(
-                            data_existed=True,
-                            validated_records={},
-                            error_records=[],
-                        ),
-                        infrastructure=InfrastructureResponse(
-                            new_keys=set(),
-                            new_names=set(),
-                            delete_keys=set(),
-                            delete_names=set(),
-                        ),
-                    ),
+                    processor_name=self.set_processor_name(),
+                    validation=ValidationResponse(data_existed=True, error_records=[]),
+                    infrastructure=InfrastructureResponse(),
                 )
 
             validated_records, error_records = self._validate_data(df)
@@ -129,17 +135,15 @@ class IProcessor(ABC, Generic[ORMT, VT]):
             infrastructure_response = self._infrastructure(
                 session, validated_records, error_records, md5
             )
-            return IResponse(
+            return self._create_response(
                 success=True,
-                content=ResponseContent(
-                    processor_name=self.set_processor_name(),
-                    validation=ValidationResponse(
-                        data_existed=False,
-                        validated_records=validated_records,
-                        error_records=error_records,
-                    ),
-                    infrastructure=infrastructure_response,
+                processor_name=self.set_processor_name(),
+                validation=ValidationResponse(
+                    data_existed=False,
+                    validated_records=validated_records,
+                    error_records=error_records,
                 ),
+                infrastructure=infrastructure_response,
             )
 
         except FileNotFoundError:
@@ -155,7 +159,7 @@ class IProcessor(ABC, Generic[ORMT, VT]):
 
     def _calculate_unique_id(self, record: IBaseModel) -> str:
         return hashlib.sha256(
-            record.model_dump_json(exclude={"unique_id"}).encode()
+            record.model_dump_json(exclude={"unique_id", "is_completed"}).encode()
         ).hexdigest()[:10]
 
     def _validate_data(
