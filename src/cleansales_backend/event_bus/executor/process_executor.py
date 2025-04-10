@@ -128,8 +128,8 @@ class ProcessExecutor:
             msg.append(LineObject(Head.TEXT, text="資料已存在，跳過處理"))
 
         if (
-            response.content.validation.validated_records
-            and response.content.validation.error_records
+            len(response.content.validation.validated_records) > 0
+            and len(response.content.validation.error_records) > 0
         ):
             msg.append(
                 LineObject(
@@ -138,7 +138,10 @@ class ProcessExecutor:
                 )
             )
 
-        if response.content.infrastructure.new_names:
+        if not response.content.infrastructure:
+            return
+
+        if len(response.content.infrastructure.new_names) > 0:
             msg.append(
                 LineObject(
                     Head.TEXT,
@@ -151,7 +154,7 @@ class ProcessExecutor:
                     for name in response.content.infrastructure.new_names
                 ]
             )
-        if response.content.infrastructure.delete_names:
+        if len(response.content.infrastructure.delete_names) > 0:
             msg.append(
                 LineObject(
                     Head.TEXT,

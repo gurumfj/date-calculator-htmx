@@ -38,26 +38,24 @@ class IORMModel(SQLModel):
 
 @dataclass
 class ValidationResponse:
-    data_existed: bool = Field(default=False)
-    validated_records: dict[str, IBaseModel] = Field(default_factory=dict)
-    error_records: list[dict[str, Any]] = Field(default_factory=list)
+    data_existed: bool
+    validated_records: dict[str, IBaseModel]
+    error_records: list[dict[str, Any]]
 
 
 @dataclass
 class InfrastructureResponse:
-    new_keys: set[str] = Field(default_factory=set)
-    new_names: set[str] = Field(default_factory=set)
-    delete_keys: set[str] = Field(default_factory=set)
-    delete_names: set[str] = Field(default_factory=set)
+    new_keys: set[str]
+    new_names: set[str]
+    delete_keys: set[str]
+    delete_names: set[str]
 
 
 @dataclass
 class ResponseContent:
     processor_name: str
-    validation: ValidationResponse = Field(default_factory=ValidationResponse)
-    infrastructure: InfrastructureResponse = Field(
-        default_factory=InfrastructureResponse
-    )
+    validation: ValidationResponse
+    infrastructure: InfrastructureResponse | None = None
 
 
 class IResponse(SQLModel):
@@ -100,7 +98,7 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         success: bool,
         processor_name: str,
         validation: ValidationResponse,
-        infrastructure: InfrastructureResponse,
+        infrastructure: InfrastructureResponse | None = None,
     ) -> IResponse:
         return IResponse(
             success=success,
@@ -126,8 +124,12 @@ class IProcessor(ABC, Generic[ORMT, VT]):
                 return self._create_response(
                     success=False,
                     processor_name=self.set_processor_name(),
-                    validation=ValidationResponse(data_existed=True, error_records=[]),
-                    infrastructure=InfrastructureResponse(),
+                    validation=ValidationResponse(
+                        data_existed=True,
+                        validated_records={},
+                        error_records=[],
+                    ),
+                    infrastructure=None,
                 )
 
             validated_records, error_records = self._validate_data(df)
@@ -221,9 +223,10 @@ class IProcessor(ABC, Generic[ORMT, VT]):
 
         # 查詢資料庫中所有的記錄
         all_db_obj = session.exec(
-            select(self.set_orm_schema()).where(
-                self.set_orm_schema().event == RecordEvent.ADDED
-            )
+            select(self.set_orm_schema())
+            # .where(
+            #     self.set_orm_schema().event == RecordEvent.ADDED
+            # )
         ).all()
 
         # 從完整對象中提取 unique_id
@@ -243,8 +246,8 @@ class IProcessor(ABC, Generic[ORMT, VT]):
                 # session.delete(obj)
                 obj.event = RecordEvent.DELETED
                 obj.updated_at = datetime.now()
-                _ = session.merge(obj)
                 deleted_names.add(getattr(obj, self.set_orm_foreign_key()))
+                session.delete(obj)
 
         if not new_keys and not delete_keys:
             logger.info("沒有記錄變動")

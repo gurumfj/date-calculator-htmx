@@ -46,7 +46,7 @@ class BreedRecordValidator(IBaseModel):
     )
 
     # 批次資料
-    batch_name: str | None = Field(None, description="場別", alias="場別")
+    batch_name: str = Field(..., description="場別", alias="場別")
     sub_location: str | None = Field(None, description="分場", alias="分場")
     veterinarian: str | None = Field(None, description="獸醫名稱", alias="Dr.")
     is_completed: bool = Field(False, description="是否完成", alias="結場")
@@ -184,7 +184,7 @@ class BreedRecordORM(IORMModel, table=True):
     farmer_address: str | None = Field(default=None, description="畜主地址")
 
     # 批次資料
-    batch_name: str | None = SQLModelField(default=None, description="場別", index=True)
+    batch_name: str = SQLModelField(default=..., description="場別", index=True)
     veterinarian: str | None = Field(default=None, description="獸醫名稱")
     chicken_breed: str = Field(default="", description="雞種")
     breed_male: int = Field(default=0, description="入雛公雞數量")
