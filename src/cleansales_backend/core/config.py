@@ -63,7 +63,7 @@ class Settings(BaseSettings):
 
     # supabase client
     SUPABASE_CLIENT_URL: str = Field(default="")
-    SUPABASE_KEY: str = Field(default="")
+    SUPABASE_ANON_KEY: str = Field(default="")
 
     # 日誌配置
     LOG_LEVEL: str = Field(default="INFO")

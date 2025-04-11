@@ -16,6 +16,8 @@
 """
 
 import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,17 +25,22 @@ from fastapi.params import Depends
 from fastapi.responses import JSONResponse
 from typing_extensions import Annotated
 
-from cleansales_backend.core import get_settings
 from cleansales_backend.core.database import get_core_db
 from cleansales_backend.services.query_service import QueryService
 
-from .routers import query, upload
+from . import get_client, settings
+from .routers import proxy, query, upload
 from .routers.query import get_query_service
 
 # 配置日誌記錄器
 logger = logging.getLogger(__name__)
 
-settings = get_settings()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    client = get_client()
+    yield
+    await client.aclose()
 
 
 # FastAPI 應用程式配置
@@ -57,11 +64,14 @@ app = FastAPI(
     - 分支: {settings.BRANCH}
     """,
     version="1.1.0",
+    lifespan=lifespan,
 )
+
 
 # 註冊 API 路由
 app.include_router(query.router)  # 這會處理 /api/not-completed
 app.include_router(upload.router)  # 這會處理 /api/upload
+app.include_router(proxy.router)  # 這會處理 /api/proxy/* 相關端點
 
 # 根據功能開關載入原始數據 API 路由
 if settings.FEATURES_RAW_DATA_API:
@@ -89,6 +99,7 @@ async def health_check() -> JSONResponse:
             "config": config,
             "db_health": get_core_db().db_health_check(),
             "cache_state": cache_state,
+            "proxy_health": await proxy.proxy_health_check(),
         }
     )
 

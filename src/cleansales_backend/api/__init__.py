@@ -15,7 +15,10 @@
 """
 
 import logging
+from functools import lru_cache
 
+import httpx
+from httpx import AsyncClient
 from rich.logging import RichHandler
 
 from cleansales_backend.core import (
@@ -69,4 +72,13 @@ def get_query_service() -> QueryService:
     return _query_service
 
 
-__all__ = ["core_db", "get_event_bus", "get_query_service"]
+@lru_cache
+def get_client() -> AsyncClient:
+    return AsyncClient(
+        base_url=settings.SUPABASE_CLIENT_URL,
+        timeout=30.0,
+        limits=httpx.Limits(max_keepalive_connections=20, max_connections=200),
+    )
+
+
+__all__ = ["core_db", "get_event_bus", "get_query_service", "get_client", "settings"]

@@ -5,7 +5,7 @@ from supabase import Client, create_client
 
 settings = get_settings()
 url = settings.SUPABASE_CLIENT_URL
-key = settings.SUPABASE_KEY
+key = settings.SUPABASE_ANON_KEY
 
 client: Client = create_client(
     supabase_url=url,
