@@ -1,57 +1,52 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ResponsiveSidebarProps } from "./utils/types";
-import HamburgerButton from "./components/HamburgerButton";
-import NavbarTitle from "./components/NavbarTitle";
-import NewBatchButton from "./components/NewBatchButton";
 import SidebarLogo from "./components/SidebarLogo";
 import SidebarNavItems from "./components/SidebarNavItems";
 import SidebarCollapseButton from "./components/SidebarCollapseButton";
 
 const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
   className = "",
+  isSidebarOpen = false,
+  onSidebarOpenChange,
 }) => {
-  // 只保留必要的狀態
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // 側邊欄折疊狀態
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // 內部狀態，用於當沒有提供外部控制時
+  const [internalIsSidebarOpen, setInternalIsSidebarOpen] = useState(false);
+
+  // 使用提供的 onSidebarOpenChange 或者內部狀態
+  const handleSidebarToggle = (isOpen: boolean) => {
+    if (onSidebarOpenChange) {
+      onSidebarOpenChange(isOpen);
+    } else {
+      setInternalIsSidebarOpen(isOpen);
+    }
+  };
+
+  // 當 isSidebarOpen prop 變化時更新內部狀態（單向數據流）
+  useEffect(() => {
+    if (onSidebarOpenChange) {
+      // 如果有外部控制，不需要更新內部狀態
+    } else {
+      // 否則，自行管理狀態
+      setInternalIsSidebarOpen(isSidebarOpen);
+    }
+  }, [isSidebarOpen, onSidebarOpenChange]);
+
+  // 確定實際使用的狀態
+  const sidebarOpen = onSidebarOpenChange ? isSidebarOpen : internalIsSidebarOpen;
 
   return (
     <>
-      {/* 頂部導航欄 */}
-      <nav
-        className="
-          fixed top-0 left-0 right-0
-          bg-white
-          shadow-sm
-          h-14
-          flex
-          items-center
-          px-4
-          border-b
-          border-gray-200
-          z-40
-        "
-      >
-        {/* 漢堡按鈕 */}
-        <HamburgerButton
-          isSidebarOpen={isSidebarOpen}
-          onClick={() => setIsSidebarOpen(true)}
-        />
-
-        {/* 路由標題 */}
-        <NavbarTitle />
-
-        {/* 新建批次按鈕 */}
-        <NewBatchButton />
-      </nav>
-
       {/* 遮罩層 */}
       <div
         className={`
           fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300
-          ${isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
+          ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}
           md:hidden
         `}
-        onClick={() => setIsSidebarOpen(false)}
+        onClick={() => handleSidebarToggle(false)}
       />
 
       {/* 側邊欄 */}
@@ -60,9 +55,8 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
           fixed md:relative left-0 top-0 bottom-0 z-50
           ${isCollapsed ? "w-20" : "w-64"}
           bg-white h-full transition-all duration-300 ease-in-out
-          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           shadow-md flex flex-col
-          mt-14 md:mt-0
           ${className}
         `}
       >
@@ -76,7 +70,7 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
           <SidebarNavItems
             isCollapsed={isCollapsed}
             onItemClick={() => {
-              if (window.innerWidth < 768) setIsSidebarOpen(false);
+              if (window.innerWidth < 768) handleSidebarToggle(false);
             }}
           />
         </nav>

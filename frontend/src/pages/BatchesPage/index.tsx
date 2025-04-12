@@ -1,15 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useSortedBatchAggregates } from "../../hooks/useSortedBatchAggregates";
 import { BatchFilters } from "./BatchFilters";
 import { BatchList } from "./BatchList";
 import BatchDetailPanel from "./BatchDetailPanel";
 import { useParams, useNavigate } from "react-router-dom";
 import LoadingSpinner from "@components/common/LoadingSpinner";
+import PageNavbar from "@components/layout/components/PageNavbar";
+import NewBatchButton from "./components/NewBatchButton";
+import BackButton from "@components/layout/components/BackButton";
 type SortOrder = "asc" | "desc";
 
 const BatchesPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const navigate = useNavigate();
+
+  // 返回列表
+  const handleBackToList = useCallback(() => {
+    navigate("/batches");
+  }, [navigate]);
+
+  const toggleSortOrder = () =>
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
 
   const {
     sortedBatches,
@@ -31,13 +42,15 @@ const BatchesPage: React.FC = () => {
     ? sortedBatches.find((b) => b.batchName === batchName) || null
     : null;
 
-  const toggleSortOrder = () =>
-    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
-
-  // 返回列表
-  const handleBackToList = () => {
-    navigate("/batches");
-  };
+  // 準備導航欄內容
+  const leftActions = selectedBatch ? (
+    <BackButton
+      onClick={handleBackToList}
+      iconOnly={true} // 使用純圖標模式
+      title="返回列表"
+    />
+  ) : null;
+  const rightActions = <NewBatchButton isInNavbar={true} />;
 
   // 處理載入和錯誤狀態
   if (error)
@@ -49,28 +62,15 @@ const BatchesPage: React.FC = () => {
 
   return (
     <LoadingSpinner show={isLoading}>
+      {/* 頁面頂部導航欄 */}
+      <PageNavbar
+        title={selectedBatch ? `批次: ${selectedBatch.batchName}` : "批次管理"}
+        leftActions={leftActions}
+        rightActions={rightActions}
+      />
+
       <div className="container mx-auto p-4 lg:p-6">
-        {/* 移動裝置返回按鈕 - 只在選中批次且是移動裝置時顯示 */}
-        <div className={`lg:hidden ${selectedBatch ? "block" : "hidden"}`}>
-          <button
-            onClick={handleBackToList}
-            className="mb-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 transition-colors rounded-md flex items-center text-gray-700"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-1"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-            返回列表
-          </button>
-        </div>
+        {/* 移動裝置返回按鈕已移至頂部導航欄 */}
 
         {/* 根據是否選中批次使用不同的布局 */}
         {selectedBatch ? (
