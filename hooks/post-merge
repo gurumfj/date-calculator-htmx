@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# post-merge hook
+# 在 git pull 或 git merge 完成後執行
+# 用於自動檢查依賴更新和維護專案狀態
+
+# 獲取當前目錄
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# 切換到專案根目錄
+cd "$PROJECT_ROOT" || exit 1
+
+# 顏色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}檢查合併後的專案狀態...${NC}"
+
+# 檢查 package.json 是否有變化
+if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep -q "package.json"; then
+  echo -e "${YELLOW}檢測到 package.json 變更，正在更新依賴...${NC}"
+  bun install
+  echo -e "${GREEN}依賴更新完成!${NC}"
+fi
+
+# 檢查是否有新的 migration 或 schema 變化
+if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep -q "migrations\|schema"; then
+  echo -e "${YELLOW}檢測到資料庫相關變更，可能需要執行遷移...${NC}"
+  # 這裡可以添加遷移提示或自動執行遷移的命令
+fi
+
+echo -e "${GREEN}專案狀態檢查完成.${NC}"
+exit 0
