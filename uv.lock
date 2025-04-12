@@ -1,6 +1,10 @@
 version = 1
 revision = 1
 requires-python = ">=3.12"
+resolution-markers = [
+    "python_full_version >= '3.13'",
+    "python_full_version < '3.13'",
+]
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -190,6 +194,8 @@ dependencies = [
     { name = "sqlmodel" },
     { name = "supabase" },
     { name = "tabulate" },
+    { name = "todoist-api-python", version = "2.1.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "todoist-api-python", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "uvicorn" },
     { name = "wcwidth" },
 ]
@@ -224,6 +230,7 @@ requires-dist = [
     { name = "sqlmodel", specifier = ">=0.0.22" },
     { name = "supabase", specifier = ">=2.15.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
+    { name = "todoist-api-python", specifier = ">=2.1.7" },
     { name = "uvicorn", specifier = ">=0.28.0" },
     { name = "wcwidth", specifier = ">=0.2.13" },
 ]
@@ -300,6 +307,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/56/b0/d968ecdbe6fe0a863de7169bbe9e8a476868959f3af24981f6a10d2b6924/coverage-7.8.0-cp313-cp313t-win32.whl", hash = "sha256:379fe315e206b14e21db5240f89dc0774bdd3e25c3c58c2c733c99eca96f1ada", size = 214909 },
     { url = "https://files.pythonhosted.org/packages/87/e9/d6b7ef9fecf42dfb418d93544af47c940aa83056c49e6021a564aafbc91f/coverage-7.8.0-cp313-cp313t-win_amd64.whl", hash = "sha256:2e4b6b87bb0c846a9315e3ab4be2d52fac905100565f4b92f02c445c8799e257", size = 216068 },
     { url = "https://files.pythonhosted.org/packages/59/f1/4da7717f0063a222db253e7121bd6a56f6fb1ba439dcc36659088793347c/coverage-7.8.0-py3-none-any.whl", hash = "sha256:dbf364b4c5e7bae9250528167dfe40219b62e2d573c854d74be213e1e52069f7", size = 203435 },
+]
+
+[[package]]
+name = "dataclass-wizard"
+version = "0.35.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/c5/10f2bd575b4fee1cf26b0ffa5fead2d6525f950a797566437a51fa08a94f/dataclass-wizard-0.35.0.tar.gz", hash = "sha256:8e4b254991bf93416a48e2911bb985e3787cff11f00270c3d1165d2523cb3fb6", size = 295578 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/95/968dff23cfd82806bf0e2d1c155227717046aed5e7afd8bc0fefdc7eaaf3/dataclass_wizard-0.35.0-py2.py3-none-any.whl", hash = "sha256:3bb19292477f0bebb12e9cc9178f1a6b93d133af4ae065abf14b713142b32edf", size = 176558 },
 ]
 
 [[package]]
@@ -1409,6 +1425,38 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797b8f7902564ab6ea0d60ff8ca23952079064155d1ae1/tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c", size = 81090 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/44/4a5f08c96eb108af5cb50b41f76142f0afa346dfa99d5296fe7202a11854/tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f", size = 35252 },
+]
+
+[[package]]
+name = "todoist-api-python"
+version = "2.1.7"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.13'",
+]
+dependencies = [
+    { name = "requests", marker = "python_full_version < '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/63/50/8f27064a3d9527c5bb391870c6bdccb0778a47b06d01d362aee07fbfbe49/todoist_api_python-2.1.7.tar.gz", hash = "sha256:84934a19ccd83fb61010a8126362a5d7d6486c92454c111307ba55bc74903f5c", size = 13062 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/52/a8/aa54c9f962926cd3ff66bed2aa3e1e1ddd3a149cfbf1f466447b46c7adff/todoist_api_python-2.1.7-py3-none-any.whl", hash = "sha256:278bfe851b9bd19bde5ff5de09d813d671ef7310ba55e1962131fca5b59bb735", size = 12636 },
+]
+
+[[package]]
+name = "todoist-api-python"
+version = "3.0.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.13'",
+]
+dependencies = [
+    { name = "annotated-types", marker = "python_full_version >= '3.13'" },
+    { name = "dataclass-wizard", marker = "python_full_version >= '3.13'" },
+    { name = "requests", marker = "python_full_version >= '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ec/24/f59fe983fac67cfa96a0690e2a7bf735aa2a9b076e762964d315ffc0869b/todoist_api_python-3.0.0.tar.gz", hash = "sha256:88a3416910edd95ba71338d94cddf6a288c15a7298f9faff39def7d7f3ca29f3", size = 4034 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/1a/6fb450e6e102d380aab673da6f181916071b5a79d2329650fb51d64b6d41/todoist_api_python-3.0.0-py3-none-any.whl", hash = "sha256:d2db2e11a4df1dc7b11c9b95b142f1815b3c910f7ee07b469202966b07c1c141", size = 3966 },
 ]
 
 [[package]]

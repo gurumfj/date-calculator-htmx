@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = Field(default=None)
     TELEGRAM_CHAT_ID: str | None = Field(default=None)
 
+    # Todoist 配置
+    TODOIST_API_TOKEN: str | None = Field(default=None)
+
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
         env_file_encoding="utf-8",
