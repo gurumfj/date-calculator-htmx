@@ -44,7 +44,6 @@ services:
   mono:
     build:
       context: .
-      dockerfile: Dockerfile.monorepo
       target: production
     env_file:
       - .env-prod
