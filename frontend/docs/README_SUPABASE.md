@@ -218,10 +218,10 @@ async function fetchBreedingStatistics() {
   try {
     // 獲取按農場分組的養殖統計數據
     const farmStats = await SupabaseService.getBreedingStatsByFarm();
-    
+
     // 使用結果
     console.log('Farm Statistics:', farmStats);
-    
+
     return farmStats;
   } catch (error) {
     console.error('Error fetching statistics:', error);

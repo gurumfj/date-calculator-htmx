@@ -19,15 +19,15 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
       {/* 頂部導航欄 */}
       <nav
         className="
-          fixed top-0 left-0 right-0 
-          bg-white 
-          shadow-sm 
-          h-14 
-          flex 
-          items-center 
-          px-4 
-          border-b 
-          border-gray-200 
+          fixed top-0 left-0 right-0
+          bg-white
+          shadow-sm
+          h-14
+          flex
+          items-center
+          px-4
+          border-b
+          border-gray-200
           z-40
         "
       >
@@ -58,7 +58,7 @@ const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
       <aside
         className={`
           fixed md:relative left-0 top-0 bottom-0 z-50
-          ${isCollapsed ? "w-20" : "w-64"} 
+          ${isCollapsed ? "w-20" : "w-64"}
           bg-white h-full transition-all duration-300 ease-in-out
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
           shadow-md flex flex-col

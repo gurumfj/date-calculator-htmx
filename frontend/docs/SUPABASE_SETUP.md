@@ -91,12 +91,12 @@ const fetchData = async () => {
   const { data, error } = await supabase
     .from('your_table')
     .select('*');
-  
+
   if (error) {
     console.error('Error fetching data:', error);
     return;
   }
-  
+
   console.log('Data:', data);
 };
 
@@ -105,12 +105,12 @@ const insertData = async (newItem) => {
   const { data, error } = await supabase
     .from('your_table')
     .insert(newItem);
-    
+
   if (error) {
     console.error('Error inserting data:', error);
     return;
   }
-  
+
   console.log('Inserted data:', data);
 };
 
@@ -120,12 +120,12 @@ const updateData = async (id, updates) => {
     .from('your_table')
     .update(updates)
     .eq('id', id);
-    
+
   if (error) {
     console.error('Error updating data:', error);
     return;
   }
-  
+
   console.log('Updated data:', data);
 };
 
@@ -135,12 +135,12 @@ const deleteData = async (id) => {
     .from('your_table')
     .delete()
     .eq('id', id);
-    
+
   if (error) {
     console.error('Error deleting data:', error);
     return;
   }
-  
+
   console.log('Data deleted successfully');
 };
 ```
@@ -186,7 +186,7 @@ const fetchBreedRecords = async () => {
     .from('breedrecordorm')
     .select('*')
     .order('breed_date', { ascending: false });
-  
+
   if (error) throw error;
   return data as BreedRecord[];
 };
@@ -197,7 +197,7 @@ const fetchBreedRecordsByFarm = async (farmName: string) => {
     .from('breedrecordorm')
     .select('*')
     .eq('farm_name', farmName);
-  
+
   if (error) throw error;
   return data as BreedRecord[];
 };
@@ -209,11 +209,11 @@ const addBreedRecord = async (record: Omit<BreedRecord, 'unique_id' | 'updated_a
     unique_id: `breed-${Date.now()}`,
     updated_at: new Date().toISOString()
   };
-  
+
   const { data, error } = await supabase
     .from('breedrecordorm')
     .insert(newRecord);
-  
+
   if (error) throw error;
   return data;
 };
@@ -233,7 +233,7 @@ const fetchFeedRecordsByBatch = async (batchName: string) => {
     .select('*')
     .eq('batch_name', batchName)
     .order('feed_date', { ascending: true });
-  
+
   if (error) throw error;
   return data as FeedRecord[];
 };
@@ -252,7 +252,7 @@ const fetchUnpaidSales = async () => {
     .from('salerecordorm')
     .select('*')
     .eq('unpaid', true);
-  
+
   if (error) throw error;
   return data as SaleRecord[];
 };
@@ -261,12 +261,12 @@ const fetchUnpaidSales = async () => {
 const markSaleAsPaid = async (uniqueId: string) => {
   const { error } = await supabase
     .from('salerecordorm')
-    .update({ 
+    .update({
       unpaid: false,
       updated_at: new Date().toISOString()
     })
     .eq('unique_id', uniqueId);
-  
+
   if (error) throw error;
   return true;
 };

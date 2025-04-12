@@ -3,7 +3,7 @@ import { isFeatureEnabled, FEATURES } from '../../../utils/featureFlags';
 
 /**
  * 深色模式切換組件
- * 
+ *
  * 只有在 DARK_MODE 功能開關啟用時才會顯示
  */
 const DarkModeToggle: React.FC = () => {
@@ -14,7 +14,7 @@ const DarkModeToggle: React.FC = () => {
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
-    
+
     if (newMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -26,7 +26,7 @@ const DarkModeToggle: React.FC = () => {
   useEffect(() => {
     const isDark = localStorage.getItem('darkMode') === 'true';
     setDarkMode(isDark);
-    
+
     if (isDark) {
       document.documentElement.classList.add('dark');
     }

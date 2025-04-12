@@ -11,12 +11,12 @@ const NewBatchButton: React.FC = () => {
     <button
       className="
         absolute right-4
-        bg-blue-500 
-        w-10 h-10 
-        rounded-full 
-        flex items-center justify-center 
-        shadow-md 
-        hover:bg-blue-600 
+        bg-blue-500
+        w-10 h-10
+        rounded-full
+        flex items-center justify-center
+        shadow-md
+        hover:bg-blue-600
         transition-colors
       "
       onClick={() => navigate("/batch/new")}

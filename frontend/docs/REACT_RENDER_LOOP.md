@@ -79,10 +79,10 @@ useEffect(() => {
 // 插入/更新/刪除後不直接修改本地狀態
 const insert = useCallback(async (record) => {
   // ...執行插入操作...
-  
+
   // 不再直接更新本地狀態
   // setData(prev => [...prev, result]);
-  
+
   // 而是重新獲取所有數據
   if (isMounted.current) {
     fetchData();
@@ -99,7 +99,7 @@ const insert = useCallback(async (record) => {
 const handleSubmit = async (e) => {
   e.preventDefault();
   await insert(newRecord);
-  
+
   // 添加延遲再刷新，避免競態條件
   setTimeout(() => refetch(), 300);
 };

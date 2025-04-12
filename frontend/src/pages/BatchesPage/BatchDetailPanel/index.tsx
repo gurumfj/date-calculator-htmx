@@ -25,7 +25,7 @@ const BatchDetailPanel: React.FC<{ batch: BatchAggregate }> = ({ batch }) => {
           </h2>
           <div className="flex items-center">
             <span
-              className={`px-2 py-1 rounded-md text-xs font-medium 
+              className={`px-2 py-1 rounded-md text-xs font-medium
               ${stateDisplay.bgClass} ${stateDisplay.textClass} mr-2`}
             >
               {stateDisplay.label}

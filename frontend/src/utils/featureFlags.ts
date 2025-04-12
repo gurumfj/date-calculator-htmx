@@ -1,6 +1,6 @@
 /**
  * 功能開關系統
- * 
+ *
  * 這個模組用於管理應用程式中的功能開關（Feature Flags）。
  * 使用功能開關可以控制特定功能的開啟/關閉，而不需要更改代碼或重新部署。
  */
@@ -26,7 +26,7 @@ export const FEATURES = {
  */
 const getEnvFeatureFlags = (): Record<string, boolean> => {
   const flags: Record<string, boolean> = {};
-  
+
   // 讀取所有以 VITE_FEATURE_ 開頭的環境變數
   Object.keys(import.meta.env).forEach(key => {
     if (key.startsWith('VITE_FEATURE_')) {
@@ -34,7 +34,7 @@ const getEnvFeatureFlags = (): Record<string, boolean> => {
       flags[featureName] = import.meta.env[key] === 'true';
     }
   });
-  
+
   return flags;
 };
 
@@ -44,7 +44,7 @@ const getEnvFeatureFlags = (): Record<string, boolean> => {
 const getLocalStorageFeatureFlags = (): Record<string, boolean> => {
   const storedFlags = localStorage.getItem('featureFlags');
   if (!storedFlags) return {};
-  
+
   try {
     return JSON.parse(storedFlags);
   } catch (error) {
@@ -67,7 +67,7 @@ export const saveFeatureFlags = (flags: Record<string, boolean>): void => {
 export const getAllFeatureFlags = (): Record<string, boolean> => {
   const envFlags = getEnvFeatureFlags();
   const localStorageFlags = getLocalStorageFeatureFlags();
-  
+
   // 合併所有來源的功能開關設置
   return { ...envFlags, ...localStorageFlags };
 };

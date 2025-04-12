@@ -73,7 +73,7 @@ export const updateStateAfterUpdate = <T>(
 
   setData(prev => {
     if (!prev) return prev;
-    return prev.map(item => 
+    return prev.map(item =>
       item[idField as keyof T] === id ? {...item, ...updatedItem} as T : item
     );
   });

@@ -10,8 +10,8 @@ const NotFoundPage: React.FC = () => {
         <p className="text-gray-600 mt-2 mb-6">
           很抱歉，您請求的頁面不存在或已被移除。
         </p>
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
         >
           返回首頁

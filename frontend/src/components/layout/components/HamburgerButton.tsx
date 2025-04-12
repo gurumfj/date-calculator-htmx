@@ -6,15 +6,15 @@ interface HamburgerButtonProps {
   onClick: () => void;
 }
 
-const HamburgerButton: React.FC<HamburgerButtonProps> = ({ 
-  isSidebarOpen, 
-  onClick 
+const HamburgerButton: React.FC<HamburgerButtonProps> = ({
+  isSidebarOpen,
+  onClick
 }) => {
   return (
     <button
       onClick={onClick}
       className={`
-        absolute left-4 p-2 rounded-md 
+        absolute left-4 p-2 rounded-md
         text-gray-700 hover:bg-gray-100 transition-opacity duration-300
         ${isSidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"}
         md:hidden

@@ -1,12 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { 
-  FaHome, 
-  FaList, 
-  FaChartBar, 
-  FaFlask, 
-  FaDatabase, 
-  FaWrench 
+import {
+  FaHome,
+  FaList,
+  FaChartBar,
+  FaFlask,
+  FaDatabase,
+  FaWrench
 } from "react-icons/fa";
 import { NavItem } from "../utils/types";
 import { isActive } from "../utils/helpers";
@@ -16,9 +16,9 @@ interface SidebarNavItemsProps {
   onItemClick: () => void;
 }
 
-const SidebarNavItems: React.FC<SidebarNavItemsProps> = ({ 
-  isCollapsed, 
-  onItemClick 
+const SidebarNavItems: React.FC<SidebarNavItemsProps> = ({
+  isCollapsed,
+  onItemClick
 }) => {
   const location = useLocation();
 
@@ -31,10 +31,10 @@ const SidebarNavItems: React.FC<SidebarNavItemsProps> = ({
       icon: <FaChartBar className="h-5 w-5" />,
       label: "報表",
     },
-    { 
-      path: "/testing", 
-      icon: <FaFlask className="h-5 w-5" />, 
-      label: "測試" 
+    {
+      path: "/testing",
+      icon: <FaFlask className="h-5 w-5" />,
+      label: "測試"
     },
     {
       path: "/supabase-test",

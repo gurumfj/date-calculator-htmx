@@ -19,7 +19,7 @@ export interface CustomInfoCardProps {
 
 /**
  * 自定義資訊卡元件
- * 
+ *
  * 用於顯示批次的資訊項目，包含圖示、標題和內容
  */
 export const CustomInfoCard: React.FC<CustomInfoCardProps> = ({
@@ -30,7 +30,7 @@ export const CustomInfoCard: React.FC<CustomInfoCardProps> = ({
   onClick,
 }) => {
   return (
-    <div 
+    <div
       className={`flex items-center space-x-3 ${onClick ? 'cursor-pointer' : ''} ${className}`}
       onClick={onClick}
     >

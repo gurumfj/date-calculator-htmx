@@ -130,11 +130,11 @@ export const CommonTable: React.FC<CommonTableProps> = ({
           <thead className={TABLE_STYLES.THEAD}>
             <tr>
               {columns.map((column, index) => (
-                <th 
+                <th
                   key={index}
                   className={
-                    column.align === 'right' 
-                      ? TABLE_STYLES.TH_RIGHT 
+                    column.align === 'right'
+                      ? TABLE_STYLES.TH_RIGHT
                       : column.align === 'center'
                         ? TABLE_STYLES.TH.replace('text-left', 'text-center')
                         : TABLE_STYLES.TH
@@ -149,17 +149,17 @@ export const CommonTable: React.FC<CommonTableProps> = ({
             {currentData.map((record, rowIndex) => (
               <tr key={rowIndex} className={TABLE_STYLES.TR}>
                 {columns.map((column, colIndex) => (
-                  <td 
+                  <td
                     key={colIndex}
                     className={
-                      column.align === 'right' 
-                        ? TABLE_STYLES.TD_RIGHT 
+                      column.align === 'right'
+                        ? TABLE_STYLES.TD_RIGHT
                         : column.align === 'center'
                           ? TABLE_STYLES.TD.replace('text-left', 'text-center')
                           : TABLE_STYLES.TD
                     }
                   >
-                    {column.render 
+                    {column.render
                       ? column.render(record[column.key], record)
                       : record[column.key] || '-'}
                   </td>
@@ -179,8 +179,8 @@ export const CommonTable: React.FC<CommonTableProps> = ({
             <button
               onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className={currentPage === 1 
-                ? PAGINATION_STYLES.MOBILE.BUTTON_DISABLED 
+              className={currentPage === 1
+                ? PAGINATION_STYLES.MOBILE.BUTTON_DISABLED
                 : PAGINATION_STYLES.MOBILE.BUTTON_ACTIVE}
             >
               <svg
@@ -204,8 +204,8 @@ export const CommonTable: React.FC<CommonTableProps> = ({
             <button
               onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className={currentPage === totalPages 
-                ? PAGINATION_STYLES.MOBILE.BUTTON_DISABLED 
+              className={currentPage === totalPages
+                ? PAGINATION_STYLES.MOBILE.BUTTON_DISABLED
                 : PAGINATION_STYLES.MOBILE.BUTTON_ACTIVE}
             >
               <svg
@@ -230,8 +230,8 @@ export const CommonTable: React.FC<CommonTableProps> = ({
             <button
               onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className={currentPage === 1 
-                ? PAGINATION_STYLES.BUTTON_DISABLED 
+              className={currentPage === 1
+                ? PAGINATION_STYLES.BUTTON_DISABLED
                 : PAGINATION_STYLES.BUTTON_ACTIVE}
             >
               上一頁
@@ -242,8 +242,8 @@ export const CommonTable: React.FC<CommonTableProps> = ({
             <button
               onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className={currentPage === totalPages 
-                ? PAGINATION_STYLES.BUTTON_DISABLED 
+              className={currentPage === totalPages
+                ? PAGINATION_STYLES.BUTTON_DISABLED
                 : PAGINATION_STYLES.BUTTON_ACTIVE}
             >
               下一頁

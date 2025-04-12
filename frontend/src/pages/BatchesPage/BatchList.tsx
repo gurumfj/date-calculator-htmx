@@ -16,14 +16,14 @@ export const BatchList: React.FC<BatchListProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // 從 URL 中解析出當前選中的 batchName
   const selectedBatchName = location.pathname.startsWith("/batches/")
     ? decodeURIComponent(location.pathname.split("/").pop() || "")
     : null;
-    
+
   console.log("Selected Batch Name:", selectedBatchName);
-  
+
   const handleCardClick = (batchName: string) => {
     if (batchName === selectedBatchName) {
       navigate("/batches");
@@ -35,7 +35,7 @@ export const BatchList: React.FC<BatchListProps> = ({
 
   // 顯示載入狀態
   if (isLoading) return <div className="py-6 text-center text-gray-500">載入中...</div>;
-  
+
   // 顯示無資料狀態
   if (batches.length === 0) {
     return <div className="py-12 text-center text-gray-500">暫無資料</div>;

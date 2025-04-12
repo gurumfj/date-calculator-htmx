@@ -26,12 +26,12 @@ const NotificationBar: React.FC<NotificationBarProps> = () => {
     <div className="fixed left-0 z-50 flex justify-center w-full pointer-events-none">
       <div
         className={`
-          max-w-md 
-          bg-[#E8F5E9] 
+          max-w-md
+          bg-[#E8F5E9]
           rounded-b-lg shadow-sm border border-[#C8E6C9]
-          py-2 px-4 
-          text-center 
-          text-sm 
+          py-2 px-4
+          text-center
+          text-sm
           transition-all duration-300
           ${visible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}
         `}

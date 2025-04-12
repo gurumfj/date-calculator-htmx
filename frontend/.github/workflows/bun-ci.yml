@@ -12,28 +12,28 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup Bun
       uses: oven-sh/setup-bun@v1
       with:
         bun-version: latest
-    
+
     - name: Install dependencies
       run: bun install
       working-directory: .
-    
+
     - name: Lint
       run: bun run lint
       working-directory: .
-    
+
     - name: Type check
       run: bunx --bun tsc --noEmit
       working-directory: .
-    
+
     - name: Build
       run: bun run build
       working-directory: .
-    
+
     # 如果有測試，可以添加測試步驟
     # - name: Test
     #   run: bun test

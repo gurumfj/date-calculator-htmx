@@ -29,22 +29,22 @@ function MyComponent() {
       'breedrecordorm',
       (payload) => {
         console.log('收到資料變更:', payload);
-        
+
         // 根據事件類型處理不同情況
         const { eventType, new: newRecord, old: oldRecord } = payload;
-        
+
         switch (eventType) {
           case 'INSERT':
             console.log('新增記錄:', newRecord);
             // 處理新增記錄的邏輯
             break;
-            
+
           case 'UPDATE':
             console.log('更新記錄:', newRecord);
             console.log('原始記錄:', oldRecord);
             // 處理更新記錄的邏輯
             break;
-            
+
           case 'DELETE':
             console.log('刪除記錄:', oldRecord);
             // 處理刪除記錄的邏輯
@@ -52,13 +52,13 @@ function MyComponent() {
         }
       }
     );
-    
+
     // 組件卸載時取消訂閱
     return () => {
       unsubscribe();
     };
   }, []);
-  
+
   return (
     // 組件內容
   );
@@ -79,7 +79,7 @@ type BreedRecord = Database['public']['Tables']['breedrecordorm']['Row'];
 function BreedingRecordsLiveView() {
   const [records, setRecords] = useState<BreedRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // 初始加載資料
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -93,47 +93,47 @@ function BreedingRecordsLiveView() {
         setLoading(false);
       }
     };
-    
+
     fetchInitialData();
   }, []);
-  
+
   // 訂閱實時更新
   useEffect(() => {
     const unsubscribe = SupabaseService.subscribeToTableChanges(
       'breedrecordorm',
       (payload) => {
         const { eventType, new: newRecord, old: oldRecord } = payload;
-        
+
         setRecords(prevRecords => {
           switch (eventType) {
             case 'INSERT':
               // 將新記錄添加到列表頂部
               return [newRecord, ...prevRecords];
-              
+
             case 'UPDATE':
               // 更新列表中的記錄
-              return prevRecords.map(record => 
+              return prevRecords.map(record =>
                 record.unique_id === newRecord.unique_id ? newRecord : record
               );
-              
+
             case 'DELETE':
               // 從列表中移除記錄
-              return prevRecords.filter(record => 
+              return prevRecords.filter(record =>
                 record.unique_id !== oldRecord.unique_id
               );
-              
+
             default:
               return prevRecords;
           }
         });
       }
     );
-    
+
     return () => {
       unsubscribe();
     };
   }, []);
-  
+
   return (
     <div>
       <h2>實時養殖記錄</h2>
@@ -205,14 +205,14 @@ export function useSupabaseRealtime<T>(
               return [newRecord as T, ...prevData];
 
             case 'UPDATE':
-              return prevData.map(item => 
-                (item as any).unique_id === (newRecord as any).unique_id 
-                  ? newRecord as T 
+              return prevData.map(item =>
+                (item as any).unique_id === (newRecord as any).unique_id
+                  ? newRecord as T
                   : item
               );
 
             case 'DELETE':
-              return prevData.filter(item => 
+              return prevData.filter(item =>
                 (item as any).unique_id !== (oldRecord as any).unique_id
               );
 
@@ -240,10 +240,10 @@ function BreedingRecordsView() {
     'breedrecordorm',
     SupabaseService.getAllBreedRecords
   );
-  
+
   if (loading) return <p>載入中...</p>;
   if (error) return <p>錯誤: {error.message}</p>;
-  
+
   return (
     <div>
       <h2>養殖記錄 ({records.length})</h2>

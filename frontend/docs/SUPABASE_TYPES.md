@@ -91,21 +91,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
           node-version: '18'
-      
+
       - name: Install Supabase CLI
         run: npm install -g supabase
-      
+
       - name: Login to Supabase
         run: supabase login --token ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      
+
       - name: Generate types
         run: supabase gen types typescript --project-id ${{ secrets.SUPABASE_PROJECT_ID }} > src/tstype.ts
-      
+
       - name: Commit and push if changed
         run: |
           git config --global user.name 'GitHub Actions'
@@ -135,7 +135,7 @@ async function fetchBreedRecords(): Promise<BreedRecord[]> {
   const { data, error } = await supabase
     .from('breedrecordorm')
     .select('*');
-  
+
   if (error) throw error;
   return data || [];
 }
@@ -152,22 +152,22 @@ type BreedRecord = Database['public']['Tables']['breedrecordorm']['Row'];
 
 const BreedRecordsList: React.FC = () => {
   const [records, setRecords] = useState<BreedRecord[]>([]);
-  
+
   useEffect(() => {
     // 獲取養殖記錄
     const fetchRecords = async () => {
       const { data, error } = await supabase
         .from('breedrecordorm')
         .select('*');
-      
+
       if (!error && data) {
         setRecords(data);
       }
     };
-    
+
     fetchRecords();
   }, []);
-  
+
   return (
     <div>
       <h2>養殖記錄</h2>
@@ -265,7 +265,7 @@ async function fetchBreedingWithFeeds(batchName: string): Promise<BreedingWithFe
     `)
     .eq('batch_name', batchName)
     .single();
-  
+
   if (error) throw error;
   return data;
 }
@@ -303,10 +303,10 @@ async function getBatchCustomData(batchName: string): Promise<TypedBatchCustomDa
     .select('*')
     .eq('batch_name', batchName)
     .single();
-  
+
   if (error) throw error;
   if (!data) return null;
-  
+
   return data as TypedBatchCustomData;
 }
 ```
@@ -375,14 +375,14 @@ type ValidatedNewBreedRecord = z.infer<typeof NewBreedRecordSchema>;
 function createBreedRecord(data: unknown): Promise<BreedRecord> {
   // 驗證輸入數據
   const validatedData = NewBreedRecordSchema.parse(data);
-  
+
   // 添加必要欄位
   const newRecord = {
     ...validatedData,
     unique_id: `breed-${Date.now()}`,
     updated_at: new Date().toISOString()
   };
-  
+
   // 插入記錄
   return supabase
     .from('breedrecordorm')

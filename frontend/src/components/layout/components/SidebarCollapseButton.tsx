@@ -6,9 +6,9 @@ interface SidebarCollapseButtonProps {
   onClick: () => void;
 }
 
-const SidebarCollapseButton: React.FC<SidebarCollapseButtonProps> = ({ 
-  isCollapsed, 
-  onClick 
+const SidebarCollapseButton: React.FC<SidebarCollapseButtonProps> = ({
+  isCollapsed,
+  onClick
 }) => {
   return (
     <div className="p-4 border-t border-gray-200 hidden md:block">
