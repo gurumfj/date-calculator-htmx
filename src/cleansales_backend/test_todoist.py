@@ -24,7 +24,7 @@ api = TodoistAPI(API_TOKEN)
 #     return True
 
 
-def test_create_and_cleanup_task():
+def test_create_and_cleanup_task() -> None:
     print("📝 建立測試任務...")
     try:
         task = api.add_task(

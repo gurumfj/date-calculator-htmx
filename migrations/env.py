@@ -31,13 +31,10 @@ def get_url() -> str:
     settings = get_settings()
     if settings.DB == "sqlite":
         return f"sqlite:///{settings.SQLITE_DB_PATH}"
+    elif settings.DB == "supabase_pooler":
+        return f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}.{settings.SUPABASE_POOLER_TENANT_ID}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}"
     elif settings.DB == "supabase":
-        if settings.SUPABASE_PRODUCTION_URL:
-            return settings.SUPABASE_PRODUCTION_URL
-        if settings.SUPABASE_POOLER:
-            return f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}.{settings.SUPABASE_POOLER_TENANT_ID}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_POOLER_PORT}/{settings.SUPABASE_DB_NAME}"
-        else:
-            return f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}"
+        return f"postgresql+psycopg2://{settings.SUPABASE_DB_USER}:{settings.SUPABASE_DB_PASSWORD}@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}/{settings.SUPABASE_DB_NAME}"
     else:
         raise ValueError(f"不支援的資料庫類型: {settings.DB}")
 
