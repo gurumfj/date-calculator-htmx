@@ -10,8 +10,8 @@ client = TestClient(app)
 
 
 def test_root_endpoint() -> None:
-    """測試 root 節點(健康檢查端點)是否正常工作"""
-    response = client.get("/")
+    """測試健康檢查端點是否正常工作"""
+    response = client.get("/api/health")
     assert response.status_code == 200
     assert "status" in response.json()
     assert response.json()["status"] == "healthy"

@@ -31,3 +31,7 @@ logs/
 # migrations/versions
 # migrations/README
 # alembic.ini
+
+# Frontend
+frontend/dist
+frontend/node_modules

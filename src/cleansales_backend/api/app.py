@@ -16,13 +16,15 @@
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from typing_extensions import Annotated
 
 from cleansales_backend.core.database import get_core_db
@@ -82,7 +84,7 @@ if settings.FEATURES_RAW_DATA_API:
 
 
 # 健康檢查端點
-@app.get("/")
+@app.get("/api/health")
 async def health_check() -> JSONResponse:
     """
     健康檢查端點
@@ -113,6 +115,32 @@ async def cache_clear(
     """
     query_service.cache_clear()
     return JSONResponse({"status": "success"})
+
+
+# 靜態資源處理：先註冊所有API路由後再處理靜態資源
+# 將 Vite 的 dist 當作靜態目錄掛載（不處理index.html，我們會在fallback中特別處理）
+app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+
+
+# 根路徑處理與SPA的fallback：所有未匹配的路由指向index.html
+@app.get("/{full_path:path}", response_model=None)
+async def serve_frontend(full_path: str) -> FileResponse | JSONResponse:
+    """
+    處理所有未被API路由捕獲的請求，將其導向前端應用index.html。
+    這樣實現了單頁應用（SPA）的路由支持。
+
+    注意：API路由優先級高於此處理器，因為它們已在前面註冊。
+    """
+    logger.info(f"Request path: {full_path}")
+    # 指向前端構建目錄中的index.html
+    index_path = Path("frontend/dist/index.html")
+
+    # 如果請求根路徑，或index.html存在且路徑非api，則返回index.html
+    if full_path == "" or (index_path.exists() and not full_path.startswith("api")):
+        return FileResponse(index_path)
+
+    # 如果未找到或是未處理的API路徑，返回404
+    return JSONResponse({"error": "Not Found", "path": full_path}, status_code=404)
 
 
 # CORS 中間件配置

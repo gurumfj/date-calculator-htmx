@@ -10,8 +10,7 @@
     "preview": "bunx --bun vite preview",
     "typecheck": "bunx --bun tsc --noEmit",
     "quick-check": "bunx --bun tsc --noEmit",
-    "full-check": "npm run lint && npm run typecheck && npm run build",
-    "postinstall": "node hooks/setup.js"
+    "full-check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
