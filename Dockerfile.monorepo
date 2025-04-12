@@ -58,4 +58,4 @@ RUN mkdir -p /app/frontend/dist
 COPY --from=frontend_builder /app/frontend/dist/ /app/frontend/dist/
 
 # 設置 CMD
-CMD ["python", "-m", "src.cleansales_backend.main"]
+# CMD ["python", "-m", "src.cleansales_backend.main"]
