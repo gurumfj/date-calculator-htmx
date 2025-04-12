@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
     # 數據庫配置
-    DB: Literal["sqlite", "supabase"] = Field(default="sqlite")
+    DB: Literal["sqlite", "supabase", "supabase_pooler"] = Field(default="sqlite")
     DB_ECHO: bool = Field(default=False)
     SQLITE_DB_PATH: Path = Field(default_factory=lambda: ROOT_DIR / "data" / "main.db")
 
@@ -52,10 +52,7 @@ class Settings(BaseSettings):
     SUPABASE_DB_USER: str = Field(default="")
     SUPABASE_DB_PORT: int = Field(default=5432)
     SUPABASE_DB_NAME: str = Field(default="")
-
     # supabase pooler
-    SUPABASE_POOLER: bool = Field(default=False)
-    SUPABASE_POOLER_PORT: int = Field(default=6543)
     SUPABASE_POOLER_TENANT_ID: str = Field(default="")
 
     # supabase production
@@ -100,7 +97,9 @@ class Settings(BaseSettings):
         if self.DB == "sqlite":
             db_path = str(self.SQLITE_DB_PATH)
         elif self.DB == "supabase":
-            db_path = f"{self.SUPABASE_DB_HOST}:{self.SUPABASE_DB_PORT}"
+            db_path = f"{self.SUPABASE_DB_USER}@{self.SUPABASE_DB_HOST}:{self.SUPABASE_DB_PORT}/{self.SUPABASE_DB_NAME}"
+        elif self.DB == "supabase_pooler":
+            db_path = f"{self.SUPABASE_DB_USER}.{self.SUPABASE_POOLER_TENANT_ID}@{self.SUPABASE_DB_HOST}:{self.SUPABASE_DB_PORT}/{self.SUPABASE_DB_NAME}"
         return {
             "BRANCH": self.BRANCH,
             "DB": self.DB,

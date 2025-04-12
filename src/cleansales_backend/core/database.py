@@ -35,7 +35,7 @@ DbFactory = Callable[[], Engine]
 class DatabaseSettings(Protocol):
     """數據庫設置協議"""
 
-    DB: Literal["sqlite", "supabase"]
+    DB: Literal["sqlite", "supabase", "supabase_pooler"]
     DB_ECHO: bool
     SQLITE_DB_PATH: Path
     SUPABASE_DB_HOST: str
@@ -43,8 +43,6 @@ class DatabaseSettings(Protocol):
     SUPABASE_DB_USER: str
     SUPABASE_DB_PORT: int
     SUPABASE_DB_NAME: str
-    SUPABASE_POOLER: bool
-    SUPABASE_POOLER_PORT: int
     SUPABASE_POOLER_TENANT_ID: str
 
 
@@ -140,7 +138,7 @@ class SupabasePoolerConnectionStrategy(DbConnectionStrategy):
             f"postgresql+psycopg2://"
             f"{settings.SUPABASE_DB_USER}.{settings.SUPABASE_POOLER_TENANT_ID}"
             f":{settings.SUPABASE_DB_PASSWORD}"
-            f"@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_POOLER_PORT}"
+            f"@{settings.SUPABASE_DB_HOST}:{settings.SUPABASE_DB_PORT}"
             f"/{settings.SUPABASE_DB_NAME}"
         )
 
@@ -165,7 +163,7 @@ class DatabaseConnector:
         """根據設置選擇合適的連接策略"""
         if self.settings.DB == "sqlite":
             return SqliteConnectionStrategy()
-        elif self.settings.DB == "supabase" and self.settings.SUPABASE_POOLER:
+        elif self.settings.DB == "supabase_pooler":
             return SupabasePoolerConnectionStrategy()
         elif self.settings.DB == "supabase":
             return SupabaseConnectionStrategy()
