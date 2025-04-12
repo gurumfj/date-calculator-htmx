@@ -1,0 +1,38 @@
+import { createBrowserRouter } from "react-router-dom";
+import App from "../App";
+import HomePage from "../pages/HomePage";
+import BatchesPage from "../pages/BatchesPage";
+import ReportsPage from "../pages/ReportsPage";
+import SettingsPage from "../pages/SettingsPage";
+import NotFoundPage from "../pages/NotFoundPage";
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <App />,
+    children: [
+      {
+        element: <HomePage />,
+      },
+      {
+        index: true,
+        path: "batches/:batchName?",
+        element: <BatchesPage />,
+      },
+      {
+        path: "reports",
+        element: <ReportsPage />,
+      },
+      {
+        path: "settings",
+        element: <SettingsPage />,
+      },
+      {
+        path: "*",
+        element: <NotFoundPage />,
+      },
+    ],
+  },
+]);
+
+export default router;
