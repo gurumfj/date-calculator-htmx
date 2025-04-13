@@ -3,9 +3,13 @@ repos:
       rev: v5.0.0
       hooks:
           - id: trailing-whitespace
+            exclude: ^frontend/
           - id: end-of-file-fixer
+            exclude: ^frontend/
           - id: check-yaml
+            exclude: ^frontend/
           - id: check-toml
+            exclude: ^frontend/
 
     -   repo: local
         hooks:
