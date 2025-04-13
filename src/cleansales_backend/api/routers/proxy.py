@@ -8,7 +8,8 @@ from .. import get_client, settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+
+router = APIRouter(tags=["proxy"])
 
 
 @router.api_route(

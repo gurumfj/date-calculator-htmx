@@ -27,6 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from typing_extensions import Annotated
 
+from cleansales_backend.api.routers import todoist
 from cleansales_backend.core.database import get_core_db
 from cleansales_backend.services.query_service import QueryService
 
@@ -74,6 +75,7 @@ app = FastAPI(
 app.include_router(query.router)  # 這會處理 /api/not-completed
 app.include_router(upload.router)  # 這會處理 /api/upload
 app.include_router(proxy.router)  # 這會處理 /api/proxy/* 相關端點
+app.include_router(todoist.router)  # 這會處理 /api/todoist/* 相關端點
 
 # 根據功能開關載入原始數據 API 路由
 if settings.FEATURES_RAW_DATA_API:

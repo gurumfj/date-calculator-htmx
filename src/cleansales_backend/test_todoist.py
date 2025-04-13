@@ -1,5 +1,6 @@
 from todoist_api_python.api import TodoistAPI
 
+from cleansales_backend.api.routers.todoist import TodoistUtils
 from cleansales_backend.core import get_settings
 
 # ✅ 讀取 .env 檔
@@ -45,26 +46,29 @@ def test_create_and_cleanup_task() -> None:
         print("❌ 發生錯誤：", e)
 
 
+"""
+# 📋 查詢任務內容: Task(assignee_id=None, assigner_id=None, comment_count=1, is_completed=False, content='測試任務Name @test_label', created_at='2025-04-12T18:53:08.355622Z', creator_id='15948005', description='test description.', due=Due(date='2025-04-14', is_recurring=False, string='4月14日', datetime=None, timezone=None), id='9064898674', labels=['test_label', 'test_label2'], order=1, parent_id=None, priority=3, project_id='2175825282', section_id=None, url='https://app.todoist.com/app/task/9064898674', duration=None, sync_id=None)"""
+
+
+def get_project_id(api: TodoistAPI, project_name: str) -> str:
+    projects = api.get_projects()
+    if project_name not in [project.name for project in projects]:
+        project = api.add_project(name=project_name)
+        return project.id
+    else:
+        return [project.id for project in projects if project.name == project_name][0]
+
+
 def main() -> None:
-    labels = api.get_labels()
-    print(f"Labels: {labels}")
+    if not API_TOKEN:
+        raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
+    api = TodoistAPI(API_TOKEN)
+    utils = TodoistUtils(api, "cleansales-project")
 
-    label = "批次名稱2025-04-13"
-    # ✅ 建立測試任務
-    task = api.add_task(
-        content="✅ 測試任務 - test_todoist.py",
-        due_string="tomorrow at 9am",
-        priority=3,
-        labels=[label],
-    )
-    print(f"✅ 建立成功，任務 ID: {task.id}")
-
-    comment = api.add_comment(content="This is a test comment", task_id=task.id)
-    print(f"✅ 添加評論成功，評論 ID: {comment.id}")
-
-    # 清理任務
-    success = api.delete_task(task.id)
-    print(f"🧹 測試任務已刪除，環境清理完畢。{success}")
+    task = utils.add_task("Test task")
+    print(f"Task ID: {task}")
+    tasks = utils.get_tasks()
+    print([task.content for task in tasks])
 
 
 if __name__ == "__main__":
