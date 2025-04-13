@@ -1,9 +1,10 @@
 import React, { Suspense } from "react";
 import PageNavbar from "../components/layout/components/PageNavbar";
-import { SearchAction, SettingsAction } from "../components/layout/components/NavbarIcons";
-// 我們也可以直接使用 HeroIcons，示範兩種方式
-// import { MagnifyingGlassIcon, Cog6ToothIcon } from "@heroicons/react/24/outline";
-// import NavbarAction from "../components/layout/components/NavbarAction";
+import {
+  SearchAction,
+  SettingsAction,
+} from "../components/layout/components/NavbarIcons";
+import TodoistPage from "./BatchesPage/BatchDetailPanel/todoist";
 
 const HomePage: React.FC = () => {
   // 示範右側圖標操作
@@ -17,15 +18,13 @@ const HomePage: React.FC = () => {
   return (
     <>
       {/* 頁面頂部導航欄 */}
-      <PageNavbar
-        title="儀表盤"
-        rightActions={rightActions}
-      />
+      <PageNavbar title="儀表盤" rightActions={rightActions} />
 
       <div className="p-4">
         <h2 className="text-xl font-semibold mb-4">儀表盤</h2>
         <Suspense fallback={<div className="text-center p-4">載入中...</div>}>
           {/* <Dashboard /> */}
+          <TodoistPage batch={null} />
         </Suspense>
 
         <div className="bg-white p-4 rounded-lg shadow mt-4">

@@ -5,6 +5,17 @@ import type { Database } from "@app-types";
  * TODO: FEATURE - 在前端設定網頁自定義直連URL
  */
 
+export const getBackendUrl = () => {
+  // 生產環境 Backend proxy
+  const getCurrentProtocol = () => {
+    return window.location.protocol === "https:" ? "https" : "http";
+  };
+  const getCurrentHost = () => {
+    return window.location.host;
+  };
+  return `${getCurrentProtocol()}://${getCurrentHost()}`;
+};
+
 const getSupabaseUrl = () => {
   // Supabase 直連
   if (import.meta.env.VITE_SUPABASE_URL) {
@@ -13,22 +24,11 @@ const getSupabaseUrl = () => {
   }
 
   // 生產環境 Backend proxy
-  const getCurrentProtocol = () => {
-    return window.location.protocol === "https:" ? "https" : "http";
-  };
-  const getCurrentHost = () => {
-    return window.location.host;
-  };
   const getProxyPath = () => {
     return import.meta.env.VITE_SUPABASE_PATH || "/proxy";
   };
-  console.log(
-    "生產環境 Backend proxy",
-    getCurrentProtocol(),
-    getCurrentHost(),
-    getProxyPath()
-  );
-  return `${getCurrentProtocol()}://${getCurrentHost()}${getProxyPath()}`;
+  console.log("生產環境 Backend proxy", getBackendUrl(), getProxyPath());
+  return `${getBackendUrl()}${getProxyPath()}`;
 };
 
 const getSupabaseAnonKey = () => {

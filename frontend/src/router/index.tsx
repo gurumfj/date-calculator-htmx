@@ -5,6 +5,7 @@ import BatchesPage from "../pages/BatchesPage";
 import ReportsPage from "../pages/ReportsPage";
 import SettingsPage from "../pages/SettingsPage";
 import NotFoundPage from "../pages/NotFoundPage";
+import TestingPage from "../pages/TestingPage";
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ const router = createBrowserRouter([
       {
         path: "reports",
         element: <ReportsPage />,
+      },
+      {
+        path: "testing",
+        element: <TestingPage />,
       },
       {
         path: "settings",
