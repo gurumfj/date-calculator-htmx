@@ -1,6 +1,5 @@
 from todoist_api_python.api import TodoistAPI
 
-from cleansales_backend.api.routers.todoist import TodoistUtils
 from cleansales_backend.core import get_settings
 
 # ✅ 讀取 .env 檔
@@ -60,15 +59,7 @@ def get_project_id(api: TodoistAPI, project_name: str) -> str:
 
 
 def main() -> None:
-    if not API_TOKEN:
-        raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
-    api = TodoistAPI(API_TOKEN)
-    utils = TodoistUtils(api, "cleansales-project")
-
-    task = utils.add_task("Test task")
-    print(f"Task ID: {task}")
-    tasks = utils.get_tasks()
-    print([task.content for task in tasks])
+    test_create_and_cleanup_task()
 
 
 if __name__ == "__main__":
