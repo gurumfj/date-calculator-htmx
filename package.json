@@ -14,6 +14,7 @@
     "postinstall": "node hooks/setup.js"
   },
   "dependencies": {
+    "@doist/todoist-api-typescript": "^4.0.0",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.49.4",

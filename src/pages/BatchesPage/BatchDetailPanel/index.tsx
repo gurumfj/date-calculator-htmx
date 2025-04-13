@@ -8,6 +8,8 @@ import {
 } from "@utils/batchCalculations";
 import BatchDetail from "./BreedsTable";
 import SalesRawTable from "./SalesTable";
+import TodoistPage from "./todoist";
+import { CheckCircleIcon } from "@heroicons/react/24/outline";
 
 const BatchDetailPanel: React.FC<{ batch: BatchAggregate }> = ({ batch }) => {
   // 使用計算工具函數確定批次狀態
@@ -77,6 +79,19 @@ const BatchDetailPanel: React.FC<{ batch: BatchAggregate }> = ({ batch }) => {
                 {"飼料"}
               </Tab>
             )}
+            <Tab
+              className={({ selected }) =>
+                `flex-1 rounded-lg py-2 text-sm font-medium leading-5 transition-all flex items-center justify-center
+                  ${
+                    selected
+                      ? "bg-white text-[#007AFF] shadow"
+                      : "text-[#8E8E93] hover:bg-white/[0.12] hover:text-[#8E8E93]"
+                  }`
+              }
+            >
+              <CheckCircleIcon className="w-4 h-4 mr-1" />
+              {"待辦事項"}
+            </Tab>
           </TabList>
 
           <TabPanels>
@@ -89,12 +104,17 @@ const BatchDetailPanel: React.FC<{ batch: BatchAggregate }> = ({ batch }) => {
               </TabPanel>
             )}
 
-            {/* 飼料 */}
+            {/* ��料 */}
             {batch.feeds && batch.feeds.length > 0 && (
               <TabPanel className="focus:outline-none">
                 <FeedRecordTable batch={batch} />
               </TabPanel>
             )}
+            
+            {/* 待辦事項 */}
+            <TabPanel className="focus:outline-none">
+              <TodoistPage batch={batch} />
+            </TabPanel>
           </TabPanels>
         </TabGroup>
       </div>
