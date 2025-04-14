@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from dataclasses import asdict
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -116,6 +117,14 @@ def get_todoist_api() -> TodoistAPI:
 
 
 router = APIRouter(prefix="/api/todoist", tags=["todoist"])
+
+
+@router.get("/projects")
+async def get_projects(api: TodoistAPI = Depends(get_todoist_api)) -> Response:
+    projects = api.get_projects()
+    return Response(
+        content=json.dumps([asdict(p) for p in projects]), media_type="application/json"
+    )
 
 
 @router.get("/p/{project_name}/id")
