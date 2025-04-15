@@ -93,6 +93,8 @@ class ProcessExecutor:
             response = get_core_db().with_transaction(
                 self._process_dict[k].execute, **payload.content.source_params
             )
+
+            # ---- publish event ----
             if not response.success:
                 logger.error("處理失敗")
                 self._event_bus.publish(
@@ -105,6 +107,11 @@ class ProcessExecutor:
                     )
                 )
                 return
+
+            if response.success and response.content.validation.data_existed:
+                logger.info("資料已存在，跳過處理")
+                return
+
             self._event_bus.publish(
                 ProcessorEventPayload(
                     event=workflow["completed"],
@@ -124,9 +131,6 @@ class ProcessExecutor:
         response = payload.content.response
 
         msg = [LineObject(Head.TITLE, text=f"{response.content.processor_name}:")]
-        if response.content.validation.data_existed:
-            msg.append(LineObject(Head.TEXT, text="資料已存在，跳過處理"))
-
         if (
             len(response.content.validation.validated_records) > 0
             and len(response.content.validation.error_records) > 0
@@ -134,7 +138,7 @@ class ProcessExecutor:
             msg.append(
                 LineObject(
                     Head.TEXT,
-                    text=f"驗證資料{len(response.content.validation.validated_records)}筆，{len(response.content.validation.error_records)}筆錯誤",
+                    text=f"驗證資料{len(response.content.validation.validated_records)}筆，{len(response.content.validation.error_records)}筆略過",
                 )
             )
 
@@ -174,3 +178,35 @@ class ProcessExecutor:
                 content=msg,
             )
         )
+
+    def execute_update_batch_aggregate(self) -> None:
+        """執行批次統計更新腳本
+
+        這個方法會執行批次統計更新的腳本，會將所有批次記錄的統計資料更新到最新。
+        這個方法主要是給 CLI 使用的。
+        """
+        from cleansales_backend.core import get_core_db
+        from cleansales_backend.processors import (
+            BreedRecordProcessor,
+            FeedRecordProcessor,
+            SaleRecordProcessor,
+        )
+
+        _db = get_core_db()
+        processores: list[IProcessor[Any, Any]] = [
+            BreedRecordProcessor(),
+            FeedRecordProcessor(),
+            SaleRecordProcessor(),
+        ]
+
+        with _db.with_session() as session:
+            for processor in processores:
+                print("開始更新批次統計", processor.set_processor_name())
+                orms = processor.get_all_orm(session)
+                for orm in orms:
+                    _ = processor.update_batch_aggregate(session, orm)
+
+
+if __name__ == "__main__":
+    process_executor = ProcessExecutor(EventBus())
+    process_executor.execute_update_batch_aggregate()

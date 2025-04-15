@@ -212,6 +212,10 @@ class SaleRecordProcessor(
         return "batch_name"
 
     @override
+    def set_orm_date_field(self) -> str:
+        return "sale_date"
+
+    @override
     def get_sales_by_location(
         self, session: Session, location: str
     ) -> list[SaleRecord]:

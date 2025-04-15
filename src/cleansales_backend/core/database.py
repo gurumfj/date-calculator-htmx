@@ -10,6 +10,7 @@
 """
 
 import logging
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -214,13 +215,21 @@ class Database:
 
     @contextmanager
     def with_session(self) -> Generator[Session, None, None]:
-        """提供上下文管理器，確保 session 的生命週期管理，包含重試機制和錯誤恢復"""
+        """
+        提供上下文管理器，確保 session 的生命週期管理，包含重試機制和錯誤恢復
+
+        這個上下文管理器可以重複嘗試創建數據庫會話，直到成功或超過最大嘗試次數為止。
+        在嘗試創建數據庫會話時，會將錯誤日誌記錄下來，並在最後一個嘗試失敗時拋出最後一個錯誤。
+
+        Yielded session 會在上下文管理器結束時自動 close，無需手動關閉。
+        """
         max_retries = 3
         retry_count = 0
         last_error = None
 
         while retry_count < max_retries:
             try:
+                start_time = time.time()
                 session = Session(self._engine)
                 logger.debug("開始數據庫會話")
 
@@ -240,7 +249,9 @@ class Database:
                     retry_count += 1
                 finally:
                     session.close()
-                    logger.debug("數據庫會話結束")
+                    logger.debug(
+                        f"數據庫會話結束，耗時 {time.time() - start_time:.2f} 秒"
+                    )
             except Exception as e:
                 last_error = e
                 retry_info = f"(嘗試 {retry_count + 1}/{max_retries})"
@@ -249,6 +260,8 @@ class Database:
                 if retry_count == max_retries - 1:
                     raise
                 retry_count += 1
+
+        raise RuntimeError("無法創建數據庫會話")
 
     def with_transaction(
         self,

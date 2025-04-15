@@ -3,14 +3,23 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Generic, Literal, TypeVar
 
 import pandas as pd
-from pydantic import BaseModel, Field
-from sqlmodel import Session, SQLModel, col, select
+from pydantic import BaseModel
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import (
+    Column,
+    Field,
+    Session,
+    SQLModel,
+    col,
+    desc,
+    select,
+)
 
 from cleansales_backend.shared.models import SourceData
 
@@ -34,6 +43,7 @@ class IORMModel(SQLModel):
     md5: str | None = Field(default=None)
     event: RecordEvent | None = Field(default=None)
     updated_at: datetime = Field(default_factory=datetime.now)
+    batch_name: str
 
 
 @dataclass
@@ -68,6 +78,26 @@ VT = TypeVar("VT", bound=IBaseModel)
 # RT = TypeVar("RT", bound=IResponse)
 
 
+class BatchAggregateORM(SQLModel, table=True):
+    __tablename__: str = "batchaggregates"
+    # 索引
+    # id: int | None = Field(default=None, primary_key=True)
+    batch_name: str = Field(description="批次名稱", primary_key=True)
+
+    # 資料範圍
+    initial_date: date = Field(description="初始日期")
+    final_date: date = Field(description="最終日期")
+
+    # 最後異動 table
+    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_by_table: str | None = Field(default=None, description="最後異動表格")
+    updated_by_record: str | None = Field(default=None, description="最後異動記錄")
+    # 前端更新欄位 jsonb
+    data: dict[str, Any] | None = Field(
+        default=None, description="前端欄位", sa_column=Column(JSONB)
+    )
+
+
 class IProcessor(ABC, Generic[ORMT, VT]):
     @abstractmethod
     def set_processor_name(self) -> str:
@@ -84,6 +114,15 @@ class IProcessor(ABC, Generic[ORMT, VT]):
     @abstractmethod
     def set_orm_foreign_key(self) -> str:
         pass
+
+    @abstractmethod
+    def set_orm_date_field(self) -> str:
+        pass
+
+    def get_all_orm(self, session: Session) -> Sequence[ORMT]:
+        _orm = self.set_orm_schema()
+        stmt = select(_orm).where(_orm.event == RecordEvent.ADDED)
+        return session.exec(stmt).all()
 
     def _get_df(self, source: SourceData | Path | pd.DataFrame) -> pd.DataFrame:
         if isinstance(source, SourceData):
@@ -177,15 +216,15 @@ class IProcessor(ABC, Generic[ORMT, VT]):
             tuple[dict[str, IBaseModel], list[dict[str, Any]]]:
             Tuple of validated records and error records.
         """
-
+        _validator_schema = self.set_validator_schema()
         validated_records: dict[str, IBaseModel] = {}
         error_records: list[dict[str, Any]] = []
 
-        # 將每筆資料轉換為 SaleRecordBase 物件
+        # 將每筆資料轉換為 IBaseModel 物件
         for _, row in df.iterrows():
             try:
                 # 嘗試驗證資料
-                record = self.set_validator_schema().model_validate(row)
+                record = _validator_schema.model_validate(row)
                 record.unique_id = record.unique_id or self._calculate_unique_id(record)
                 validated_records[record.unique_id] = record
             except ValueError as ve:
@@ -212,6 +251,9 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         md5: str,
     ) -> InfrastructureResponse:
         _ = error_records
+        _orm = self.set_orm_schema()
+        _date_field = self.set_orm_date_field()
+        _foreign_key = self.set_orm_foreign_key()
         if not validated_records:
             logger.info("沒有有效記錄")
             return InfrastructureResponse(
@@ -223,7 +265,7 @@ class IProcessor(ABC, Generic[ORMT, VT]):
 
         # 查詢資料庫中所有的記錄
         all_db_obj = session.exec(
-            select(self.set_orm_schema())
+            select(_orm)
             # .where(
             #     self.set_orm_schema().event == RecordEvent.ADDED
             # )
@@ -246,7 +288,7 @@ class IProcessor(ABC, Generic[ORMT, VT]):
                 # session.delete(obj)
                 obj.event = RecordEvent.DELETED
                 obj.updated_at = datetime.now()
-                deleted_names.add(getattr(obj, self.set_orm_foreign_key()))
+                deleted_names.add(getattr(obj, _foreign_key))
                 session.delete(obj)
 
         if not new_keys and not delete_keys:
@@ -261,13 +303,14 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         # 只添加不在資料庫中的記錄
         new_names: set[str] = set()
         for new_key in new_keys:
-            orm_record = self.set_orm_schema().model_validate(
-                validated_records[new_key]
-            )
+            orm_record = _orm.model_validate(validated_records[new_key])
             orm_record.event = RecordEvent.ADDED
             orm_record.md5 = md5
             _ = session.merge(orm_record)
-            new_names.add(getattr(orm_record, self.set_orm_foreign_key()))
+            new_names.add(getattr(orm_record, _foreign_key))
+
+            # 更新批次統計
+            _ = self.update_batch_aggregate(session, orm_record)
 
         logger.info(f"成功添加 {len(new_keys)} 條記錄")
         return InfrastructureResponse(
@@ -276,6 +319,52 @@ class IProcessor(ABC, Generic[ORMT, VT]):
             delete_keys=delete_keys,
             delete_names=deleted_names,
         )
+
+    def execute_update_batch_aggregate(self, session: Session) -> None:
+        """腳本使用"""
+        _orm = self.set_orm_schema()
+        _date_field = self.set_orm_date_field()
+        batches = session.exec(select(BatchAggregateORM)).all()
+        for batch in batches:
+            final_record = session.exec(
+                select(_orm)
+                .where(_orm.batch_name == batch.batch_name)
+                .order_by(desc(getattr(_orm, _date_field)))
+            ).first()
+            if not final_record:
+                continue
+            _ = self.update_batch_aggregate(session, final_record)
+
+    def update_batch_aggregate(
+        self, session: Session, orm: ORMT
+    ) -> BatchAggregateORM | None:
+        """更新批次統計"""
+        _date_field = self.set_orm_date_field()
+        stmt = select(BatchAggregateORM).where(
+            BatchAggregateORM.batch_name == orm.batch_name
+        )
+        result = session.exec(stmt).one_or_none()
+        if not result:
+            if str(orm.__tablename__).startswith("salerecord"):
+                # 不從販售表創建新的批次統計
+                return None
+
+            result = BatchAggregateORM(
+                batch_name=orm.batch_name,
+                initial_date=getattr(orm, _date_field),
+                final_date=getattr(orm, _date_field),
+                updated_at=datetime.now(),
+                updated_by_table=str(orm.__tablename__),
+                updated_by_record=orm.unique_id,
+            )
+            return session.merge(result)
+        elif getattr(orm, _date_field) > result.final_date:
+            result.final_date = getattr(orm, _date_field)
+            result.updated_at = datetime.now()
+            result.updated_by_table = orm.__tablename__  # type: ignore
+            result.updated_by_record = orm.unique_id
+            return session.merge(result)
+        return result
 
     def _get_by_criteria(
         self,
