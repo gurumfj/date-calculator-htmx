@@ -1,5 +1,5 @@
 import React from "react";
-import { COLORS, TYPOGRAPHY } from "./constants/styles";
+import { cn } from "@/lib/utils";
 
 /**
  * 自定義資訊卡屬性介面
@@ -31,15 +31,19 @@ export const CustomInfoCard: React.FC<CustomInfoCardProps> = ({
 }) => {
   return (
     <div 
-      className={`flex items-center space-x-3 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={cn(
+        "flex items-center space-x-3",
+        onClick && "cursor-pointer",
+        className
+      )}
       onClick={onClick}
     >
       <div className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F2F2F7]">
         <Icon className="w-4 h-4 text-[#8E8E93]" />
       </div>
       <div>
-        <div className={`${TYPOGRAPHY.BODY.XS} text-[${COLORS.TEXT.SECONDARY}]`}>{title}</div>
-        <div className={`${TYPOGRAPHY.BODY.SM} font-medium text-[${COLORS.TEXT.PRIMARY}]`}>{children}</div>
+        <div className="text-xs text-[#8E8E93]">{title}</div>
+        <div className="text-sm font-medium text-[#1C1C1E]">{children}</div>
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ export default defineConfig({
       "@layouts": path.resolve(__dirname, "./src/layouts"),
       "@app-types": path.resolve(__dirname, "./src/types"),
       "@app-lib": path.resolve(__dirname, "./src/lib"),
+      "@stores": path.resolve(__dirname, "./src/stores"),
     },
   },
   server: {

@@ -4,9 +4,10 @@
  */
 import {
   BatchAggregate,
-  BatchState,
   BreedRecordRow,
   SaleRecordRow,
+  FeedRecordRow,
+  BatchActivity,
 } from "@app-types";
 import { calculateDayAge, calculateWeekAge } from "@utils/dateUtils";
 import { WeekAge } from "@app-types";
@@ -72,22 +73,18 @@ export function calculateTotalChickens(batch: BatchAggregate): {
  * @returns 逗號分隔的飼料製造商清單
  */
 export function extractFeedManufacturers(batch: BatchAggregate): string {
-  return Array.from(new Set(batch.feeds.map((f) => f.feed_manufacturer))).join(
-    ", "
-  );
+  return Array.from(
+    new Set(batch.feeds.map((f: FeedRecordRow) => f.feed_manufacturer))
+  ).join(", ");
 }
 
 /**
- * 確定批次的當前狀態
+ * 確定批次的當前活動
  * @param batch 批次資料
- * @returns 批次狀態（飼養中、銷售中或已完成）
+ * @returns 批次活動（飼養中、銷售中或已完成）
  */
-export function determineBatchState(batch: BatchAggregate): BatchState {
-  return batch.breeds.some((b: BreedRecordRow) => !b.is_completed)
-    ? batch.sales.length > 0
-      ? "sale"
-      : "breeding"
-    : "completed";
+export function determineBatchActivity(batch: BatchAggregate): BatchActivity {
+  return batch.batchIndex.data?.batchActivity || "breeding";
 }
 
 /**
@@ -139,7 +136,7 @@ export function generateBatchCopyText(batch: BatchAggregate): string {
 
   const weekAgeStr = generateWeekAgeString(batch);
 
-  return `${batch.batchName}\n${localDateStr}${weekAgeStr}`;
+  return `${batch.batchName || batch.batchIndex.batch_name}\n${localDateStr}${weekAgeStr}`;
 }
 
 /**
@@ -147,7 +144,7 @@ export function generateBatchCopyText(batch: BatchAggregate): string {
  * @param state 批次狀態
  * @returns 狀態顯示信息物件
  */
-export function getBatchStateDisplay(state: BatchState): {
+export function getBatchStateDisplay(state: BatchActivity): {
   bgClass: string;
   textClass: string;
   label: string;
@@ -156,17 +153,22 @@ export function getBatchStateDisplay(state: BatchState): {
     breeding: {
       bgClass: "bg-green-100",
       textClass: "text-green-700",
-      label: "飼養中",
+      label: "在養",
     },
-    sale: {
+    selling: {
       bgClass: "bg-blue-100",
       textClass: "text-blue-700",
-      label: "銷售中",
+      label: "銷售",
+    },
+    soldout: {
+      bgClass: "bg-orange-100",
+      textClass: "text-orange-700",
+      label: "售罄",
     },
     completed: {
       bgClass: "bg-gray-100",
       textClass: "text-gray-700",
-      label: "已完成",
+      label: "結場",
     },
   };
 
@@ -209,31 +211,40 @@ export function calculateSalesStatistics(batch: BatchAggregate): {
   const { breeds, sales } = batch;
 
   // 計算總公雞銷售數量
-  const totalMale = sales.reduce((acc, sale) => acc + sale.male_count, 0);
+  const totalMale = sales.reduce(
+    (acc: number, sale: SaleRecordRow) => acc + sale.male_count,
+    0
+  );
 
   // 計算總母雞銷售數量
-  const totalFemale = sales.reduce((acc, sale) => acc + sale.female_count, 0);
+  const totalFemale = sales.reduce(
+    (acc: number, sale: SaleRecordRow) => acc + sale.female_count,
+    0
+  );
 
   // 計算總銷售數量
   const totalSales = sales.reduce(
-    (acc, sale) => acc + sale.male_count + sale.female_count,
+    (acc: number, sale: SaleRecordRow) =>
+      acc + sale.male_count + sale.female_count,
     0
   );
 
   // 計算總收入
   const totalRevenue = sales.reduce(
-    (acc, sale) => acc + (sale.total_price || 0),
+    (acc: number, sale: SaleRecordRow) => acc + (sale.total_price || 0),
     0
   );
 
   // 計算平均每公斤價格
   const validSalesForAvg = sales.filter(
-    (sale) => (sale.total_weight || 0) > 0 && (sale.total_price || 0) > 0
+    (sale: SaleRecordRow) =>
+      (sale.total_weight || 0) > 0 && (sale.total_price || 0) > 0
   );
 
   const avgPricePerWeight = validSalesForAvg.length
     ? validSalesForAvg.reduce(
-        (acc, sale) => acc + (sale.total_price || 0) / (sale.total_weight || 0),
+        (acc: number, sale: SaleRecordRow) =>
+          acc + (sale.total_price || 0) / (sale.total_weight || 0),
         0
       ) / validSalesForAvg.length
     : 0;
@@ -332,7 +343,7 @@ export function calculateBatchAggregate(batch: BatchAggregate): {
   ageRange: { maxWeekAge: WeekAge; minWeekAge: WeekAge | null };
   chickens: { totalMale: number; totalFemale: number; totalBred: number };
   feedManufacturers: string;
-  batchState: BatchState;
+  batchActivity: BatchActivity;
   salesPercentage: number;
   salesStats: ReturnType<typeof calculateSalesStatistics>;
   saleRecords: ReturnType<typeof calculateSaleRecord>[];
@@ -341,7 +352,7 @@ export function calculateBatchAggregate(batch: BatchAggregate): {
     ageRange: calculateBatchAgeRange(batch),
     chickens: calculateTotalChickens(batch),
     feedManufacturers: extractFeedManufacturers(batch),
-    batchState: determineBatchState(batch),
+    batchActivity: determineBatchActivity(batch),
     salesPercentage: calculateSalesPercentage(batch),
     salesStats: calculateSalesStatistics(batch),
     saleRecords: batch.sales.map((sale) =>

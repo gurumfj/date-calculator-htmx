@@ -70,3 +70,21 @@ export const CHICKEN_BREEDS: ChickenBreedType[] = [
   "舍黑",
   "閹雞",
 ];
+
+// ===== 批次活動顏色常數 =====
+
+import { BatchActivity } from "./business.types";
+
+/**
+ * 批次活動對應的顏色
+ * 提供每種批次狀態的背景色和懸停色
+ */
+export const BATCH_ACTIVITY_COLORS: Record<
+  BatchActivity,
+  { bg: string; hover: string }
+> = {
+  breeding: { bg: "#007AFF", hover: "#0067D6" }, // 飼養中 - 藍色
+  selling: { bg: "#FF9500", hover: "#EB8A00" }, // 銷售中 - 橙色
+  soldout: { bg: "#34C759", hover: "#2BA84C" }, // 已售罄 - 綠色
+  completed: { bg: "#8E8E93", hover: "#7A7A80" }, // 已完成 - 灰色
+};
