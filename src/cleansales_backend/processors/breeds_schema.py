@@ -224,6 +224,10 @@ class BreedRecordProcessor(
         return "breed_date"
 
     @override
+    def set_orm_chicken_breed(self) -> str | None:
+        return "chicken_breed"
+
+    @override
     def get_all(self, session: Session) -> list[BreedRecord]:
         stmt = select(self.set_orm_schema()).where(
             self.set_orm_schema().event == RecordEvent.ADDED

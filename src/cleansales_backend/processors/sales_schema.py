@@ -178,8 +178,8 @@ class SaleRecordORM(IORMModel, table=True):
     sale_date: date = Field(..., description="銷售日期")
     batch_name: str = SQLModelField(description="場別", index=True)
     customer: str = Field(description="客戶名稱")
-    male_count: int = Field(0, ge=0, description="公豬數量")
-    female_count: int = Field(0, ge=0, description="母豬數量")
+    male_count: int = Field(0, ge=0, description="公雞數量")
+    female_count: int = Field(0, ge=0, description="母雞數量")
     total_weight: float | None = Field(None, description="總重量")
     total_price: float | None = Field(None, description="總價格")
     male_price: float | None = Field(None, description="公雞單價")
@@ -214,6 +214,10 @@ class SaleRecordProcessor(
     @override
     def set_orm_date_field(self) -> str:
         return "sale_date"
+
+    @override
+    def set_orm_chicken_breed(self) -> str | None:
+        return None
 
     @override
     def get_sales_by_location(

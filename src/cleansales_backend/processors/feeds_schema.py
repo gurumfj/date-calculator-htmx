@@ -140,6 +140,10 @@ class FeedRecordProcessor(
         return "feed_date"
 
     @override
+    def set_orm_chicken_breed(self) -> str | None:
+        return None
+
+    @override
     def get_by_batch_name(self, session: Session, batch_name: str) -> list[FeedRecord]:
         result = self._get_by_criteria(session, {"batch_name": (batch_name, "eq")})
         return [FeedRecordProcessor.orm_to_domain(orm) for orm in result]

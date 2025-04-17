@@ -54,7 +54,7 @@ allow-direct-references = true
 
 [project.scripts]
 cleansales = "cleansales_backend.cli:main"
-cleansales-api-dev = "cleansales_backend.api.dev:main"
+api = "cleansales_backend.api.dev:main"
 
 [tool.mypy]
 python_version = "3.12"

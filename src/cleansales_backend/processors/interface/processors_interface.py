@@ -83,6 +83,7 @@ class BatchAggregateORM(SQLModel, table=True):
     # 索引
     # id: int | None = Field(default=None, primary_key=True)
     batch_name: str = Field(description="批次名稱", primary_key=True)
+    chicken_breed: str = Field(description="雞種")
 
     # 資料範圍
     initial_date: date = Field(description="初始日期")
@@ -117,6 +118,10 @@ class IProcessor(ABC, Generic[ORMT, VT]):
 
     @abstractmethod
     def set_orm_date_field(self) -> str:
+        pass
+
+    @abstractmethod
+    def set_orm_chicken_breed(self) -> str | None:
         pass
 
     def get_all_orm(self, session: Session) -> Sequence[ORMT]:
@@ -339,18 +344,20 @@ class IProcessor(ABC, Generic[ORMT, VT]):
         self, session: Session, orm: ORMT
     ) -> BatchAggregateORM | None:
         """更新批次統計"""
+        _chicken_breed = self.set_orm_chicken_breed()
         _date_field = self.set_orm_date_field()
         stmt = select(BatchAggregateORM).where(
             BatchAggregateORM.batch_name == orm.batch_name
         )
         result = session.exec(stmt).one_or_none()
         if not result:
-            if str(orm.__tablename__).startswith("salerecord"):
+            if _chicken_breed is None:
                 # 不從販售表創建新的批次統計
                 return None
 
             result = BatchAggregateORM(
                 batch_name=orm.batch_name,
+                chicken_breed=getattr(orm, _chicken_breed),
                 initial_date=getattr(orm, _date_field),
                 final_date=getattr(orm, _date_field),
                 updated_at=datetime.now(),
