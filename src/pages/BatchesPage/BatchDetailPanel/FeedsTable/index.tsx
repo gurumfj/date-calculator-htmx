@@ -1,7 +1,8 @@
 import React from "react";
-import { BatchAggregate, FeedRecordRow } from "@app-types";
+import { BatchAggregate } from "@app-types";
 import CommonTable, { formatDate, ColumnType } from "@components/common/CommonTable";
 import { FeedsSummaryCard } from "../../components/BatchSummaryCards";
+import { Badge } from "@/components/ui/badge";
 
 interface FeedRecordTableProps {
   batch: BatchAggregate;
@@ -23,107 +24,85 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       key: "feed_date",
       title: "日期",
       render: (value) => formatDate(value),
+      mobileOptions: {
+        position: "header",
+        show: true,
+      }
     },
     {
       key: "feed_manufacturer",
       title: "製造商",
+      mobileOptions: {
+        position: "header",
+        show: true,
+      }
     },
     {
       key: "feed_item",
       title: "飼料品項",
+      mobileOptions: {
+        position: "content",
+        show: true,
+        label: "飼料品項",
+        span: 2
+      }
     },
     {
       key: "sub_location",
       title: "子位置",
       render: (value) => value || "-",
+      mobileOptions: {
+        position: "content",
+        show: true,
+        label: "子位置"
+      }
     },
     {
       key: "feed_week",
       title: "週齡",
       render: (value) => value || "-",
+      mobileOptions: {
+        position: "content",
+        show: true,
+        label: "週齡"
+      }
     },
     {
       key: "feed_additive",
       title: "添加物",
       render: (value) => value || "-",
+      mobileOptions: {
+        position: "content",
+        show: true,
+        label: "添加物"
+      }
     },
     {
       key: "feed_remark",
       title: "備註",
       render: (value) => value || "-",
+      mobileOptions: {
+        position: "footer",
+        show: true,
+        label: "備註",
+        span: 2
+      }
     },
     {
       key: "is_completed",
       title: "狀態",
       align: "center",
       render: (value) => (
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            value
-              ? "bg-green-100 text-green-800"
-              : "bg-yellow-100 text-yellow-800"
-          }`}
-        >
+        <Badge variant={value ? "success" : "secondary"}>
           {value ? "已完成" : "進行中"}
-        </span>
+        </Badge>
       ),
+      mobileOptions: {
+        position: "status",
+        show: true
+      }
     },
   ];
-
-  // 移動端卡片渲染函數
-  const renderMobileCard = (feed: FeedRecordRow, index: number) => (
-    <div key={index} className="bg-white p-3 rounded-xl shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <div className="text-sm font-medium">{feed.feed_manufacturer}</div>
-          <div className="text-xs text-gray-500">{formatDate(feed.feed_date)}</div>
-        </div>
-        <div className="text-right">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              feed.is_completed
-                ? "bg-green-100 text-green-800"
-                : "bg-yellow-100 text-yellow-800"
-            }`}
-          >
-            {feed.is_completed ? "已完成" : "進行中"}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 text-sm mt-2">
-        <div className="flex justify-between">
-          <span className="text-gray-500">飼料品項:</span>
-          <span className="font-medium">{feed.feed_item}</span>
-        </div>
-        {feed.sub_location && (
-          <div className="flex justify-between">
-            <span className="text-gray-500">子位置:</span>
-            <span>{feed.sub_location}</span>
-          </div>
-        )}
-        {feed.feed_week && (
-          <div className="flex justify-between">
-            <span className="text-gray-500">週齡:</span>
-            <span>{feed.feed_week}</span>
-          </div>
-        )}
-        {feed.feed_additive && (
-          <div className="flex justify-between">
-            <span className="text-gray-500">添加物:</span>
-            <span>{feed.feed_additive}</span>
-          </div>
-        )}
-      </div>
-
-      {feed.feed_remark && (
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <div className="text-xs text-gray-500 mb-1">備註</div>
-          <div className="text-sm">{feed.feed_remark}</div>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -132,8 +111,13 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
         title="飼料記錄"
         columns={columns}
         data={sortedFeedRecords}
-        renderMobileCard={renderMobileCard}
         emptyText="無飼料記錄"
+        mobileCardOptions={{
+          titleField: "feed_manufacturer",
+          subtitleField: "feed_date",
+          statusField: "is_completed",
+          footerField: "feed_remark"
+        }}
       />
     </div>
   );

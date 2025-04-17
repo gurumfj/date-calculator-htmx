@@ -11,6 +11,7 @@ import {
   useDeleteTaskMutation,
   useReopenTaskMutation,
 } from "./hooks/useTaskQueries";
+import { useNavigate } from "react-router-dom";
 
 interface TaskItemProps {
   task: Task;
@@ -59,11 +60,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, params }) => {
       onComplete(task.id);
     }
   };
+  const navigate = useNavigate();
 
   const handleLabelClick = (label: string) => {
     if (prevTask.processing) return; // 如果正在處理，則忽略
     // link to /batches/:batchName
-    window.location.href = `/batches/${label}`;
+    // window.location.href = `/batches/${label}`;
+    navigate(`/batches/${label}`);
   };
 
   // 處理任務刪除

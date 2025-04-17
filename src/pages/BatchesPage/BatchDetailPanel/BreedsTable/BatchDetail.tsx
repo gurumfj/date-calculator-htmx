@@ -4,7 +4,6 @@ import { FaUserAlt, FaMapMarkerAlt, FaClipboardList } from "react-icons/fa";
 import { COLORS, SPACING } from "./constants/styles";
 import { BreedsRecordsTable } from "./BreedsRecordsTable";
 import { CustomInfoCard } from "./CustomInfoCard";
-
 /**
  * 批次詳細資訊屬性介面
  */

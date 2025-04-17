@@ -1,5 +1,6 @@
 import React, { ReactNode } from "react";
 import { SUMMARY_STYLES } from "./SummaryStyles";
+import { Card, CardContent } from "@/components/ui/card";
 
 export interface SummaryCardItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -34,11 +35,13 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ items, className = "" }) => {
   );
 
   return (
-    <div className={`${SUMMARY_STYLES.CONTAINER} ${className}`}>
-      <div className={SUMMARY_STYLES.GRID}>
-        {items.map((item, index) => renderInfoCard(item, index))}
-      </div>
-    </div>
+    <Card className={className}>
+      <CardContent className="p-4">
+        <div className={SUMMARY_STYLES.GRID}>
+          {items.map((item, index) => renderInfoCard(item, index))}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
