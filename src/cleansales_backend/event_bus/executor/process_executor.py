@@ -96,6 +96,10 @@ class ProcessExecutor:
 
             # ---- publish event ----
             if not response.success:
+                if response.content.validation.data_existed:
+                    logger.warning("資料已存在，跳過處理")
+                    return
+
                 logger.error("處理失敗")
                 self._event_bus.publish(
                     ProcessorEventPayload(
