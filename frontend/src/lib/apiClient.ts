@@ -8,11 +8,12 @@ const {
 export const API_URL = new URL(apiUrl);
 
 export const createApiClient = () => {
-  const {
-    settings: { apiUrl },
-  } = useGeneralSettingsStore.getState();
+  const { settings } = useGeneralSettingsStore.getState();
+  if (!settings.apiUrl) {
+    throw new Error("API URL is not set");
+  }
   return axios.create({
-    baseURL: apiUrl.origin,
+    baseURL: new URL(settings.apiUrl).origin,
     headers: {
       "Content-Type": "application/json",
     },

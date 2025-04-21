@@ -15,7 +15,7 @@ export const getBackendUrl = () => {
 };
 
 interface GeneralSettings {
-  apiUrl: URL;
+  apiUrl: string;
 }
 
 interface GeneralSettingsStore {
@@ -25,7 +25,7 @@ interface GeneralSettingsStore {
 }
 
 export const defaultGeneralSettings: GeneralSettings = {
-  apiUrl: new URL(import.meta.env.VITE_API_URL || `${getBackendUrl()}`),
+  apiUrl: import.meta.env.VITE_API_URL || `${getBackendUrl()}`,
 };
 
 export const useGeneralSettingsStore = create<GeneralSettingsStore>()(

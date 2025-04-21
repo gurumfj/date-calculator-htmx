@@ -2,27 +2,22 @@
  * 批次資料計算工具函數
  * 提供各種與批次相關的計算邏輯，用於前端渲染和數據處理
  */
-import {
-  BatchAggregate,
-  BreedRecordRow,
-  SaleRecordRow,
-  FeedRecordRow,
-  BatchActivity,
-} from "@app-types";
+
 import { calculateDayAge, calculateWeekAge } from "@utils/dateUtils";
-import { WeekAge } from "@app-types";
+import { BatchActivity, BatchAggregate, WeekAge } from "@app-types";
+import { BatchAggregateWithRows, SaleRecordRow } from "@app-types";
 
 /**
  * 計算批次的週齡範圍
  * @param batch 批次資料
  * @returns 包含最大和最小週齡的物件，如果只有一筆資料則最小週齡為null
  */
-export function calculateBatchAgeRange(batch: BatchAggregate): {
+export function calculateBatchAgeRange(batch: BatchAggregateWithRows): {
   maxWeekAge: WeekAge;
   minWeekAge: WeekAge | null;
 } {
   // 計算所有繁殖記錄的日齡
-  const dayAges = batch.breeds.map((r: BreedRecordRow) =>
+  const dayAges = batch.breeds.map((r) =>
     calculateDayAge(r.breed_date, new Date())
   );
 
@@ -44,20 +39,20 @@ export function calculateBatchAgeRange(batch: BatchAggregate): {
  * @param batch 批次資料
  * @returns 包含公雞總數、母雞總數和總數的物件
  */
-export function calculateTotalChickens(batch: BatchAggregate): {
+export function calculateTotalChickens(batch: BatchAggregateWithRows): {
   totalMale: number;
   totalFemale: number;
   totalBred: number;
 } {
   // 計算公雞總數
   const totalMale = batch.breeds.reduce(
-    (sum: number, r: BreedRecordRow) => sum + r.breed_male,
+    (sum: number, r) => sum + r.breed_male,
     0
   );
 
   // 計算母雞總數
   const totalFemale = batch.breeds.reduce(
-    (sum: number, r: BreedRecordRow) => sum + r.breed_female,
+    (sum: number, r) => sum + r.breed_female,
     0
   );
 
@@ -72,10 +67,12 @@ export function calculateTotalChickens(batch: BatchAggregate): {
  * @param batch 批次資料
  * @returns 逗號分隔的飼料製造商清單
  */
-export function extractFeedManufacturers(batch: BatchAggregate): string {
-  return Array.from(
-    new Set(batch.feeds.map((f: FeedRecordRow) => f.feed_manufacturer))
-  ).join(", ");
+export function extractFeedManufacturers(
+  batch: BatchAggregateWithRows
+): string {
+  return Array.from(new Set(batch.feeds.map((r) => r.feed_manufacturer))).join(
+    ", "
+  );
 }
 
 /**
@@ -83,8 +80,10 @@ export function extractFeedManufacturers(batch: BatchAggregate): string {
  * @param batch 批次資料
  * @returns 批次活動（飼養中、銷售中或已完成）
  */
-export function determineBatchActivity(batch: BatchAggregate): BatchActivity {
-  return batch.batchIndex.data?.batchActivity || "breeding";
+export function determineBatchActivity(
+  batch: BatchAggregateWithRows
+): BatchActivity {
+  return batch.index.data?.batchActivity || "breeding";
 }
 
 /**
@@ -92,13 +91,15 @@ export function determineBatchActivity(batch: BatchAggregate): BatchActivity {
  * @param batch 批次資料
  * @returns 銷售百分比（0-1之間的數值）
  */
-export function calculateSalesPercentage(batch: BatchAggregate): number {
+export function calculateSalesPercentage(
+  batch: BatchAggregateWithRows
+): number {
   // 計算總計飼養雞數
   const { totalBred } = calculateTotalChickens(batch);
 
   // 計算已售出雞數
   const totalSold = batch.sales.reduce(
-    (sum: number, s: SaleRecordRow) => sum + s.male_count + s.female_count,
+    (sum: number, s) => sum + s.male_count + s.female_count,
     0
   );
 
@@ -111,9 +112,9 @@ export function calculateSalesPercentage(batch: BatchAggregate): number {
  * @param batch 批次資料
  * @returns 批次週齡字符串
  */
-export function generateWeekAgeString(batch: BatchAggregate): string {
+export function generateWeekAgeString(batch: BatchAggregateWithRows): string {
   return batch.breeds
-    .map((r: BreedRecordRow) => {
+    .map((r) => {
       const w = calculateWeekAge(calculateDayAge(r.breed_date, new Date()));
       return `[${w.week}.${w.day}]`;
     })
@@ -125,7 +126,7 @@ export function generateWeekAgeString(batch: BatchAggregate): string {
  * @param batch 批次資料
  * @returns 格式化的複製文本
  */
-export function generateBatchCopyText(batch: BatchAggregate): string {
+export function generateBatchCopyText(batch: BatchAggregateWithRows): string {
   const localDateStr = new Date()
     .toLocaleDateString("zh-TW", {
       year: "numeric",
@@ -136,7 +137,7 @@ export function generateBatchCopyText(batch: BatchAggregate): string {
 
   const weekAgeStr = generateWeekAgeString(batch);
 
-  return `${batch.batchName || batch.batchIndex.batch_name}\n${localDateStr}${weekAgeStr}`;
+  return `${batch.index.batch_name}\n${localDateStr}${weekAgeStr}`;
 }
 
 /**
@@ -177,15 +178,12 @@ export function getBatchStateDisplay(state: BatchActivity): {
 
 /**
  * 對批次的繁殖記錄按照日齡排序（從老到新或從新到老）
- * @param breeds 繁殖記錄數組
+ * @param batch 批次資料
  * @param descending 是否按降序排序，默認為true（從老到新）
  * @returns 排序後的繁殖記錄數組
  */
-export function sortBreedsByAge(
-  breeds: BreedRecordRow[],
-  descending = true
-): BreedRecordRow[] {
-  return [...breeds].sort((a, b) => {
+export function sortBreedsByAge(batch: BatchAggregate, descending = true) {
+  return [...batch.breeds].sort((a, b) => {
     const ageA = calculateDayAge(a.breed_date, new Date());
     const ageB = calculateDayAge(b.breed_date, new Date());
     return descending ? ageB - ageA : ageA - ageB;
@@ -212,38 +210,36 @@ export function calculateSalesStatistics(batch: BatchAggregate): {
 
   // 計算總公雞銷售數量
   const totalMale = sales.reduce(
-    (acc: number, sale: SaleRecordRow) => acc + sale.male_count,
+    (acc: number, sale) => acc + sale.male_count,
     0
   );
 
   // 計算總母雞銷售數量
   const totalFemale = sales.reduce(
-    (acc: number, sale: SaleRecordRow) => acc + sale.female_count,
+    (acc: number, sale) => acc + sale.female_count,
     0
   );
 
   // 計算總銷售數量
   const totalSales = sales.reduce(
-    (acc: number, sale: SaleRecordRow) =>
-      acc + sale.male_count + sale.female_count,
+    (acc: number, sale) => acc + sale.male_count + sale.female_count,
     0
   );
 
   // 計算總收入
   const totalRevenue = sales.reduce(
-    (acc: number, sale: SaleRecordRow) => acc + (sale.total_price || 0),
+    (acc: number, sale) => acc + (sale.total_price || 0),
     0
   );
 
   // 計算平均每公斤價格
   const validSalesForAvg = sales.filter(
-    (sale: SaleRecordRow) =>
-      (sale.total_weight || 0) > 0 && (sale.total_price || 0) > 0
+    (sale) => (sale.total_weight || 0) > 0 && (sale.total_price || 0) > 0
   );
 
   const avgPricePerWeight = validSalesForAvg.length
     ? validSalesForAvg.reduce(
-        (acc: number, sale: SaleRecordRow) =>
+        (acc: number, sale) =>
           acc + (sale.total_price || 0) / (sale.total_weight || 0),
         0
       ) / validSalesForAvg.length
@@ -304,17 +300,37 @@ export function calculateSalesStatistics(batch: BatchAggregate): {
 
 /**
  * 計算銷售紀錄的平均重量
- * @param breeds 繁殖記錄
- * @param sale 銷售紀錄
+ * @param batch 批次資料
  * @returns 包含平均公雞重量和平均母雞重量的物件
  */
+/**
+ * 計算單筆銷售紀錄的平均重量與日齡資訊
+ * Why: 商業邏輯需根據批次品種與銷售日動態計算各類平均值，
+ *      並處理資料異常（如重量缺失）時回傳預設 null，避免前端崩潰。
+ * @param batch 批次資料，需帶入品種資訊以便計算日齡
+ * @param sale  單筆銷售紀錄
+ * @returns 包含平均公/母雞重量與日齡陣列的擴充物件
+ */
 export const calculateSaleRecord = (
-  breeds: BreedRecordRow[],
+  batch: BatchAggregateWithRows,
   sale: SaleRecordRow
 ) => {
+  const { breeds } = batch;
+  // Why: 每個品種可能有不同的孵化日，需針對每個品種計算該次銷售時的日齡
   const dayAge = breeds.map((b) =>
     calculateDayAge(b.breed_date, new Date(sale.sale_date))
   );
+  // Why: 若重量資料缺失，直接回傳null，避免出現NaN導致前端錯誤
+  if (sale.total_weight === null) {
+    return {
+      ...sale,
+      dayAge,
+      avgMaleWeight: null,
+      avgFemaleWeight: null,
+    };
+  }
+  // Why: 雞隻總重需扣除公雞固定基礎重（0.8kg），再平均分配給所有雞隻
+  // 這樣設計可反映實際市場計價方式，並避免極端值影響平均數
   const baseWeight = () => {
     if (sale.total_weight) {
       return (
@@ -324,6 +340,7 @@ export const calculateSaleRecord = (
     }
     return 0;
   };
+  // Why: 公雞平均重需加回基礎重，母雞則直接採用基礎重，反映真實分布
   const avgMaleWeight = sale.male_count > 0 ? baseWeight() + 0.8 : null;
   const avgFemaleWeight = sale.female_count > 0 ? baseWeight() : null;
   return {
@@ -355,8 +372,6 @@ export function calculateBatchAggregate(batch: BatchAggregate): {
     batchActivity: determineBatchActivity(batch),
     salesPercentage: calculateSalesPercentage(batch),
     salesStats: calculateSalesStatistics(batch),
-    saleRecords: batch.sales.map((sale) =>
-      calculateSaleRecord(batch.breeds, sale)
-    ),
+    saleRecords: batch.sales.map((sale) => calculateSaleRecord(batch, sale)),
   };
 }

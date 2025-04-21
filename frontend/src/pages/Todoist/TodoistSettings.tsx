@@ -50,7 +50,10 @@ const TodoistSettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    handleFetchProjects().then((projects) => setProjects(projects));
+    // 強化防禦：確保 setProjects 一定是陣列，避免 API 回傳異常導致 map 出錯
+    handleFetchProjects().then((projects) => {
+      setProjects(Array.isArray(projects) ? projects : []);
+    });
   }, []);
 
   // 處理選擇變更
@@ -104,11 +107,16 @@ const TodoistSettingsPage: React.FC = () => {
                     <SelectValue placeholder="選擇預設專案" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
+                    {/* 強化防禦：渲染前檢查 projects 是否為陣列，避免 map 出錯 */}
+                    {Array.isArray(projects) && projects.length > 0 ? (
+                      projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-gray-400">無可用專案</div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

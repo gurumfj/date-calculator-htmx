@@ -25,18 +25,25 @@ import {
   defaultGeneralSettings,
 } from "../hooks/useGeneralSettingsStore";
 
+// 一般設定區塊，負責管理 API 連線參數與測試
 const GeneralSettingsSection: React.FC = () => {
+  // 取得 toast 實例，用於全域提示訊息
   const { toast } = useToast();
+  // 取得全域設定與操作函數，確保狀態一致性
   const {
-    settings: { apiUrl },
+    settings: { apiUrl: apiUrlString },
     saveSettings,
     testConnection,
   } = useGeneralSettingsStore();
-
+  // 以目前設定產生 URL 物件，確保初始化參數正確
+  const apiUrl = new URL(apiUrlString);
+  // 將 URL 各欄位拆分為 state，方便分別綁定 UI 與單獨控制
   const [protocol, setProtocol] = useState(apiUrl.protocol);
   const [hostname, setHostname] = useState(apiUrl.hostname);
   const [port, setPort] = useState(apiUrl.port);
+  // 儲存目前組合的 URL，便於即時顯示與驗證
   const [currentUrl, setCurrentUrl] = useState(apiUrl);
+  // 管理測試連線的 loading 與狀態，避免多次觸發或狀態錯亂
   const [testingConnection, setTestingConnection] = useState<{
     isLoading: boolean;
     status: boolean | null;
@@ -44,12 +51,15 @@ const GeneralSettingsSection: React.FC = () => {
     isLoading: false,
     status: null,
   });
+  // 控制設定儲存狀態，避免重複點擊
   const [saving, setSaving] = useState(false);
 
+  // 驗證組合後的 URL 是否有效，避免送出錯誤參數
   const validateUrl = useCallback(() => {
     try {
       return new URL(`${protocol}//${hostname}${port ? `:${port}` : ""}`);
     } catch (error) {
+      // 捕捉格式錯誤，避免程式崩潰
       console.error("URL解析錯誤:", error);
       return null;
     }
@@ -128,7 +138,7 @@ const GeneralSettingsSection: React.FC = () => {
     setSaving(true);
 
     try {
-      saveSettings({ apiUrl: currentUrl });
+      saveSettings({ apiUrl: currentUrl.toString() });
 
       toast({
         title: "設定已保存",
@@ -149,10 +159,11 @@ const GeneralSettingsSection: React.FC = () => {
 
   // 重置設定
   const resetSettings = () => {
-    setProtocol(defaultGeneralSettings.apiUrl.protocol);
-    setHostname(defaultGeneralSettings.apiUrl.hostname);
-    setPort(defaultGeneralSettings.apiUrl.port);
-    setCurrentUrl(defaultGeneralSettings.apiUrl);
+    const defaultUrl = new URL(defaultGeneralSettings.apiUrl);
+    setProtocol(defaultUrl.protocol);
+    setHostname(defaultUrl.hostname);
+    setPort(defaultUrl.port);
+    setCurrentUrl(defaultUrl);
     handleTestConnection();
     toast({
       title: "設定已重置",
