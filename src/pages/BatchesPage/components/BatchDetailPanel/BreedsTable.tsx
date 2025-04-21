@@ -1,51 +1,21 @@
-import React, { useMemo } from "react";
+/**
+ * 批次品種紀錄表格
+ * Why: 集中顯示單一批次下所有品種的詳細紀錄，方便用戶比對與管理。
+ *      支援後續聚合分析與批次追蹤。
+ */
+import React from "react";
 import { formatDate } from "@utils/dateUtils";
 import { calculateDayAge, calculateWeekAge } from "@utils/dateUtils";
-import { sortBreedsByAge } from "@utils/batchCalculations";
-import { BreedRecordRow } from "@app-types";
+// import { BreedRecordRow } from "@app-types";
 import CommonTable, { ColumnType } from "@components/common/CommonTable";
 import { Card, CardContent } from "@/components/ui/card";
+import { BatchAggregateWithRows } from "@app-types";
 
 export interface ChickenDataTableProps {
-  batch: {
-    breeds: BreedRecordRow[];
-  };
-  isLoading?: boolean;
-  error?: Error | null;
+  batch: BatchAggregateWithRows;
 }
 
-export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
-  batch,
-  isLoading = false,
-  error = null,
-}) => {
-  const sortedBreeds = useMemo(
-    () => sortBreedsByAge(batch.breeds),
-    [batch.breeds]
-  );
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-4 text-center">
-          <div className="text-sm text-muted-foreground">載入中...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-4 text-center">
-          <div className="text-sm text-destructive">
-            載入資料時發生錯誤: {error.message}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
+export const BreedsTable: React.FC<ChickenDataTableProps> = ({ batch }) => {
   if (!batch.breeds || batch.breeds.length === 0) {
     return (
       <Card>
@@ -64,8 +34,8 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       render: (value) => formatDate(value),
       mobileOptions: {
         position: "header",
-        show: true
-      }
+        show: true,
+      },
     },
     {
       key: "supplier",
@@ -73,8 +43,8 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       render: (value) => value || "-",
       mobileOptions: {
         position: "header",
-        show: true
-      }
+        show: true,
+      },
     },
     {
       key: "dayAge",
@@ -83,8 +53,8 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       mobileOptions: {
         position: "status",
         show: true,
-        label: "日齡"
-      }
+        label: "日齡",
+      },
     },
     {
       key: "weekAge",
@@ -97,8 +67,8 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       mobileOptions: {
         position: "content",
         show: true,
-        label: "週齡"
-      }
+        label: "週齡",
+      },
     },
     {
       key: "breed_male",
@@ -106,8 +76,8 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       mobileOptions: {
         position: "content",
         show: true,
-        label: "公雞"
-      }
+        label: "公雞",
+      },
     },
     {
       key: "breed_female",
@@ -115,8 +85,8 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       mobileOptions: {
         position: "content",
         show: true,
-        label: "母雞"
-      }
+        label: "母雞",
+      },
     },
     {
       key: "chicken_breed",
@@ -124,22 +94,22 @@ export const BreedsRecordsTable: React.FC<ChickenDataTableProps> = ({
       mobileOptions: {
         position: "content",
         show: true,
-        label: "品種"
-      }
-    }
+        label: "品種",
+      },
+    },
   ];
 
   return (
     <CommonTable
       title="入雛記錄"
       columns={columns}
-      data={sortedBreeds}
+      data={batch.breeds}
       emptyText="無入雛資料"
       mobileCardOptions={{
         titleField: "supplier",
         subtitleField: "breed_date",
         statusField: "dayAge",
-        statusLabel: "日齡"
+        statusLabel: "日齡",
       }}
     />
   );

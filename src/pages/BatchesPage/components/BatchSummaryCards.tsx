@@ -1,4 +1,9 @@
 import React, { useMemo } from "react";
+/**
+ * 批次摘要指標卡片集合
+ * Why: 彙整批次關鍵指標，讓用戶快速掌握批次健康、產量、銷售等狀態。
+ *      指標選擇依據實際商業需求與用戶最常關心的重點。
+ */
 import {
   FaUserAlt,
   FaMapMarkerAlt,
@@ -10,25 +15,26 @@ import {
   FaUtensils,
   FaClipboardCheck,
 } from "react-icons/fa";
-import { BatchAggregate } from "@app-types";
+import { BatchAggregateWithRows } from "@app-types";
 // import { calculateBatchAggregate } from "@utils/batchCalculations";
 import { formatDate } from "@utils/dateUtils";
-import SummaryCard from "./SummaryCard";
+import SummaryCard from "./common/SummaryCard";
 
 interface SummaryCardProps {
-  batch: BatchAggregate;
+  batch: BatchAggregateWithRows;
 }
 
 /**
  * 批次基本資訊摘要卡片
  */
-export const BreedSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
+const BreedSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
   const batchInfo = useMemo(
     () => ({
       farmName: batch?.breeds[0]?.farm_name ?? "-",
       veterinarian: batch?.breeds[0]?.veterinarian ?? "-",
       location: batch?.breeds[0]?.address ?? "-",
       batchType: batch?.breeds[0]?.chicken_breed ?? "-",
+      license: batch?.breeds[0]?.farm_license ?? "-",
     }),
     [batch?.breeds]
   );
@@ -48,13 +54,19 @@ export const BreedSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
       icon: FaMapMarkerAlt,
       title: "位置",
       content: batchInfo.location,
-      className: "hidden lg:flex",
+      // className: "hidden lg:flex",
     },
     {
       icon: FaClipboardList,
       title: "品種",
       content: batchInfo.batchType,
-      className: "hidden lg:flex",
+      // className: "hidden lg:flex",
+    },
+    {
+      icon: FaClipboardList,
+      title: "許可證",
+      content: batchInfo.license,
+      // className: "hidden lg:flex",
     },
   ];
 
@@ -64,65 +76,149 @@ export const BreedSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
 /**
  * 銷售記錄摘要卡片
  */
-export const SalesSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
-  // 計算批次銷售摘要數據
-  // const batchAggregate = useMemo(() => calculateBatchAggregate(batch), [batch]);
-
-  // 計算總銷售數量
-  const totalSales = useMemo(() => {
-    if (!batch.sales || batch.sales.length === 0) return 0;
-    return batch.sales.length;
-  }, [batch.sales]);
-
-  // 計算最近銷售日期
-  const latestSaleDate = useMemo(() => {
-    if (!batch.sales || batch.sales.length === 0) return "-";
-    const sortedSales = [...batch.sales].sort(
-      (a, b) =>
-        new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()
-    );
-    return formatDate(sortedSales[0].sale_date);
-  }, [batch.sales]);
-
-  // 計算總銷售重量
-  const totalWeight = useMemo(() => {
-    if (!batch.sales || batch.sales.length === 0) return "-";
-    const total = batch.sales.reduce(
-      (sum, sale) => sum + (sale.total_weight || 0),
+const SalesSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
+  const saleInfo = useMemo(() => {
+    if (!batch.sales || batch.sales.length === 0)
+      return {
+        salesPercentage: "-",
+        averageWeight: "-",
+        averagePrice: "-",
+        totalWeight: "-",
+        totalIncome: "-",
+        maleRemainder: "-",
+        femaleRemainder: "-",
+      };
+    const totalBreedsCount = batch.breeds.reduce(
+      (sum, breed) => sum + breed.breed_male + breed.breed_female,
       0
     );
-    return total > 0 ? `${total.toFixed(1)} 斤` : "-";
-  }, [batch.sales]);
+    const totalSalesCount = batch.sales.reduce(
+      (sum, sale) => sum + sale.male_count + sale.female_count,
+      0
+    );
+    const averageWeight = () => {
+      if (!batch.sales || batch.sales.length === 0) return "-";
+      const totalCountWithWeight = batch.sales
+        .filter((sale) => sale.total_weight !== null)
+        .reduce(
+          (sum, sale) => sum + (sale.male_count + sale.female_count || 0),
+          0
+        );
+      const totalWeight = batch.sales.reduce(
+        (sum, sale) => sum + (sale.total_weight || 0),
+        0
+      );
+      return totalCountWithWeight > 0
+        ? `${(totalWeight / totalCountWithWeight).toFixed(2)} 斤`
+        : "-";
+    };
+    const totalWeight = () => {
+      if (!batch.sales || batch.sales.length === 0) return "-";
+      const total = batch.sales.reduce(
+        (sum, sale) => sum + (sale.total_weight || 0),
+        0
+      );
+      return total > 0 ? `${total.toFixed(1)} 斤` : "-";
+    };
+    const totalIncome = () => {
+      if (!batch.sales || batch.sales.length === 0) return "-";
+      const total = batch.sales.reduce(
+        (sum, sale) => sum + (sale.total_price || 0),
+        0
+      );
+      return total > 0 ? `${total.toLocaleString("zh-TW")} 元` : "-";
+    };
+    const maleRemainder = () => {
+      if (!batch.sales || batch.sales.length === 0) return "-";
+      const totalSaleMaleCount = batch.sales.reduce(
+        (sum, sale) => sum + (sale.male_count || 0),
+        0
+      );
+      const totalBreedMale = batch.breeds.reduce(
+        (sum, breed) => sum + (breed.breed_male || 0),
+        0
+      );
+      return totalBreedMale * 0.9 - totalSaleMaleCount > 0
+        ? `${Math.round((totalBreedMale * 0.9 - totalSaleMaleCount) / 100) * 100} 隻`
+        : "-";
+    };
+    const femaleRemainder = () => {
+      if (!batch.sales || batch.sales.length === 0) return "-";
+      const totalSaleFemaleCount = batch.sales.reduce(
+        (sum, sale) => sum + (sale.female_count || 0),
+        0
+      );
+      const totalBreedFemale = batch.breeds.reduce(
+        (sum, breed) => sum + (breed.breed_female || 0),
+        0
+      );
+      return totalBreedFemale * 0.94 - totalSaleFemaleCount > 0
+        ? `${Math.round((totalBreedFemale * 0.94 - totalSaleFemaleCount) / 100) * 100} 隻`
+        : "-";
+    };
+    const averagePrice = () => {
+      const totalPrice = batch.sales
+        .filter((sale) => sale.total_price !== null)
+        .reduce((sum, sale) => sum + (sale.total_price || 0), 0);
+      const totalWeight = batch.sales
+        .filter((sale) => sale.total_weight !== null)
+        .reduce((sum, sale) => sum + (sale.total_weight || 0), 0);
+      return totalPrice > 0 && totalWeight > 0
+        ? `${(totalPrice / totalWeight).toFixed(2)} 元/斤`
+        : "-";
+    };
 
-  // 計算總銷售收入 (假設有銷售收入數據)
-  const totalIncome = useMemo(() => {
-    // 這裡需要根據實際數據結構計算總收入
-    // 示例：return `${income.toFixed(0)} 元`;
-    return "-";
-  }, [batch.sales]);
+    return {
+      salesPercentage:
+        totalSalesCount / totalBreedsCount > 0
+          ? `${((totalSalesCount / totalBreedsCount) * 100).toFixed(1)}%`
+          : "-",
+      averageWeight: averageWeight(),
+      averagePrice: averagePrice(),
+      maleRemainder: maleRemainder(),
+      femaleRemainder: femaleRemainder(),
+      totalWeight: totalWeight(),
+      totalIncome: totalIncome(),
+    };
+  }, [batch.sales, batch.breeds]);
 
   const items = [
     {
       icon: FaChartLine,
-      title: "總銷售數",
-      content: totalSales || "-",
-    },
-    {
-      icon: FaCalendarAlt,
-      title: "最近銷售",
-      content: latestSaleDate,
+      title: "銷售成數",
+      content: saleInfo.salesPercentage,
     },
     {
       icon: FaWeight,
-      title: "已銷售重量",
-      content: totalWeight,
-      className: "hidden lg:flex",
+      title: "平均重量",
+      content: saleInfo.averageWeight,
     },
+    {
+      icon: FaWeight,
+      title: "平均價格",
+      content: saleInfo.averagePrice,
+    },
+    // {
+    //   icon: FaWeight,
+    //   title: "已銷售重量",
+    //   content: saleInfo.totalWeight,
+    //   // className: "hidden lg:flex",
+    // },
     {
       icon: FaMoneyBillWave,
       title: "銷售收入",
-      content: totalIncome,
-      className: "hidden lg:flex",
+      content: saleInfo.totalIncome,
+      // className: "hidden lg:flex",
+    },
+    {
+      icon: FaUserAlt,
+      title: "公雞餘數",
+      content: saleInfo.maleRemainder,
+    },
+    {
+      icon: FaUserAlt,
+      title: "母雞餘數",
+      content: saleInfo.femaleRemainder,
     },
   ];
 
@@ -132,7 +228,7 @@ export const SalesSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
 /**
  * 飼料記錄摘要卡片
  */
-export const FeedsSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
+const FeedsSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
   // 計算飼料種類數
   const feedTypes = useMemo(() => {
     if (!batch.feeds || batch.feeds.length === 0) return 0;
@@ -188,3 +284,5 @@ export const FeedsSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
 
   return <SummaryCard items={items} />;
 };
+
+export { BreedSummaryCard, SalesSummaryCard, FeedsSummaryCard };

@@ -1,19 +1,34 @@
+/**
+ * 批次銷售紀錄表格
+ * Why: 集中顯示所有銷售紀錄，方便用戶進行營收統計與批次績效分析。
+ *      支援後續聚合計算與圖表展示。
+ */
 import React from "react";
-import { BatchAggregate } from "@app-types";
 import { calculateBatchAggregate } from "@utils/batchCalculations";
-import CommonTable, { formatDate, ColumnType } from "@components/common/CommonTable";
-import { SalesSummaryCard } from "../../components/BatchSummaryCards";
+import CommonTable, {
+  formatDate,
+  ColumnType,
+} from "@components/common/CommonTable";
+import { SalesSummaryCard } from "../BatchSummaryCards";
 import { TableRow, TableCell } from "@/components/ui/table";
 
-interface SalesRawTableProps {
-  batch: BatchAggregate;
+import { BatchAggregateWithRows } from "@app-types";
+
+interface SalesTableProps {
+  batch: BatchAggregateWithRows;
 }
 
-const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
+// Why: 元件完全解耦於父層，直接根據全局狀態查詢資料，提升重用性
+const SalesTable: React.FC<SalesTableProps> = ({ batch }) => {
+  if (!batch || !batch.sales || !Array.isArray(batch.sales)) return null;
+
   // 計算批次聚合數據
   const batchAggregate = calculateBatchAggregate(batch);
 
-  if (!batchAggregate.saleRecords || !Array.isArray(batchAggregate.saleRecords)) {
+  if (
+    !batchAggregate.saleRecords ||
+    !Array.isArray(batchAggregate.saleRecords)
+  ) {
     return null;
   }
 
@@ -30,7 +45,7 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "header",
         show: true,
-      }
+      },
     },
     {
       key: "customer",
@@ -38,7 +53,7 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "header",
         show: true,
-      }
+      },
     },
     {
       key: "dayAge",
@@ -47,8 +62,8 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "status",
         show: true,
-        label: "日齡"
-      }
+        label: "日齡",
+      },
     },
     {
       key: "male_count",
@@ -58,8 +73,8 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "公雞"
-      }
+        label: "公雞",
+      },
     },
     {
       key: "female_count",
@@ -69,30 +84,30 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "母雞"
-      }
+        label: "母雞",
+      },
     },
     {
       key: "avgMaleWeight",
       title: "公均",
       align: "right",
-      render: (value) => (value ? value.toFixed(2) : "-") + " 斤",
+      render: (value) => (value ? value.toFixed(2) + " 斤" : "-"),
       mobileOptions: {
         position: "content",
         show: true,
-        label: "公均"
-      }
+        label: "公均",
+      },
     },
     {
       key: "avgFemaleWeight",
       title: "母均",
       align: "right",
-      render: (value) => (value ? value.toFixed(2) : "-") + " 斤",
+      render: (value) => (value ? value.toFixed(2) + " 斤" : "-"),
       mobileOptions: {
         position: "content",
         show: true,
-        label: "母均"
-      }
+        label: "母均",
+      },
     },
     {
       key: "male_price",
@@ -102,8 +117,8 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "公價"
-      }
+        label: "公價",
+      },
     },
     {
       key: "female_price",
@@ -113,19 +128,19 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "母價"
-      }
+        label: "母價",
+      },
     },
     {
       key: "total_weight",
       title: "總重",
       align: "right",
-      render: (value) => (value ? value.toFixed(1) : "-") + " 斤",
+      render: (value) => (value ? value.toFixed(1) + " 斤" : "-"),
       mobileOptions: {
         position: "footer",
         show: true,
-        label: "總重"
-      }
+        label: "總重",
+      },
     },
   ];
 
@@ -157,11 +172,11 @@ const SalesRawTable: React.FC<SalesRawTableProps> = ({ batch }) => {
           statusField: "dayAge",
           statusLabel: "日齡",
           footerField: "total_weight",
-          footerLabel: "總重"
+          footerLabel: "總重",
         }}
       />
     </div>
   );
 };
 
-export default SalesRawTable;
+export default SalesTable;

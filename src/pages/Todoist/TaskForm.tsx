@@ -5,10 +5,9 @@ import {
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { TaskFormData, priorityOptions } from "./types";
-import { BatchAggregate } from "@app-types";
 
 interface TaskFormProps {
-  batch: BatchAggregate;
+  batchName: string;
   formData: TaskFormData;
   onChange: (
     e: React.ChangeEvent<
@@ -23,7 +22,7 @@ interface TaskFormProps {
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
-  batch,
+  batchName,
   formData,
   onChange,
   onSubmit,
@@ -95,7 +94,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           placeholder="輸入任務描述（選填）"
         />
         <div className="text-xs text-gray-500 mt-1">
-          此任務將自動關聯到批次：{batch.batchName}
+          此任務將自動關聯到批次：{batchName}
         </div>
       </div>
 

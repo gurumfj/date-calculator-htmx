@@ -21,7 +21,7 @@ const HomePage: React.FC = () => {
       <PageNavbar title="儀表盤" rightActions={rightActions} />
       <Suspense fallback={<div className="text-center p-4">載入中...</div>}>
         {/* <Dashboard /> */}
-        <TodoistPage batch={null} />
+        <TodoistPage />
       </Suspense>
     </>
   );

@@ -1,17 +1,28 @@
+/**
+ * 批次飼料紀錄表格
+ * Why: 讓用戶快速檢視與管理飼料消耗紀錄，追蹤成本與效率。
+ *      飼料資料直接影響批次健康與成本分析。
+ */
 import React from "react";
-import { BatchAggregate } from "@app-types";
-import CommonTable, { formatDate, ColumnType } from "@components/common/CommonTable";
-import { FeedsSummaryCard } from "../../components/BatchSummaryCards";
+// import { BatchAggregate } from "@app-types"; // 已無需直接型別
+import CommonTable, {
+  formatDate,
+  ColumnType,
+} from "@components/common/CommonTable";
+import { FeedsSummaryCard } from "../BatchSummaryCards";
 import { Badge } from "@/components/ui/badge";
 
+import { BatchAggregateWithRows } from "@/types";
+
 interface FeedRecordTableProps {
-  batch: BatchAggregate;
+  batch: BatchAggregateWithRows;
 }
 
+// Why: 元件完全解耦於父層，直接根據全局狀態查詢資料，提升重用性
 const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
-  const feedRecords = batch.feeds || [];
+  if (!batch || !batch.feeds || !Array.isArray(batch.feeds)) return null;
 
-  if (!feedRecords || !Array.isArray(feedRecords)) return null;
+  const feedRecords = batch.feeds;
 
   // 按日期排序，最新的在前面
   const sortedFeedRecords = [...feedRecords].sort(
@@ -27,7 +38,7 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "header",
         show: true,
-      }
+      },
     },
     {
       key: "feed_manufacturer",
@@ -35,7 +46,7 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "header",
         show: true,
-      }
+      },
     },
     {
       key: "feed_item",
@@ -44,8 +55,8 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
         position: "content",
         show: true,
         label: "飼料品項",
-        span: 2
-      }
+        span: 2,
+      },
     },
     {
       key: "sub_location",
@@ -54,8 +65,8 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "子位置"
-      }
+        label: "子位置",
+      },
     },
     {
       key: "feed_week",
@@ -64,8 +75,8 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "週齡"
-      }
+        label: "週齡",
+      },
     },
     {
       key: "feed_additive",
@@ -74,8 +85,8 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       mobileOptions: {
         position: "content",
         show: true,
-        label: "添加物"
-      }
+        label: "添加物",
+      },
     },
     {
       key: "feed_remark",
@@ -85,8 +96,8 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
         position: "footer",
         show: true,
         label: "備註",
-        span: 2
-      }
+        span: 2,
+      },
     },
     {
       key: "is_completed",
@@ -99,8 +110,8 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
       ),
       mobileOptions: {
         position: "status",
-        show: true
-      }
+        show: true,
+      },
     },
   ];
 
@@ -116,7 +127,7 @@ const FeedRecordTable: React.FC<FeedRecordTableProps> = ({ batch }) => {
           titleField: "feed_manufacturer",
           subtitleField: "feed_date",
           statusField: "is_completed",
-          footerField: "feed_remark"
+          footerField: "feed_remark",
         }}
       />
     </div>
