@@ -6,6 +6,16 @@
 
 set -e  # 任何命令失敗時立即停止腳本執行
 
+# --- 工作目錄狀態檢查 ---
+# Why: subtree 操作要求工作目錄必須乾淨，否則會導致合併失敗
+if [[ -n $(git status --porcelain) ]]; then
+  echo -e "${RED}錯誤: 工作目錄有未提交的更動，請先提交或暫存所有變更後再執行本腳本${NC}"
+  echo -e "${YELLOW}建議: 可使用 'git add . && git commit -m \"WIP\"' 或 'git stash'${NC}"
+  exit 1
+fi
+# --- 狀態檢查結束 ---
+
+
 # 顏色定義
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -81,7 +91,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # 使用--no-verify跳過pre-push檢查
-git subtree pull --prefix=$SUBTREE_PREFIX $FRONTEND_REPO $FRONTEND_BRANCH --squash --no-verify
+git subtree pull --prefix=$SUBTREE_PREFIX $FRONTEND_REPO $FRONTEND_BRANCH --squash
 PULL_RESULT=$?
 
 if [ $PULL_RESULT -eq 0 ]; then
