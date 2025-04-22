@@ -1,8 +1,11 @@
-import React, { useMemo, useCallback } /**
- * 批次卡片元件
- * Why: 提供批次主列表的摘要資訊、互動入口與快速操作，提升批次管理效率與 UX。
- *      強調選取狀態、複製批次資訊等核心場景。
- */ from "react";
+import React, {
+  useMemo,
+  useCallback /**
+   * 批次卡片元件
+   * Why: 提供批次主列表的摘要資訊、互動入口與快速操作，提升批次管理效率與 UX。
+   *      強調選取狀態、複製批次資訊等核心場景。
+   */,
+} from "react";
 import {
   calculateBatchAgeRange,
   calculateTotalChickens,
@@ -28,6 +31,7 @@ import { BATCH_ACTIVITY_COLORS } from "@app-types";
 import { useBatchStore } from "../store/useBatchStore";
 import { useFetchBatchAggregates } from "../hooks/useFetchBatches";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 // --- Main Card Component ---
 interface BatchCardProps {
@@ -49,6 +53,10 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
   // 3. 計算衍生狀態
   const isSelected = selectedBatchName === batchName;
   const navigate = useNavigate();
+
+  //Toast
+  const { toast } = useToast();
+
   // 4. 定義事件處理函數
   // 點擊卡片時僅透過 navigate 控制路由，store 狀態由 BatchPage useEffect 控制
   const handleCardClick = useCallback(() => {
@@ -91,8 +99,12 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
       const copyText = `${actualBatchName}\n${localDateStr} ${weekAgeText}`;
 
       navigator.clipboard.writeText(copyText);
+      toast({
+        title: "批次名稱已複製",
+        description: copyText,
+      });
     },
-    [batchAggregate, batchName]
+    [batchAggregate, batchName, toast]
   );
 
   // 5. 計算批次數據
