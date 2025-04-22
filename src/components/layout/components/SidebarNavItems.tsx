@@ -6,7 +6,8 @@ import {
   FaChartBar, 
   FaFlask, 
   FaDatabase, 
-  FaWrench 
+  FaWrench,
+  FaEdit 
 } from "react-icons/fa";
 import { NavItem } from "../utils/types";
 import { isActive } from "../utils/helpers";
@@ -30,6 +31,11 @@ const SidebarNavItems: React.FC<SidebarNavItemsProps> = ({
       path: "/reports",
       icon: <FaChartBar className="h-5 w-5" />,
       label: "報表",
+    },
+    {
+      path: "/batch-edit",
+      icon: <FaEdit className="h-5 w-5" />,
+      label: "批次編輯",
     },
     { 
       path: "/testing", 

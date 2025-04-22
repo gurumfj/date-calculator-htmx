@@ -1,4 +1,4 @@
-import { CustomData } from "@app-types";
+import { CustomData } from "./business.types";
 
 export type Json =
   | string
@@ -11,21 +11,10 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      alembic_version: {
-        Row: {
-          version_num: string;
-        };
-        Insert: {
-          version_num: string;
-        };
-        Update: {
-          version_num?: string;
-        };
-        Relationships: [];
-      };
       batchaggregates: {
         Row: {
           batch_name: string;
+          chicken_breed: string;
           data: CustomData | null;
           final_date: string;
           initial_date: string;
@@ -35,6 +24,7 @@ export type Database = {
         };
         Insert: {
           batch_name: string;
+          chicken_breed: string;
           data?: CustomData | null;
           final_date: string;
           initial_date: string;
@@ -44,6 +34,7 @@ export type Database = {
         };
         Update: {
           batch_name?: string;
+          chicken_breed?: string;
           data?: CustomData | null;
           final_date?: string;
           initial_date?: string;
@@ -114,15 +105,7 @@ export type Database = {
           updated_at?: string;
           veterinarian?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "breedrecordorm_batch_name_fkey";
-            columns: ["batch_name"];
-            isOneToOne: false;
-            referencedRelation: "batchaggregates";
-            referencedColumns: ["batch_name"];
-          },
-        ];
+        Relationships: [];
       };
       feedrecordorm: {
         Row: {
@@ -170,15 +153,7 @@ export type Database = {
           unique_id?: string;
           updated_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "feedrecordorm_batch_name_fkey";
-            columns: ["batch_name"];
-            isOneToOne: false;
-            referencedRelation: "batchaggregates";
-            referencedColumns: ["batch_name"];
-          },
-        ];
+        Relationships: [];
       };
       salerecordorm: {
         Row: {

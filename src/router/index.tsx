@@ -6,6 +6,7 @@ import ReportsPage from "@pages/ReportsPage";
 import SettingsPage from "@pages/SettingsPage";
 import NotFoundPage from "@pages/NotFoundPage";
 import TestingPage from "@pages/TestingPage";
+import BatchEditPage from "@pages/BatchEditPage/BatchEditPage";
 
 const router = createBrowserRouter([
   {
@@ -31,6 +32,10 @@ const router = createBrowserRouter([
       {
         path: "settings",
         element: <SettingsPage />,
+      },
+      {
+        path: "batch-edit",
+        element: <BatchEditPage />,
       },
       {
         path: "*",
