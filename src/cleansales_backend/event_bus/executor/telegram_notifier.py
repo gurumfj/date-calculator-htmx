@@ -1,5 +1,5 @@
-import html
 import logging
+import re
 import time
 from typing import Protocol
 
@@ -73,6 +73,14 @@ class TelegramNotifier:
 
         logger.info("Telegram notification configured successfully.")
 
+    def _escape_markdown_v2(self, text: str) -> str:
+        """Escapes characters for Telegram MarkdownV2 parse mode."""
+        # Characters to escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
+        # Must escape the escape character itself (\) last if it's included
+        escape_chars = r"_*[]()~`>#+-=|{}.!"
+        # Use re.sub with a lambda function to add a backslash before each special character
+        return re.sub(f"([{re.escape(escape_chars)}])", r"\\\1", text)
+
     def _configure_post_url(self, token: str, chat_id: str) -> AnyHttpUrl:
         """配置 Telegram 通知 URL
 
@@ -99,31 +107,37 @@ class TelegramNotifier:
         # self._event_bus.register(TelegramEvent.SEND_DOCUMENT, self.send_document)
 
     def _format_message(self, msg: list[LineObject]) -> str:
-        """將事件格式化為消息文本
+        """將 LineObject 列表格式化為 MarkdownV2 消息文本
 
         Args:
-            msg (list[LineObject]): 消息對象
+            msg (list[LineObject]): 消息對象列表
 
         Returns:
-            str: 格式化後的消息文本
+            str: 格式化後的 MarkdownV2 消息文本
         """
-        message: list[str] = []
+        message_parts: list[str] = []
 
         for line in msg:
-            # 確保所有文本都經過HTML轉義以防止注入
-            escaped_text = html.escape(line.text)
+            # Escape text for MarkdownV2
+            escaped_text = self._escape_markdown_v2(line.text)
 
             if line.head == Head.TITLE:
-                message.append(f"<b>{escaped_text}</b>")
+                # Use bold for titles
+                message_parts.append(f"*{escaped_text}*")
             elif line.head == Head.TEXT:
-                message.append(f"{'  ' + escaped_text}")
+                # Indent text slightly for readability (using escaped spaces might be needed if TG strips leading spaces)
+                # Let's just use plain text for now.
+                message_parts.append(escaped_text)
             elif line.head == Head.BULLET:
-                message.append(f"{'    - ' + escaped_text}")
+                # Use a dash for bullet points, ensuring space after dash
+                # Escape the dash itself if it's at the beginning of the text
+                # Using a standard bullet character might be safer: •
+                message_parts.append(f"• {escaped_text}")  # Using bullet symbol •
 
-        return "\n".join(message)
+        return "\n".join(message_parts)
 
     def _prepare_payload(self, msg: list[LineObject]) -> dict[str, str | bool]:
-        """準備要發送的資料
+        """準備要發送的資料 (使用 MarkdownV2)
 
         Args:
             msg (list[LineObject]): 消息對象
@@ -131,9 +145,13 @@ class TelegramNotifier:
         Returns:
             Dict[str, str|bool]: 準備好的資料
         """
+        formatted_text = self._format_message(msg)
+        logger.debug(
+            f"Formatted MarkdownV2 message:\n{formatted_text}"
+        )  # Log the formatted message
         return {
-            "text": self._format_message(msg),
-            "parse_mode": "HTML",
+            "text": formatted_text,
+            "parse_mode": "MarkdownV2",  # Changed from HTML to MarkdownV2
             "disable_web_page_preview": True,
         }
 
