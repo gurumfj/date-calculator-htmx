@@ -7,6 +7,8 @@ import { BatchFilters } from "../types";
 import supabase from "@app-lib/supabaseClient";
 import { format } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/react-query";
+import { toast } from "@/hooks/use-toast";
 
 // 將批次索引查詢封裝為獨立函數，方便 hook 與其他服務複用
 // 這樣設計可集中維護查詢條件，減少重複邏輯
@@ -163,18 +165,23 @@ export function useFetchBatchAggregates(batchName: string) {
  */
 // 將批次自訂資料更新封裝為 mutation hook，方便表單/操作直接呼叫
 // 這樣做可以集中錯誤處理與 side effect，提升一致性
-export function useUpdateBatchCustomData() {
+export function useUpdateBatchCustomData(batchName: string) {
   return useMutation<
     void,
     Error,
-    { batchName: string; customData: CustomData }
+    { batchName: string; finalDate?: string; customData: CustomData }
   >({
     mutationFn: async (variables) => {
       const { batchName, customData } = variables;
       // 直接更新 supabase，確保資料一致性
       const { error } = await supabase
         .from("batchaggregates")
-        .update({ data: customData })
+        .update({
+          updated_at: new Date(
+            new Date().getTime() + 8 * 60 * 60 * 1000
+          ).toISOString(),
+          data: customData,
+        })
         .eq("batch_name", batchName);
 
       if (error) throw error;
@@ -182,10 +189,76 @@ export function useUpdateBatchCustomData() {
     onSuccess: () => {
       // 成功時可根據需求觸發全域提示或自動刷新
       console.log("Batch custom data updated successfully");
-      // window.location.reload(); // 避免全頁刷新，建議用狀態同步
+      // 更新批次索引查詢快取
+      queryClient.invalidateQueries({ queryKey: ["batchAggregatesIndex"] });
+      // 更新指定批次的查詢快取
+      queryClient.invalidateQueries({
+        queryKey: ["batchAggregates", batchName],
+      });
+      toast({
+        title: "Success",
+        description: "Batch custom data updated successfully",
+        variant: "default",
+      });
     },
     onError: (error) => {
-      // 集中錯誤處理，方便後續接入全域錯誤提示
+      // 在 Hook 內部處理 toast
+      toast({
+        title: "更新錯誤",
+        description: error.message || "更新自訂資料時發生未知錯誤。",
+        variant: "destructive",
+      });
+      // 可以選擇性地 re-throw 錯誤，讓 `updateError` 狀態仍然被設置
+      throw error;
+    },
+  });
+}
+/**
+ * 更新指定批次的 final_date
+ * @returns mutation 物件，可用於觸發更新
+ */
+// 將批次 final_date 更新封裝為 mutation hook，方便表單/操作直接呼叫
+// 這樣做可以集中錯誤處理與 side effect，提升一致性
+export function useUpdateBatchIndexFinalDate(batchName: string) {
+  return useMutation<void, Error, { batchName: string; finalDate?: string }>({
+    mutationFn: async (variables) => {
+      const { batchName, finalDate } = variables;
+      // 直接更新 supabase，確保資料一致性
+      const { error } = await supabase
+        .from("batchaggregates")
+        .update({
+          updated_at: new Date(
+            new Date().getTime() + 8 * 60 * 60 * 1000
+          ).toISOString(),
+          final_date: finalDate,
+        })
+        .eq("batch_name", batchName);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // 成功時可根據需求觸發全域提示或自動刷新
+      console.log("Batch custom data updated successfully");
+      // 更新批次索引查詢快取
+      queryClient.invalidateQueries({ queryKey: ["batchAggregatesIndex"] });
+      // 更新指定批次的查詢快取
+      queryClient.invalidateQueries({
+        queryKey: ["batchAggregates", batchName],
+      });
+      toast({
+        title: "Success",
+        description: "Batch final date updated successfully",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      // 在 Hook 內部處理 toast
+      toast({
+        title: "更新錯誤",
+        description: error.message || "更新最終日期時發生未知錯誤。",
+        variant: "destructive",
+      });
+      // 可以選擇性地 re-throw 錯誤，讓 `updateError` 狀態仍然被設置
       throw error;
     },
   });

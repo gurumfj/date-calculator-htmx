@@ -12,7 +12,7 @@ export interface CustomData {
 
 // 活動選項集中定義，方便前端 UI 直接引用，避免重複硬編碼
 export const BatchActivityOptions = [
-  { value: "breeding", label: "繁殖" },
+  { value: "breeding", label: "在養" },
   { value: "selling", label: "銷售" },
   { value: "soldout", label: "完售" },
   { value: "completed", label: "完成" },
