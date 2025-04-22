@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GeneralSettingsSection from "./sections/GeneralSettings";
 import BatchSettings from "./sections/BatchSettings";
 import TodoistSettings from "@pages/Todoist/TodoistSettings";
-import { Toaster } from "@/components/ui/toaster";
 import { SaveAction } from "@/components/layout/components/NavbarIcons";
 import PageNavbar from "@/components/layout/components/PageNavbar";
 
@@ -74,7 +73,6 @@ const SettingsPage: React.FC = () => {
           </Tabs>
         </div>
       </div>
-      <Toaster />
     </>
   );
 };

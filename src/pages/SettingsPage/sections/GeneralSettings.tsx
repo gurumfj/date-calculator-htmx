@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Check, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+
 import {
   useGeneralSettingsStore,
   defaultGeneralSettings,
@@ -27,8 +27,7 @@ import {
 
 // 一般設定區塊，負責管理 API 連線參數與測試
 const GeneralSettingsSection: React.FC = () => {
-  // 取得 toast 實例，用於全域提示訊息
-  const { toast } = useToast();
+
   // 取得全域設定與操作函數，確保狀態一致性
   const {
     settings: { apiUrl: apiUrlString },
@@ -68,11 +67,7 @@ const GeneralSettingsSection: React.FC = () => {
   const handleTestConnection = async () => {
     const currentUrl = validateUrl();
     if (!currentUrl) {
-      toast({
-        title: "連線失敗",
-        description: "請檢查連線參數是否正確",
-        variant: "destructive",
-      });
+
       return;
     }
     setTestingConnection((prev) => ({
@@ -83,21 +78,13 @@ const GeneralSettingsSection: React.FC = () => {
     try {
       const result = await testConnection(currentUrl);
       if (result) {
-        toast({
-          title: "連線成功",
-          description: "API連線測試成功",
-          variant: "default",
-        });
+
         setTestingConnection((prev) => ({
           ...prev,
           status: true,
         }));
       } else {
-        toast({
-          title: "連線失敗",
-          description: "API伺服器返回非健康狀態",
-          variant: "destructive",
-        });
+
         setTestingConnection((prev) => ({
           ...prev,
           status: false,
@@ -105,11 +92,7 @@ const GeneralSettingsSection: React.FC = () => {
       }
     } catch (error) {
       console.error("API連線測試失敗:", error);
-      toast({
-        title: "連線失敗",
-        description: "無法連接到API，請檢查連線參數是否正確",
-        variant: "destructive",
-      });
+
       setTestingConnection((prev) => ({
         ...prev,
         status: false,
@@ -140,18 +123,10 @@ const GeneralSettingsSection: React.FC = () => {
     try {
       saveSettings({ apiUrl: currentUrl.toString() });
 
-      toast({
-        title: "設定已保存",
-        description: "API連線參數已更新",
-        variant: "default",
-      });
+
     } catch (error) {
       console.error("保存設定失敗:", error);
-      toast({
-        title: "保存失敗",
-        description: "設定保存時發生錯誤",
-        variant: "destructive",
-      });
+
     } finally {
       setSaving(false);
     }
@@ -165,11 +140,7 @@ const GeneralSettingsSection: React.FC = () => {
     setPort(defaultUrl.port);
     setCurrentUrl(defaultUrl);
     handleTestConnection();
-    toast({
-      title: "設定已重置",
-      description: "API連線參數已恢復預設值",
-      variant: "default",
-    });
+
   };
 
   return (
