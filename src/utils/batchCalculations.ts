@@ -351,6 +351,37 @@ export const calculateSaleRecord = (
   };
 };
 
+export function calculateMaleRemainder(batch: BatchAggregateWithRows): string {
+  if (!batch.sales || batch.sales.length === 0) return "-";
+  const totalSaleMaleCount = batch.sales.reduce(
+    (sum, sale) => sum + (sale.male_count || 0),
+    0
+  );
+  const totalBreedMale = batch.breeds.reduce(
+    (sum, breed) => sum + (breed.breed_male || 0),
+    0
+  );
+  return totalBreedMale * 0.9 - totalSaleMaleCount > 0
+    ? `${Math.round((totalBreedMale * 0.9 - totalSaleMaleCount) / 100) * 100} 隻`
+    : "-";
+}
+export function calculateFemaleRemainder(
+  batch: BatchAggregateWithRows
+): string {
+  if (!batch.sales || batch.sales.length === 0) return "-";
+  const totalSaleFemaleCount = batch.sales.reduce(
+    (sum, sale) => sum + (sale.female_count || 0),
+    0
+  );
+  const totalBreedFemale = batch.breeds.reduce(
+    (sum, breed) => sum + (breed.breed_female || 0),
+    0
+  );
+  return totalBreedFemale * 0.94 - totalSaleFemaleCount > 0
+    ? `${Math.round((totalBreedFemale * 0.94 - totalSaleFemaleCount) / 100) * 100} 隻`
+    : "-";
+}
+
 /**
  * 計算批次的所有聚合數據
  * @param batch 批次資料

@@ -3,7 +3,7 @@ import {
   BatchAggregateWithRows,
   CustomData,
 } from "@/types";
-import { BatchFilters } from "../types";
+import { BatchFilters } from "../pages/BatchesPage/types";
 import supabase from "@app-lib/supabaseClient";
 import { format } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -121,40 +121,86 @@ async function fetchBreedRecordsByBatchName(batchName: string) {
   return data || [];
 }
 
-// 封裝單一批次聚合查詢，並行查詢所有關聯資料，提升效能
+// // 封裝單一批次聚合查詢，並行查詢所有關聯資料，提升效能
+// // 統一回傳格式，方便組件直接消費並減少重複組裝
+// export function useFetchBatchAggregates(batchName: string) {
+//   return useQuery<BatchAggregateWithRows | null>({
+//     queryKey: ["batchAggregates", batchName],
+//     // 查詢指定批次的所有關聯資料
+//     queryFn: async () => {
+//       if (!batchName) return null;
+//       // 並行取得所有資料，提升資料同步效率
+//       const [batch, breeds, feeds, sales] = await Promise.all([
+//         fetchBatchIndex(batchName),
+//         fetchBreedRecordsByBatchName(batchName),
+//         fetchFeedRecordsByBatchName(batchName),
+//         fetchSalesRecordsByBatchName(batchName),
+//       ]);
+//       // 若查無批次則回傳 null，避免組件誤用空資料
+//       if (!batch || !Array.isArray(batch) || batch.length === 0) return null;
+
+//       // 根據資料優先級推斷 batchActivity 狀態，確保 UI 準確反映批次真實狀態
+//       const batchActivity =
+//         batch[0].data?.batchActivity ||
+//         (breeds.length > 0 && breeds[0].is_completed === true
+//           ? "completed"
+//           : sales.length > 0
+//             ? "selling"
+//             : "breeding");
+
+//       // 返回標準化的數據，方便上層組件直接消費
+//       return {
+//         index: { ...batch[0], data: { ...batch[0].data, batchActivity } },
+//         breeds: breeds || [],
+//         feeds: feeds || [],
+//         sales: sales || [],
+//       };
+//     },
+//   });
+// }
+
+// 封裝多批次聚合查詢，並行查詢每個批次的所有關聯資料
 // 統一回傳格式，方便組件直接消費並減少重複組裝
-export function useFetchBatchAggregates(batchName: string) {
-  return useQuery<BatchAggregateWithRows | null>({
-    queryKey: ["batchAggregates", batchName],
-    // 查詢指定批次的所有關聯資料
+export function useFetchBatchAggregates(batchNames: string[]) {
+  return useQuery<BatchAggregateWithRows[]>({
+    queryKey: ["batchAggregatesAll", batchNames],
+    // 查詢多個批次的所有關聯資料
     queryFn: async () => {
-      if (!batchName) return null;
-      // 並行取得所有資料，提升資料同步效率
-      const [batch, breeds, feeds, sales] = await Promise.all([
-        fetchBatchIndex(batchName),
-        fetchBreedRecordsByBatchName(batchName),
-        fetchFeedRecordsByBatchName(batchName),
-        fetchSalesRecordsByBatchName(batchName),
-      ]);
-      // 若查無批次則回傳 null，避免組件誤用空資料
-      if (!batch || !Array.isArray(batch) || batch.length === 0) return null;
-
-      // 根據資料優先級推斷 batchActivity 狀態，確保 UI 準確反映批次真實狀態
-      const batchActivity =
-        batch[0].data?.batchActivity ||
-        (breeds.length > 0 && breeds[0].is_completed === true
-          ? "completed"
-          : sales.length > 0
-            ? "selling"
-            : "breeding");
-
-      // 返回標準化的數據，方便上層組件直接消費
-      return {
-        index: { ...batch[0], data: { ...batch[0].data, batchActivity } },
-        breeds: breeds || [],
-        feeds: feeds || [],
-        sales: sales || [],
-      };
+      if (!batchNames || batchNames.length === 0) return [];
+      // 並行查詢每個批次的所有資料
+      const results = await Promise.all(
+        batchNames.map(async (batchName) => {
+          // 並行取得單一批次的所有資料
+          const [batch, breeds, feeds, sales] = await Promise.all([
+            fetchBatchIndex(batchName),
+            fetchBreedRecordsByBatchName(batchName),
+            fetchFeedRecordsByBatchName(batchName),
+            fetchSalesRecordsByBatchName(batchName),
+          ]);
+          // 若查無批次則回傳 null，避免組件誤用空資料
+          if (!batch || !Array.isArray(batch) || batch.length === 0)
+            return null;
+          // 推斷 batchActivity 狀態，確保 UI 準確反映真實狀態
+          const batchActivity =
+            batch[0].data?.batchActivity ||
+            (breeds.length > 0 && breeds[0].is_completed === true
+              ? "completed"
+              : sales.length > 0
+                ? "selling"
+                : "breeding");
+          // 返回標準化的數據
+          return {
+            index: { ...batch[0], data: { ...batch[0].data, batchActivity } },
+            breeds: breeds || [],
+            feeds: feeds || [],
+            sales: sales || [],
+          };
+        })
+      );
+      // 過濾掉查無資料的批次
+      return results.filter(
+        (item) => item !== null
+      ) as BatchAggregateWithRows[];
     },
   });
 }
