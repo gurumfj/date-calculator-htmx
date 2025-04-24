@@ -3,60 +3,59 @@ import { TaskFormData, TaskFilter } from "@/pages/Todoist/types";
 import TaskForm from "./TaskForm";
 import TaskList from "./TaskList";
 import {
-  useTaskQueries,
+  useQueryTasks,
   useAddTaskMutation,
   TasksQueryParams,
 } from "./hooks/useTaskQueries";
 import { useTodoistSettingsStore } from "./hooks/useTodoistSettingStore";
 import TodoistSettings from "./TodoistSettings";
-import { useParams } from "react-router-dom";
+import { BatchAggregate } from "@/types";
+
+interface TaskListProps {
+  batch?: BatchAggregate;
+}
 
 /**
  * Todoist 主任務管理頁面組件
  * - 提供批次任務的查詢、建立、過濾與設定
  * - 結合 Todoist API 與本地設定，支援批次標籤與專案切換
- * @returns {JSX.Element}
  */
-const Todoist: React.FC = () => {
-  // 取得路由參數，用於批次標籤過濾
-  const { batchName } = useParams();
+const Todoist: React.FC<TaskListProps> = ({ batch }) => {
+  // 取得批次名稱，若無 batch 則為 null
+  // Why: 讓所有任務操作都能明確關聯到批次，便於批次管理
+  const batchName = batch?.index.batch_name || null;
 
-  // 狀態管理
   // 從全域 store 取得預設專案ID，確保所有操作都在同一專案下
   const {
     settings: { defaultProjectId },
   } = useTodoistSettingsStore();
 
-  /**
-   * 查詢任務的預設參數
-   * - 若有 batchName 則帶入 label 過濾
-   * - 保證查詢聚焦於當前專案與批次
-   */
-  const INITIAL_PARAMS: TasksQueryParams = batchName
+  // 控制任務過濾條件（已完成/全部、排序）
+  // Why: 讓使用者可自訂檢視條件，提升 UX
+  const [filter, setFilter] = useState<TaskFilter>({
+    showCompleted: !!batchName,
+    order: "desc",
+  });
+
+  // 查詢任務的預設參數，根據 batchName 動態調整
+  // Why: 查詢條件集中管理，避免重複傳遞與易於維護
+  const INITIAL_PARAMS: TasksQueryParams = batch
     ? {
         project_id: defaultProjectId,
         label: batchName,
+        getCompleted: filter.showCompleted,
       }
     : {
         project_id: defaultProjectId,
+        getCompleted: filter.showCompleted,
       };
-  // 控制「顯示已完成」的任務過濾器，預設批次頁面顯示全部
-  const [filter, setFilter] = useState<TaskFilter>({
-    showCompleted: batchName ? true : false,
-  });
-  /**
-   * 控制任務排序狀態
-   * - 預設為降冪（最近到期的在上）
-   * - 由 UI 按鈕切換 asc/desc
-   */
-  const [order, setOrder] = useState<"asc" | "desc">("desc");
-  // 控制新增任務表單顯示狀態，避免同時出現多個表單
+
+  // 控制新增任務表單顯示
+  // Why: 僅允許單一表單同時顯示，避免 UI 混亂
   const [isAddingTask, setIsAddingTask] = useState(false);
-  /**
-   * 任務表單狀態
-   * - 預設帶入 batchName 作為 labels
-   * - 預設語言為 TW，priority 為 1
-   */
+
+  // 任務表單狀態，預設帶入 batchName 與專案ID
+  // Why: 新增任務時自動帶入批次標籤，減少手動輸入
   const [formData, setFormData] = useState<TaskFormData>({
     content: "",
     description: "",
@@ -67,20 +66,14 @@ const Todoist: React.FC = () => {
     project_id: defaultProjectId,
   });
 
-  // 查詢活動任務和已完成項目
-  // 查詢任務清單，根據 INITIAL_PARAMS 動態取得資料
-  const { data: tasks, isLoading, error } = useTaskQueries(INITIAL_PARAMS);
-
-  // Mutation hooks
-  // 建立任務的 mutation hook，確保與查詢參數一致
+  // 查詢任務清單，根據 filter 與 batch 動態取得資料
+  // Why: 保持資料與 UI 狀態同步
+  const { data: tasks, isLoading, error } = useQueryTasks(INITIAL_PARAMS);
+  // 建立任務 mutation hook，確保查詢與新增一致性
   const addTaskMutation = useAddTaskMutation(INITIAL_PARAMS);
 
-  /**
-   * 處理表單欄位變更事件
-   * - 動態更新 formData 狀態
-   * - 若欄位為 priority 則轉為數字型別
-   * @param e - 來自 input/textarea/select 的變更事件
-   */
+  // 處理表單欄位變更事件
+  // Why: 動態更新 formData 狀態，支援所有欄位
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -93,18 +86,14 @@ const Todoist: React.FC = () => {
     }));
   };
 
-  /**
-   * 提交任務表單事件
-   * - 驗證內容不為空後呼叫 addTaskMutation
-   * - 成功後重置表單並關閉新增表單狀態
-   * @param e - 表單提交事件
-   */
+  // 提交任務表單事件
+  // Why: 驗證內容後才送出，成功後重置表單並關閉
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.content.trim()) {
       addTaskMutation.mutate(formData, {
         onSuccess: () => {
-          // 重置表單，確保下次新增為空白狀態
+          // 重置表單內容與狀態
           setFormData({
             content: "",
             description: "",
@@ -120,10 +109,8 @@ const Todoist: React.FC = () => {
     }
   };
 
-  /**
-   * 切換顯示已完成任務的狀態
-   * - 讓使用者可自由切換任務清單顯示範圍
-   */
+  // 切換顯示已完成任務的狀態
+  // Why: 讓使用者可自由切換任務清單顯示範圍
   const toggleShowCompleted = () => {
     setFilter((prev) => ({
       ...prev,
@@ -136,28 +123,29 @@ const Todoist: React.FC = () => {
     return <TodoistSettings />;
   }
 
-  /**
-   * UI 主體區塊
-   * - 上方為控制列（切換顯示、開啟新增表單）
-   * - 中間動態顯示 TaskForm
-   * - 下方顯示 TaskList，根據查詢與過濾狀態呈現
-   */
+  // UI 主體區塊：控制列、新增表單、任務清單
+  // Why: 分區明確，維護性高，易於擴充
   return (
     <div className="p-4 bg-white rounded-lg">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">批次相關任務</h2>
         <div className="flex items-center gap-2">
-          {/* 排序切換按鈕，提供到期日升冪/降冪切換，方便用戶自訂檢視順序 */}
+          {/* 排序切換，方便用戶自訂檢視順序 */}
           <button
-            onClick={() => setOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
+            onClick={() =>
+              setFilter((prev) => ({
+                ...prev,
+                order: prev.order === "asc" ? "desc" : "asc",
+              }))
+            }
             className={`px-3 py-1 border rounded-md text-sm transition-colors ${
-              order === "asc"
+              filter.order === "asc"
                 ? "bg-green-50 border-green-200 text-green-700"
                 : "bg-gray-50 border-gray-200 text-gray-700"
             }`}
-            title={order === "asc" ? "到期日由舊到新" : "到期日由新到舊"}
+            title={filter.order === "asc" ? "到期日由舊到新" : "到期日由新到舊"}
           >
-            {order === "asc" ? "到期日↑" : "到期日↓"}
+            {filter.order === "asc" ? "到期日↑" : "到期日↓"}
           </button>
           {/* 切換顯示已完成/全部任務 */}
           <button
@@ -203,7 +191,7 @@ const Todoist: React.FC = () => {
         isLoading={isLoading}
         error={error}
         filter={filter}
-        order={order}
+        batch={batch}
       />
     </div>
   );

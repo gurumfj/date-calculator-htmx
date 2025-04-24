@@ -2,6 +2,7 @@ import React from "react";
 import { Task, TaskFilter } from "./types";
 import TaskItem from "./TaskItem";
 import { TasksQueryParams } from "./hooks/useTaskQueries";
+import { BatchAggregate } from "@/types";
 
 /**
  * TaskListProps
@@ -13,7 +14,7 @@ interface TaskListProps {
   isLoading: boolean;
   error: Error | null;
   filter: TaskFilter;
-  order: "asc" | "desc";
+  batch?: BatchAggregate;
 }
 
 /**
@@ -28,7 +29,7 @@ const TaskList: React.FC<TaskListProps> = ({
   isLoading,
   error,
   filter,
-  order,
+  batch,
 }) => {
   /**
    * 使用 React.memo 包裝 TaskItem
@@ -83,7 +84,7 @@ const TaskList: React.FC<TaskListProps> = ({
       {tasks
         .filter((task) => filter.showCompleted || !task.is_completed)
         .sort(
-          order === "asc"
+          filter.order === "asc"
             ? (a, b) =>
                 new Date(a.due?.date ?? "").getTime() -
                 new Date(b.due?.date ?? "").getTime()
@@ -92,7 +93,12 @@ const TaskList: React.FC<TaskListProps> = ({
                 new Date(a.due?.date ?? "").getTime()
         )
         .map((task) => (
-          <MemoTaskItem key={task.id} task={task} params={params} />
+          <MemoTaskItem
+            key={task.id}
+            task={task}
+            params={params}
+            batch={batch}
+          />
         ))}
     </div>
   );
