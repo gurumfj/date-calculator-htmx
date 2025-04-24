@@ -226,6 +226,7 @@ export interface TaskFormData {
 
 export interface TaskFilter {
   showCompleted: boolean;
+  order: "asc" | "desc";
 }
 
 // 任務優先級選項

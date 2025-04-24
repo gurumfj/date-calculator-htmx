@@ -1,12 +1,69 @@
-import { useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useQueries,
+  useQuery,
+} from "@tanstack/react-query";
 import { Task, TaskFormData } from "../types";
 import { todoistApi } from "@app-lib/todoistApis";
 
 export interface TasksQueryParams {
   project_id: string | null;
   label?: string | null;
+  getCompleted?: boolean;
 }
 
+function queryTasks(params: TasksQueryParams) {
+  try {
+    return todoistApi.getTasks(params);
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    throw error;
+  }
+}
+
+function queryCompletedTasks(params: TasksQueryParams) {
+  try {
+    if (!params.project_id) {
+      return [];
+    }
+    return todoistApi.getCompletedTasks(params);
+  } catch (error) {
+    console.error("Error fetching completed tasks:", error);
+    throw error;
+  }
+}
+
+export const useQueryTasks = (
+  params: TasksQueryParams
+): {
+  data: Task[];
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+} => {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["tasks", params],
+    queryFn: async () => {
+      try {
+        const tasks: Task[] = await queryTasks(params);
+        if (!params.getCompleted) {
+          return tasks;
+        }
+        const completedTasks: Task[] = await queryCompletedTasks(params);
+        return [...tasks, ...completedTasks];
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
+        throw error;
+      }
+    },
+  });
+  return { data: data || [], isLoading, isError, error };
+};
+
+/**
+ * @deprecated
+ */
 export const useTaskQueries = (
   params: TasksQueryParams
 ): {
@@ -69,7 +126,7 @@ export const useAddTaskMutation = (params: TasksQueryParams) => {
     },
     onSuccess: () => {
       // 重新獲取任務列表
-      queryClient.invalidateQueries({ queryKey: ["active_tasks", params] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", params] });
     },
   });
 };
@@ -86,8 +143,7 @@ export const useCompleteTaskMutation = (params: TasksQueryParams) => {
     },
     onSuccess: () => {
       // 完成任務後，需要更新兩個查詢：活動任務和已完成項目
-      queryClient.invalidateQueries({ queryKey: ["active_tasks", params] });
-      queryClient.invalidateQueries({ queryKey: ["completed_items", params] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", params] });
     },
   });
 };
@@ -104,8 +160,7 @@ export const useReopenTaskMutation = (params: TasksQueryParams) => {
     },
     onSuccess: () => {
       // 重新開啟後需要更新兩個查詢
-      queryClient.invalidateQueries({ queryKey: ["completed_items", params] });
-      queryClient.invalidateQueries({ queryKey: ["active_tasks", params] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", params] });
     },
   });
 };
@@ -122,10 +177,7 @@ export const useDeleteTaskMutation = (params: TasksQueryParams) => {
     },
     onSuccess: () => {
       // 刪除後更新所有相關查詢
-      queryClient.invalidateQueries({ queryKey: ["active_tasks", params] });
-      queryClient.invalidateQueries({
-        queryKey: ["completed_items", params],
-      });
+      queryClient.invalidateQueries({ queryKey: ["tasks", params] });
     },
   });
 };

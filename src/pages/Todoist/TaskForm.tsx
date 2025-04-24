@@ -1,4 +1,6 @@
 import React from "react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import {
   CalendarIcon,
   FlagIcon,
@@ -96,6 +98,19 @@ const TaskForm: React.FC<TaskFormProps> = ({
         <div className="text-xs text-gray-500 mt-1">
           此任務將自動關聯到批次：{batchName}
         </div>
+
+        {/* Markdown 預覽區塊，僅當有描述時顯示 */}
+        {formData.description && (
+          <div className="mt-2 border rounded bg-gray-50 p-2">
+            <div className="text-xs text-gray-400 mb-1">Markdown 預覽：</div>
+            <div className="prose prose-sm max-w-none text-gray-700">
+              {/* 使用 remark-breaks 處理換行，確保預覽效果貼近實際顯示 */}
+              <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+                {formData.description}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">

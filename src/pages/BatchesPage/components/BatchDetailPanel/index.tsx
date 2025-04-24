@@ -106,7 +106,7 @@ const BatchDetailPanel: React.FC = () => {
 
             <TabsContent value="todos" className="p-0 m-0 h-full">
               {/* Why: 子元件自行根據 selectedBatchName 查詢資料，提升元件解耦性 */}
-              <TodoistPage />
+              <TodoistPage batch={batchAggregate} />
             </TabsContent>
           </div>
         </Tabs>

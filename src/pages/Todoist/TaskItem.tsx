@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import React from "react";
 import { Task, getPriorityDisplay } from "./types";
 import {
   CalendarIcon,
@@ -12,117 +14,97 @@ import {
   useReopenTaskMutation,
 } from "./hooks/useTaskQueries";
 import { useNavigate } from "react-router-dom";
+import { BatchAggregate } from "@/types";
+import { calculateDayAge, calculateWeekAge } from "@/utils/dateUtils";
 
 interface TaskItemProps {
   task: Task;
   params: TasksQueryParams;
+  batch?: BatchAggregate;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, params }) => {
-  const [prevTask, setPrevTask] = useState<{
-    task: Task | null;
-    processing: boolean;
-    operationType: "complete" | "reopen" | "delete" | null;
-  }>({
-    task: task,
-    processing: false,
-    operationType: null,
-  });
-  const { mutate: onComplete, isPending: isCompletePending } =
-    useCompleteTaskMutation(params);
-  const { mutate: onReopen, isPending: isReopenPending } =
-    useReopenTaskMutation(params);
-  const { mutate: onDelete, isPending: isDeletePending } =
-    useDeleteTaskMutation(params);
-  // 處理任務狀態切換
-  const handleTaskToggle = () => {
-    if (prevTask.processing) return; // 如果正在處理，則忽略
+const TaskItem: React.FC<TaskItemProps> = ({ task, params, batch }) => {
+  // 依據 batch 產生雞齡資訊，若無 batch 則 weekAge 為 null
+  // Why: 讓批次管理與任務截止日期能連動顯示雞齡，方便農場管理決策
+  const weekAge = batch?.breeds[0].breed_date
+    ? calculateWeekAge(
+        calculateDayAge(
+          batch.breeds[0].breed_date,
+          new Date(task.due?.date || "")
+        )
+      )
+    : null;
 
+  // 綁定三種 mutation hooks，分別處理完成、重開、刪除任務
+  // Why: 明確分離不同操作，提升可維護性與可測試性
+  const {
+    mutate: onComplete,
+    isPending: isCompletePending,
+    isSuccess: isCompleteSuccess,
+  } = useCompleteTaskMutation(params);
+  const {
+    mutate: onReopen,
+    isPending: isReopenPending,
+    isSuccess: isReopenSuccess,
+  } = useReopenTaskMutation(params);
+  const {
+    mutate: onDelete,
+    isPending: isDeletePending,
+    isSuccess: isDeleteSuccess,
+  } = useDeleteTaskMutation(params);
+
+  // 處理任務狀態切換（完成/重開）
+  // Why: 用單一 handler 管理狀態切換，避免重複邏輯
+  const handleTaskToggle = () => {
+    // 若已完成則重開，否則標記為完成
     if (task.is_completed) {
-      setPrevTask({
-        task: {
-          ...task,
-          is_completed: false,
-        },
-        processing: true,
-        operationType: "reopen",
-      });
       onReopen(task.id);
     } else {
-      setPrevTask({
-        task: {
-          ...task,
-          is_completed: true,
-        },
-        processing: true,
-        operationType: "complete",
-      });
       onComplete(task.id);
     }
   };
+
   const navigate = useNavigate();
 
+  // 點擊標籤時導向對應批次頁面
+  // Why: 提升批次與任務之間的可追溯性
   const handleLabelClick = (label: string) => {
-    if (prevTask.processing) return; // 如果正在處理，則忽略
-    // link to /batches/:batchName
-    // window.location.href = `/batches/${label}`;
     navigate(`/batches/${label}`);
   };
 
-  // 處理任務刪除
+  // 刪除任務前二次確認，避免誤刪
+  // Why: 保護資料安全，符合使用者直覺
   const handleTaskDelete = () => {
-    if (prevTask.processing) return; // 如果正在處理，則忽略
-
     if (window.confirm("確定要刪除這個任務嗎？")) {
-      setPrevTask({
-        task: null,
-        processing: true,
-        operationType: "delete",
-      });
       onDelete(task.id);
     }
   };
 
-  // 處理任務編輯 - 同時支援桌面瀏覽器和移動設備
+  // 編輯任務時，優先嘗試打開 app，失敗則 fallback 到 web
+  // Why: 提供跨裝置最佳體驗，兼容桌面與行動端
   const handleTaskEdit = () => {
-    if (prevTask.processing || !prevTask.task) return; // 如果正在處理，則忽略
-
-    // 使用Todoist的Web URL (適用於所有設備)
-    const webUrl = `https://todoist.com/app/task/${prevTask.task.id}`;
-
-    // 嘗試使用URL scheme (只在移動設備上有效)
-    const appUrl = `todoist://task?id=${prevTask.task.id}`;
-
-    // 使用這種方法可以先嘗試打開應用，如果失敗則打開網頁版
-    // 創建一個隱藏的iframe嘗試app URL scheme
+    const webUrl = `https://todoist.com/app/task/${task.id}`;
+    const appUrl = `todoist://task?id=${task.id}`;
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     document.body.appendChild(iframe);
-
-    // 設置超時，如果app沒有打開，則轉到web版本
     setTimeout(() => {
       window.open(webUrl, "_blank");
       document.body.removeChild(iframe);
     }, 500);
-
-    // 嘗試打開app
     iframe.src = appUrl;
   };
 
-  useEffect(() => {
-    if (isCompletePending || isReopenPending || isDeletePending) return;
-    const timeout = setTimeout(() => {
-      setPrevTask((prev) => ({
-        task: prev.task,
-        processing: false,
-        operationType: null,
-      }));
-    }, 10000);
-    return () => clearTimeout(timeout);
-  }, [isCompletePending, isReopenPending, isDeletePending]);
-
-  // 如果有操作正在進行中或等待查詢更新，顯示loading狀態
-  if (prevTask.processing || !prevTask.task) {
+  // 異步操作進行中或剛完成時，顯示 loading 狀態，避免重複操作
+  // Why: 提升 UX，避免多次觸發 API
+  if (
+    isCompletePending ||
+    isReopenPending ||
+    isDeletePending ||
+    isCompleteSuccess ||
+    isReopenSuccess ||
+    isDeleteSuccess
+  ) {
     return (
       <div className="py-3 flex items-start group opacity-50">
         <div className="h-4 w-4 mt-1 mr-3"></div>
@@ -130,8 +112,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, params }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center flex-wrap mr-2">
               <p className="font-medium text-gray-400">
-                {prevTask?.task?.content}{" "}
-                <span className="animate-pulse">處理中...</span>
+                {task.content} <span className="animate-pulse">處理中...</span>
               </p>
             </div>
           </div>
@@ -140,36 +121,39 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, params }) => {
     );
   }
 
+  // 主內容區：任務資訊、標籤、優先級、操作按鈕
+  // Why: 分區明確，便於維護與擴充
+  const priorityDisplay = getPriorityDisplay(task.priority);
+
   return (
     <div className="py-3 flex items-start group">
+      {/* 狀態勾選框，切換完成/未完成 */}
       <input
         type="checkbox"
-        checked={prevTask.task.is_completed || false}
+        checked={task.is_completed || false}
         onChange={handleTaskToggle}
         className="mt-1 mr-3 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-        disabled={prevTask.processing}
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center flex-wrap mr-2">
+            {/* 任務主標題，完成時顯示刪除線 */}
             <p
-              className={`font-medium ${prevTask.task.is_completed ? "line-through text-gray-400" : "text-gray-900"}`}
+              className={`font-medium ${task.is_completed ? "line-through text-gray-400" : "text-gray-900"}`}
             >
-              {prevTask.task.content}
+              {task.content}
             </p>
-            {/* 顯示優先級標誌 */}
-            {prevTask.task.priority > 1 && (
+            {/* 顯示優先級標誌，僅 priority > 1 才顯示 */}
+            {task.priority > 1 && (
               <span
-                className={`ml-2 px-2 py-0.5 text-xs rounded-full ${getPriorityDisplay(prevTask.task.priority).bgColor} ${getPriorityDisplay(prevTask.task.priority).textColor}`}
+                className={`ml-2 px-2 py-0.5 text-xs rounded-full ${priorityDisplay.bgColor} ${priorityDisplay.textColor}`}
               >
-                {getPriorityDisplay(prevTask.task.priority).label}
+                {priorityDisplay.label}
               </span>
             )}
-
-            {/* 顯示標籤 */}
-            {prevTask.task.labels &&
-              prevTask.task.labels.length > 0 &&
-              prevTask.task.labels.map((label) => (
+            {/* 顯示批次標籤，可點擊導向批次頁 */}
+            {Array.isArray(task.labels) && task.labels.length > 0 &&
+              task.labels.map((label) => (
                 <span
                   key={label}
                   className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 cursor-pointer"
@@ -182,45 +166,44 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, params }) => {
                 </span>
               ))}
           </div>
+          {/* 操作按鈕群組：編輯與刪除，僅 hover 時顯示 */}
           <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {/* 編輯按鈕 */}
             <button
               onClick={handleTaskEdit}
               className="text-gray-400 hover:text-blue-500"
               aria-label="在 Todoist 中編輯任務"
-              disabled={prevTask.processing}
               title="在 Todoist 中編輯"
             >
               <PencilIcon className="h-4 w-4" />
             </button>
-
-            {/* 刪除按鈕 */}
             <button
               onClick={handleTaskDelete}
               className="text-gray-400 hover:text-red-500"
               aria-label="刪除任務"
-              disabled={prevTask.processing}
               title="刪除任務"
             >
               <TrashIcon className="h-4 w-4" />
             </button>
           </div>
         </div>
-
-        {prevTask.task.description && (
-          <p
-            className={`text-sm mt-1 ${prevTask.task.is_completed ? "text-gray-400" : "text-gray-500"}`}
+        {/* 任務描述，支援 markdown，已完成時顯示灰色 */}
+        {task.description && (
+          <div
+            className={`prose prose-sm max-w-none text-sm mt-1 ${task.is_completed ? "text-gray-400" : "text-gray-500"}`}
           >
-            {prevTask.task.description}
-          </p>
+            <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+              {task.description}
+            </ReactMarkdown>
+          </div>
         )}
-
-        {prevTask.task.due && (
+        {/* 截止日期與雞齡資訊，若有提供 batch 才顯示雞齡 */}
+        {task.due && (
           <p
-            className={`text-xs mt-1 flex items-center ${prevTask.task.is_completed ? "text-gray-400" : "text-gray-500"}`}
+            className={`text-xs mt-1 flex items-center ${task.is_completed ? "text-gray-400" : "text-gray-500"}`}
           >
             <CalendarIcon className="h-3 w-3 mr-1" />
-            截止日期: {prevTask.task.due.date}
+            截止日期: {task.due.date}
+            {weekAge ? ` (${weekAge.week}週 ${weekAge.day}天)` : ""}
           </p>
         )}
       </div>
