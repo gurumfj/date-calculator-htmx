@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useBatchStore } from "./store/useBatchStore";
 import { BatchCard, BatchFilters, BatchDetailPanel } from "./components";
-import { useFetchBatchAggregatesIndex } from "./hooks";
+import { useFetchBatchAggregatesIndex } from "@/hooks/useFetchBatches";
 import PageNavbar from "@/components/layout/components/PageNavbar";
 import { useParams } from "react-router-dom";
 import BackButton from "@/components/layout/components/BackButton";

@@ -11,18 +11,20 @@ import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useBatchStore } from "@pages/BatchesPage/store/useBatchStore";
-import { useFetchBatchAggregates } from "@pages/BatchesPage/hooks";
+import { useFetchBatchAggregates } from "@/hooks/useFetchBatches";
 import { BreedSummaryCard } from "../BatchSummaryCards";
 import { BreedsTable } from "./BreedsTable";
+import CustomerWeightPieChart from "@/components/charts/CustomerWeightPieChart";
 
 // Why: 解耦父子元件，直接從 store 取得狀態，提升可重用性
 const BatchDetailPanel: React.FC = () => {
   // Why: 單一來源原則，所有 UI 狀態與資料皆從 store 取得
   const selectedBatchName = useBatchStore((s) => s.selectedBatchName);
-  const { data: batchAggregate, isLoading } = useFetchBatchAggregates(
-    selectedBatchName || ""
-  );
+  const { data: batchAggregates, isLoading } = useFetchBatchAggregates([
+    selectedBatchName || "",
+  ]);
 
+  const batchAggregate = batchAggregates?.[0];
   const hasSales =
     Array.isArray(batchAggregate?.sales) && batchAggregate.sales.length > 0;
   const hasFeeds =
@@ -64,6 +66,14 @@ const BatchDetailPanel: React.FC = () => {
                 銷售
               </TabsTrigger>
             )}
+            {hasSales && (
+              <TabsTrigger
+                value="sales-pie"
+                className="rounded-lg data-[state=active]:text-[#007AFF]"
+              >
+                銷售圖表
+              </TabsTrigger>
+            )}
 
             {hasFeeds && (
               <TabsTrigger
@@ -95,6 +105,12 @@ const BatchDetailPanel: React.FC = () => {
             {hasSales && (
               <TabsContent value="sales" className="p-0 m-0 h-full">
                 <SalesTable batch={batchAggregate} />
+              </TabsContent>
+            )}
+            {hasSales && (
+              <TabsContent value="sales-pie" className="p-0 m-0 h-full">
+                {/* TODO: 需要一層 charts-section 包裹 */}
+                <CustomerWeightPieChart batchAggregates={[batchAggregate]} />
               </TabsContent>
             )}
 

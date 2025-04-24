@@ -12,7 +12,7 @@ import {
 import {
   useFetchBatchAggregates,
   useUpdateBatchIndexFinalDate,
-} from "../BatchesPage/hooks";
+} from "@/hooks/useFetchBatches";
 
 interface BatchFinalDateEditProps {
   batchName: string;
@@ -21,7 +21,12 @@ interface BatchFinalDateEditProps {
 const BatchFinalDateEdit: React.FC<BatchFinalDateEditProps> = ({
   batchName,
 }) => {
-  const { data: batch, isLoading, error } = useFetchBatchAggregates(batchName);
+  const {
+    data: batches,
+    isLoading,
+    error,
+  } = useFetchBatchAggregates([batchName]);
+  const batch = batches?.[0];
 
   const { mutate, isPending: isUpdating } =
     useUpdateBatchIndexFinalDate(batchName);
@@ -66,7 +71,11 @@ const BatchFinalDateEdit: React.FC<BatchFinalDateEditProps> = ({
           disabled={isUpdating}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {currentDate ? format(currentDate, "yyyy-MM-dd") : <span>選擇日期</span>}
+          {currentDate ? (
+            format(currentDate, "yyyy-MM-dd")
+          ) : (
+            <span>選擇日期</span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">

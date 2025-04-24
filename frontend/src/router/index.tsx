@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import App from "@/App";
 import HomePage from "@pages/HomePage";
 import BatchesPage from "@pages/BatchesPage";
-import ReportsPage from "@pages/ReportsPage";
+import ReportsPage from "@/pages/ReportsPage/ReportsPage";
 import SettingsPage from "@pages/SettingsPage";
 import NotFoundPage from "@pages/NotFoundPage";
 import TestingPage from "@pages/TestingPage";

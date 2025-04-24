@@ -10,14 +10,19 @@ import { BatchActivity, BatchActivityOptions } from "@/types";
 import {
   useFetchBatchAggregates,
   useUpdateBatchCustomData,
-} from "../BatchesPage/hooks";
+} from "@/hooks/useFetchBatches";
 
 interface BatchActivityEditProps {
   batchName: string;
 }
 
 const BatchActivityEdit: React.FC<BatchActivityEditProps> = ({ batchName }) => {
-  const { data: batch, isLoading, error } = useFetchBatchAggregates(batchName);
+  const {
+    data: batches,
+    isLoading,
+    error,
+  } = useFetchBatchAggregates([batchName]);
+  const batch = batches?.[0];
 
   const { mutate, isPending: isUpdating } = useUpdateBatchCustomData(batchName);
 

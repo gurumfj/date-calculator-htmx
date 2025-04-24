@@ -14,11 +14,17 @@ import {
   FaWeight,
   FaUtensils,
   FaClipboardCheck,
+  FaMars,
+  FaVenus,
 } from "react-icons/fa";
 import { BatchAggregateWithRows } from "@app-types";
 // import { calculateBatchAggregate } from "@utils/batchCalculations";
 import { formatDate } from "@utils/dateUtils";
 import SummaryCard from "./common/SummaryCard";
+import {
+  calculateMaleRemainder,
+  calculateFemaleRemainder,
+} from "@utils/batchCalculations";
 
 interface SummaryCardProps {
   batch: BatchAggregateWithRows;
@@ -128,34 +134,34 @@ const SalesSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
       );
       return total > 0 ? `${total.toLocaleString("zh-TW")} 元` : "-";
     };
-    const maleRemainder = () => {
-      if (!batch.sales || batch.sales.length === 0) return "-";
-      const totalSaleMaleCount = batch.sales.reduce(
-        (sum, sale) => sum + (sale.male_count || 0),
-        0
-      );
-      const totalBreedMale = batch.breeds.reduce(
-        (sum, breed) => sum + (breed.breed_male || 0),
-        0
-      );
-      return totalBreedMale * 0.9 - totalSaleMaleCount > 0
-        ? `${Math.round((totalBreedMale * 0.9 - totalSaleMaleCount) / 100) * 100} 隻`
-        : "-";
-    };
-    const femaleRemainder = () => {
-      if (!batch.sales || batch.sales.length === 0) return "-";
-      const totalSaleFemaleCount = batch.sales.reduce(
-        (sum, sale) => sum + (sale.female_count || 0),
-        0
-      );
-      const totalBreedFemale = batch.breeds.reduce(
-        (sum, breed) => sum + (breed.breed_female || 0),
-        0
-      );
-      return totalBreedFemale * 0.94 - totalSaleFemaleCount > 0
-        ? `${Math.round((totalBreedFemale * 0.94 - totalSaleFemaleCount) / 100) * 100} 隻`
-        : "-";
-    };
+    // const maleRemainder = () => {
+    //   if (!batch.sales || batch.sales.length === 0) return "-";
+    //   const totalSaleMaleCount = batch.sales.reduce(
+    //     (sum, sale) => sum + (sale.male_count || 0),
+    //     0
+    //   );
+    //   const totalBreedMale = batch.breeds.reduce(
+    //     (sum, breed) => sum + (breed.breed_male || 0),
+    //     0
+    //   );
+    //   return totalBreedMale * 0.9 - totalSaleMaleCount > 0
+    //     ? `${Math.round((totalBreedMale * 0.9 - totalSaleMaleCount) / 100) * 100} 隻`
+    //     : "-";
+    // };
+    // const femaleRemainder = () => {
+    //   if (!batch.sales || batch.sales.length === 0) return "-";
+    //   const totalSaleFemaleCount = batch.sales.reduce(
+    //     (sum, sale) => sum + (sale.female_count || 0),
+    //     0
+    //   );
+    //   const totalBreedFemale = batch.breeds.reduce(
+    //     (sum, breed) => sum + (breed.breed_female || 0),
+    //     0
+    //   );
+    //   return totalBreedFemale * 0.94 - totalSaleFemaleCount > 0
+    //     ? `${Math.round((totalBreedFemale * 0.94 - totalSaleFemaleCount) / 100) * 100} 隻`
+    //     : "-";
+    // };
     const averagePrice = () => {
       const totalPrice = batch.sales
         .filter((sale) => sale.total_price !== null)
@@ -175,12 +181,12 @@ const SalesSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
           : "-",
       averageWeight: averageWeight(),
       averagePrice: averagePrice(),
-      maleRemainder: maleRemainder(),
-      femaleRemainder: femaleRemainder(),
+      maleRemainder: calculateMaleRemainder(batch),
+      femaleRemainder: calculateFemaleRemainder(batch),
       totalWeight: totalWeight(),
       totalIncome: totalIncome(),
     };
-  }, [batch.sales, batch.breeds]);
+  }, [batch]);
 
   const items = [
     {
@@ -211,12 +217,12 @@ const SalesSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
       // className: "hidden lg:flex",
     },
     {
-      icon: FaUserAlt,
+      icon: FaMars,
       title: "公雞餘數",
       content: saleInfo.maleRemainder,
     },
     {
-      icon: FaUserAlt,
+      icon: FaVenus,
       title: "母雞餘數",
       content: saleInfo.femaleRemainder,
     },

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 
-import { useFetchBatchAggregatesIndex } from "@/pages/BatchesPage/hooks/useFetchBatches";
+import { useFetchBatchAggregatesIndex } from "@/hooks/useFetchBatches";
 import { BatchFilters } from "@/pages/BatchesPage/components/BatchFilters";
 import { useBatchStore } from "@/pages/BatchesPage/store/useBatchStore";
 import {

@@ -11,6 +11,8 @@ import {
   calculateTotalChickens,
   extractFeedManufacturers,
   calculateSalesPercentage,
+  calculateMaleRemainder,
+  calculateFemaleRemainder,
   getBatchStateDisplay,
 } from "@utils/batchCalculations";
 import { calculateDayAge, calculateWeekAge } from "@utils/dateUtils";
@@ -22,6 +24,7 @@ import {
   FaCopy,
   FaExchangeAlt,
   FaSpinner,
+  FaBox,
 } from "react-icons/fa";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BATCH_ACTIVITY_COLORS } from "@app-types";
 import { useBatchStore } from "../store/useBatchStore";
-import { useFetchBatchAggregates } from "../hooks/useFetchBatches";
+import { useFetchBatchAggregates } from "@/hooks/useFetchBatches";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -45,11 +48,11 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
 
   // 2. 從 API 獲取批次數據
   const {
-    data: batchAggregate,
+    data: batchAggregates,
     isLoading,
     isError,
-  } = useFetchBatchAggregates(batchName);
-
+  } = useFetchBatchAggregates([batchName]);
+  const batchAggregate = batchAggregates?.[0];
   // 3. 計算衍生狀態
   const isSelected = selectedBatchName === batchName;
   const navigate = useNavigate();
@@ -118,6 +121,8 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
       feedManufacturers: "",
       salesPercentage: 0,
       batchActivity: "breeding" as const,
+      maleRemaind: "-",
+      femaleRemaind: "-",
     };
 
     if (!batchAggregate) return defaultData;
@@ -127,6 +132,8 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
       const { totalMale, totalFemale } = calculateTotalChickens(batchAggregate);
       const feedManufacturers = extractFeedManufacturers(batchAggregate);
       const salesPercentage = calculateSalesPercentage(batchAggregate);
+      const maleRemaind = calculateMaleRemainder(batchAggregate);
+      const femaleRemaind = calculateFemaleRemainder(batchAggregate);
       // 現在 index 已經標準化為單一對象
       const batchActivity =
         batchAggregate.index.data?.batchActivity || "breeding";
@@ -138,6 +145,8 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
         totalFemale,
         feedManufacturers,
         salesPercentage,
+        maleRemaind,
+        femaleRemaind,
         batchActivity,
       };
     } catch (error) {
@@ -172,6 +181,8 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
     feedManufacturers,
     salesPercentage,
     batchActivity,
+    maleRemaind,
+    femaleRemaind,
   } = batchData;
 
   // 9. 獲取顏色
@@ -267,6 +278,28 @@ export const BatchCard: React.FC<BatchCardProps> = ({ batchName }) => {
               </span>
             </div>
           </div>
+          {batchActivity === "selling" && (
+            <>
+              <div className="flex items-center space-x-2">
+                <FaBox className="text-[#8E8E93] w-3 h-3 flex-shrink-0" />
+                <div className="truncate">
+                  <span className="text-[#8E8E93]">餘公: </span>
+                  <span className="font-medium text-[#1C1C1E]">
+                    {maleRemaind}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <FaBox className="text-[#8E8E93] w-3 h-3 flex-shrink-0" />
+                <div className="truncate">
+                  <span className="text-[#8E8E93]">餘母: </span>
+                  <span className="font-medium text-[#1C1C1E]">
+                    {femaleRemaind}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 銷售進度條 */}
