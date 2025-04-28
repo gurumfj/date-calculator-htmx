@@ -38,7 +38,7 @@ interface CustomerWeightPieChartProps {
  * Why: 橫式長條圖更適合大量分類資料，提升可讀性
  */
 
-const CustomerWeightPieChart: React.FC<CustomerWeightPieChartProps> = ({
+const CustomerWeightChart: React.FC<CustomerWeightPieChartProps> = ({
   batchAggregates,
 }) => {
   /**
@@ -48,28 +48,28 @@ const CustomerWeightPieChart: React.FC<CustomerWeightPieChartProps> = ({
   const totalWeightByCustomer = (batchAggregates: BatchAggregateWithRows[]) => {
     // 如果沒有資料，直接回傳空陣列
     if (!batchAggregates?.length) return [];
-    
+
     const allSales = batchAggregates.flatMap((batch) => batch.sales || []);
     if (!allSales.length) return [];
-    
+
     // Why: 使用單一 reduce 同時計算總重量與客戶分組
     const { totalWeight, customerWeightMap } = allSales.reduce(
       (acc, sale) => {
         const weight = sale.total_weight || 0;
         const customer = sale.customer || "未知客戶";
-        
+
         // 累計總重量
         acc.totalWeight += weight;
-        
+
         // 客戶分組累計
         const existingWeight = acc.customerWeightMap.get(customer) || 0;
         acc.customerWeightMap.set(customer, existingWeight + weight);
-        
+
         return acc;
       },
       { totalWeight: 0, customerWeightMap: new Map<string, number>() }
     );
-    
+
     // 轉換為需要的返回格式並排序
     return Array.from(customerWeightMap.entries())
       .map(([name, weight]) => ({
@@ -196,4 +196,4 @@ const CustomerWeightPieChart: React.FC<CustomerWeightPieChartProps> = ({
   );
 };
 
-export default CustomerWeightPieChart;
+export default CustomerWeightChart;

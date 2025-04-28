@@ -5,7 +5,7 @@ import {
   useFetchBatchAggregatesIndex,
 } from "@/hooks/useFetchBatches";
 import { BatchFilters } from "../BatchesPage/components";
-import CustomerWeightPieChart from "@/components/charts/CustomerWeightPieChart";
+import CustomerWeightPieChart from "@/components/charts/CustomerWeightChart";
 import { useBatchStore } from "../BatchesPage/store/useBatchStore";
 
 const ReportsPage: React.FC = () => {

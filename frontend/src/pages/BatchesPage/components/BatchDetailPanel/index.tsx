@@ -14,7 +14,8 @@ import { useBatchStore } from "@pages/BatchesPage/store/useBatchStore";
 import { useFetchBatchAggregates } from "@/hooks/useFetchBatches";
 import { BreedSummaryCard } from "../BatchSummaryCards";
 import { BreedsTable } from "./BreedsTable";
-import CustomerWeightPieChart from "@/components/charts/CustomerWeightPieChart";
+import CustomerWeightPieChart from "@/components/charts/CustomerWeightChart";
+import CustomerCountChart from "@/components/charts/CustomerCountChart";
 
 // Why: 解耦父子元件，直接從 store 取得狀態，提升可重用性
 const BatchDetailPanel: React.FC = () => {
@@ -110,6 +111,8 @@ const BatchDetailPanel: React.FC = () => {
             {hasSales && (
               <TabsContent value="sales-pie" className="p-0 m-0 h-full">
                 {/* TODO: 需要一層 charts-section 包裹 */}
+
+                <CustomerCountChart batchAggregates={[batchAggregate]} />
                 <CustomerWeightPieChart batchAggregates={[batchAggregate]} />
               </TabsContent>
             )}
