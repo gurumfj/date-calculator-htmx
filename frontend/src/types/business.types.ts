@@ -30,6 +30,8 @@ type BreedRecordRow = Database["public"]["Tables"]["breedrecordorm"]["Row"];
 type FeedRecordRow = Database["public"]["Tables"]["feedrecordorm"]["Row"];
 export type SaleRecordRow =
   Database["public"]["Tables"]["salerecordorm"]["Row"];
+type ProductionRecordRow =
+  Database["public"]["Tables"]["farm_production"]["Row"];
 
 // 將 index、各類紀錄以物件型別包裝，方便聚合與擴充
 // 這樣設計可讓聚合型別靈活組合，支援未來增加新類型紀錄
@@ -52,9 +54,13 @@ type FeedRecords = {
 type SaleRecords = {
   sales: SaleRecordRow[];
 };
+type ProductionRecords = {
+  production: ProductionRecordRow[];
+};
 
 // BatchAggregate 完整資料結構，聚合所有子型別，方便前端一次取得所有資料
 export type BatchAggregateWithRows = BatchIndex &
   BreedRecords &
   FeedRecords &
-  SaleRecords;
+  SaleRecords &
+  ProductionRecords;

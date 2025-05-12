@@ -6,13 +6,14 @@
 import React from "react";
 import FeedRecordTable from "./FeedsTable";
 import SalesTable from "./SalesTable";
+import ProductionTable from "./ProductionTable";
 import TodoistPage from "@pages/Todoist";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useBatchStore } from "@pages/BatchesPage/store/useBatchStore";
 import { useFetchBatchAggregates } from "@/hooks/useFetchBatches";
-import { BreedSummaryCard } from "../BatchSummaryCards";
+import { BreedSummaryCard, ProductionSummaryCard } from "../BatchSummaryCards";
 import { BreedsTable } from "./BreedsTable";
 import CustomerWeightPieChart from "@/components/charts/CustomerWeightChart";
 import CustomerCountChart from "@/components/charts/CustomerCountChart";
@@ -26,6 +27,9 @@ const BatchDetailPanel: React.FC = () => {
   ]);
 
   const batchAggregate = batchAggregates?.[0];
+  const hasProduction =
+    Array.isArray(batchAggregate?.production) &&
+    batchAggregate.production.length > 0;
   const hasSales =
     Array.isArray(batchAggregate?.sales) && batchAggregate.sales.length > 0;
   const hasFeeds =
@@ -58,6 +62,15 @@ const BatchDetailPanel: React.FC = () => {
             >
               批次資訊
             </TabsTrigger>
+
+            {hasProduction && (
+              <TabsTrigger
+                value="production"
+                className="rounded-lg data-[state=active]:text-[#007AFF]"
+              >
+                結場
+              </TabsTrigger>
+            )}
 
             {hasSales && (
               <TabsTrigger
@@ -102,6 +115,17 @@ const BatchDetailPanel: React.FC = () => {
                 <BreedsTable batch={batchAggregate} />
               </div>
             </TabsContent>
+            {hasProduction && (
+              <TabsContent
+                value="production"
+                className="p-0 m-0 h-full"
+              >
+                <div className="space-y-6">
+                  <ProductionSummaryCard batch={batchAggregate} />
+                  <ProductionTable batch={batchAggregate} />
+                </div>
+              </TabsContent>
+            )}
 
             {hasSales && (
               <TabsContent value="sales" className="p-0 m-0 h-full">

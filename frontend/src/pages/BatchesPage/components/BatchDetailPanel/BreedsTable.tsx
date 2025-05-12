@@ -106,10 +106,10 @@ export const BreedsTable: React.FC<ChickenDataTableProps> = ({ batch }) => {
       data={batch.breeds}
       emptyText="無入雛資料"
       mobileCardOptions={{
-        titleField: "supplier",
+        titleField: "chicken_breed",
         subtitleField: "breed_date",
-        statusField: "dayAge",
-        statusLabel: "日齡",
+        statusField: "supplier",
+        statusLabel: "種源場",
       }}
     />
   );

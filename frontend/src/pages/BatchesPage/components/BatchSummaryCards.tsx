@@ -16,10 +16,15 @@ import {
   FaClipboardCheck,
   FaMars,
   FaVenus,
+  FaBalanceScale,
+  FaPercent,
+  FaDollarSign,
+  FaBoxes,
 } from "react-icons/fa";
 import { BatchAggregateWithRows } from "@app-types";
 // import { calculateBatchAggregate } from "@utils/batchCalculations";
 import { formatDate } from "@utils/dateUtils";
+import { formatCurrency, formatWeight } from "@utils/formatUtils";
 import SummaryCard from "./common/SummaryCard";
 import {
   calculateMaleRemainder,
@@ -291,4 +296,134 @@ const FeedsSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
   return <SummaryCard items={items} />;
 };
 
-export { BreedSummaryCard, SalesSummaryCard, FeedsSummaryCard };
+/**
+ * 結案記錄摘要卡片
+ * Why: 提供批次結案關鍵指標，讓用戶快速掌握批次的最終效益與成果。
+ */
+const ProductionSummaryCard: React.FC<SummaryCardProps> = ({ batch }) => {
+  // 計算結案資料摘要
+  const productionInfo = useMemo(() => {
+    if (!batch.production || batch.production.length === 0)
+      return {
+        completionDate: "-",
+        saleWeight: "-",
+        feedWeight: "-",
+        fcr: "-",
+        avgPrice: "-",
+        revenue: "-",
+        costPrice: "-",
+        expenses: "-",
+        meatCost: "-",
+      };
+
+    // 使用最新的結案記錄
+    const latestProduction = [...batch.production].sort(
+      (a, b) =>
+        new Date(b.updated_at || "").getTime() -
+        new Date(a.updated_at || "").getTime()
+    )[0];
+
+    return {
+      completionDate: latestProduction.updated_at
+        ? formatDate(latestProduction.updated_at)
+        : "-",
+      saleWeight: latestProduction.sale_weight_jin
+        ? formatWeight(latestProduction.sale_weight_jin)
+        : "-",
+      feedWeight: latestProduction.feed_weight
+        ? latestProduction.feed_weight.toLocaleString() + " KG"
+        : "-",
+      fcr: latestProduction.fcr ? latestProduction.fcr.toFixed(2) : "-",
+      avgPrice: latestProduction.avg_price
+        ? formatCurrency(latestProduction.avg_price)
+        : "-",
+      revenue: latestProduction.revenue
+        ? formatCurrency(latestProduction.revenue)
+        : "-",
+      costPrice: latestProduction.cost_price
+        ? formatCurrency(latestProduction.cost_price)
+        : "-",
+      expenses: latestProduction.expenses
+        ? formatCurrency(latestProduction.expenses)
+        : "-",
+      meatCost: latestProduction.meat_cost
+        ? formatCurrency(latestProduction.meat_cost)
+        : "-",
+      profit:
+        latestProduction.revenue && latestProduction.expenses
+          ? formatCurrency(
+              latestProduction.revenue - (latestProduction.expenses || 0)
+            )
+          : "-",
+      profitMargin:
+        latestProduction.revenue &&
+        latestProduction.expenses &&
+        latestProduction.revenue > 0
+          ? `${(((latestProduction.revenue - (latestProduction.expenses || 0)) / latestProduction.revenue) * 100).toFixed(1)}%`
+          : "-",
+    };
+  }, [batch.production]);
+
+  const items = [
+    {
+      icon: FaBalanceScale,
+      title: "飼料效率",
+      content: productionInfo.fcr,
+    },
+    {
+      icon: FaDollarSign,
+      title: "造肉成本",
+      content: productionInfo.meatCost,
+    },
+    {
+      icon: FaDollarSign,
+      title: "平均單價",
+      content: productionInfo.avgPrice,
+    },
+    {
+      icon: FaDollarSign,
+      title: "成本單價",
+      content: productionInfo.costPrice,
+    },
+    {
+      icon: FaUtensils,
+      title: "飼料重量",
+      content: productionInfo.feedWeight,
+    },
+    {
+      icon: FaBoxes,
+      title: "銷售重量",
+      content: productionInfo.saleWeight,
+    },
+    {
+      icon: FaMoneyBillWave,
+      title: "總收入",
+      content: productionInfo.revenue,
+    },
+    {
+      icon: FaDollarSign,
+      title: "成本價格",
+      content: productionInfo.costPrice,
+      className: "hidden lg:flex",
+    },
+    {
+      icon: FaMoneyBillWave,
+      title: "利潤",
+      content: productionInfo.profit,
+    },
+    {
+      icon: FaPercent,
+      title: "利潤率",
+      content: productionInfo.profitMargin,
+    },
+  ];
+
+  return <SummaryCard items={items} />;
+};
+
+export {
+  BreedSummaryCard,
+  SalesSummaryCard,
+  FeedsSummaryCard,
+  ProductionSummaryCard,
+};
