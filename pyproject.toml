@@ -26,9 +26,10 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "supabase>=2.15.0",
     "todoist-api-python>=2.1.7",
+    "pre-commit>=4.2.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "types-requests>=2.32.0.20241016",
     "pandas-stubs>=2.2.0.230",
