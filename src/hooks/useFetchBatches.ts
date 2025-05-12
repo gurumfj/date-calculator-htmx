@@ -121,6 +121,17 @@ async function fetchBreedRecordsByBatchName(batchName: string) {
   return data || [];
 }
 
+// 封裝產銷記錄查詢，統一 event 過濾，確保資料一致性
+// 僅查詢 ADDED 事件，排除異動與刪除紀錄
+async function fetchProductionRecordsByBatchName(batchName: string) {
+  const { data, error } = await supabase
+    .from("farm_production")
+    .select("*")
+    .eq("batch_name", batchName);
+  if (error) throw error;
+  return data || [];
+}
+
 // // 封裝單一批次聚合查詢，並行查詢所有關聯資料，提升效能
 // // 統一回傳格式，方便組件直接消費並減少重複組裝
 // export function useFetchBatchAggregates(batchName: string) {
@@ -171,11 +182,12 @@ export function useFetchBatchAggregates(batchNames: string[]) {
       const results = await Promise.all(
         batchNames.map(async (batchName) => {
           // 並行取得單一批次的所有資料
-          const [batch, breeds, feeds, sales] = await Promise.all([
+          const [batch, breeds, feeds, sales, production] = await Promise.all([
             fetchBatchIndex(batchName),
             fetchBreedRecordsByBatchName(batchName),
             fetchFeedRecordsByBatchName(batchName),
             fetchSalesRecordsByBatchName(batchName),
+            fetchProductionRecordsByBatchName(batchName),
           ]);
           // 若查無批次則回傳 null，避免組件誤用空資料
           if (!batch || !Array.isArray(batch) || batch.length === 0)
@@ -183,7 +195,8 @@ export function useFetchBatchAggregates(batchNames: string[]) {
           // 推斷 batchActivity 狀態，確保 UI 準確反映真實狀態
           const batchActivity =
             batch[0].data?.batchActivity ||
-            (breeds.length > 0 && breeds[0].is_completed === true
+            ((breeds.length > 0 && breeds[0].is_completed === true) ||
+            production.length > 0
               ? "completed"
               : sales.length > 0
                 ? "selling"
@@ -194,6 +207,7 @@ export function useFetchBatchAggregates(batchNames: string[]) {
             breeds: breeds || [],
             feeds: feeds || [],
             sales: sales || [],
+            production: production || [],
           };
         })
       );
