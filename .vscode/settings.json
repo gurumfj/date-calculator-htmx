@@ -88,5 +88,8 @@
     "basedpyright.analysis.useTypingExtensions": false,
     "[yaml]": {
         "editor.defaultFormatter": "redhat.vscode-yaml"
-    }
+    },
+    "windsurfPyright.analysis.ignore": [
+        "**/web"
+    ]
 }

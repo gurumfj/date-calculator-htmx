@@ -35,3 +35,6 @@ logs/
 # Frontend
 frontend/dist
 frontend/node_modules
+
+# fasthtml
+.sesskey
