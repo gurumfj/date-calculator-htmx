@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import TypeVar
 
@@ -77,6 +78,23 @@ class BatchAggregate:
     @property
     def batch_name(self) -> str | None:
         return self.breeds[0].batch_name
+
+    @property
+    def uuid(self) -> str | None:
+        # using batch_name calculate uuid
+        if self.batch_name is None:
+            return None
+        # 返回原始的 UUID
+        return str(uuid.uuid5(uuid.NAMESPACE_DNS, self.batch_name))
+
+    @property
+    def safe_id(self) -> str | None:
+        # 生成一個安全的 ID，適合用於 CSS 選擇器
+        if self.batch_name is None:
+            return None
+        # 使用簡單的字母前綴加數字格式，確保在 CSS 選擇器中完全安全
+        # 使用批次名稱的哈希值，確保唯一性
+        return f"batch_{abs(hash(self.batch_name)) % 10000000:07d}"
 
     @property
     def farm_name(self) -> str:
