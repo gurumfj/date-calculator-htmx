@@ -38,6 +38,7 @@ class BatchAggregate:
     breeds: list[BreedRecord]
     sales: list[SaleRecord]
     feeds: list[FeedRecord]
+    _cached_time: datetime
 
     def __init__(
         self,
@@ -48,6 +49,7 @@ class BatchAggregate:
         self.breeds = breeds
         self.sales = sales
         self.feeds = feeds
+        self._cached_time = datetime.now()
         self.validate()
 
     def validate(self) -> None:
@@ -66,6 +68,10 @@ class BatchAggregate:
                 raise ValueError("All feed records must be from the same batch")
             if feed_batch_name != batch_name:
                 raise ValueError("Feed batch name must match breed batch name")
+
+    @property
+    def cached_time(self) -> datetime:
+        return self._cached_time
 
     @property
     def last_updated_at(self) -> datetime:

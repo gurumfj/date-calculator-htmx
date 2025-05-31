@@ -1,19 +1,19 @@
-from functools import cache, lru_cache
-import uuid
+import logging
+from collections import defaultdict
+from datetime import datetime, timedelta
+from functools import lru_cache
+
 from fasthtml.common import *
 from postgrest.exceptions import APIError
-from cleansales_backend.core.config import get_settings
-from supabase import Client, create_client
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from cleansales_backend.domain.models.breed_record import BreedRecord
-from cleansales_backend.domain.models.sale_record import SaleRecord
-from cleansales_backend.domain.models.feed_record import FeedRecord
-from cleansales_backend.domain.models.batch_aggregate import BatchAggregate, BatchAggregateModel
-from cleansales_backend.domain.utils import week_age, day_age
-from collections import defaultdict
-import logging
 from rich.logging import RichHandler
+
+from cleansales_backend.core.config import get_settings
+from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
+from cleansales_backend.domain.models.breed_record import BreedRecord
+from cleansales_backend.domain.models.feed_record import FeedRecord
+from cleansales_backend.domain.models.sale_record import SaleRecord
+from cleansales_backend.domain.utils import day_age, week_age
+from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 
@@ -31,20 +31,14 @@ class CachedData:
 
     def __init__(self, supabase: Client):
         self.supabase = supabase
-        self.batches: dict[str, tuple[BatchAggregate, datetime]] = {}
+        self.batches: dict[str, BatchAggregate] = {}
 
     def query_batch(self, batch_name: str) -> BatchAggregate | None:
         if batch_name in self.batches:
             cached_batch = self.batches.get(batch_name)
-            if cached_batch and cached_batch[1] + timedelta(seconds=self.ALIVE_TIME) > datetime.now():
-                return cached_batch[0]
+            if cached_batch and cached_batch.cached_time + timedelta(seconds=self.ALIVE_TIME) > datetime.now():
+                return cached_batch
         return self.query_single_batch_db(batch_name)
-
-    def cached_batches(self) -> FT:
-        return Ul(
-            *[Li(P(batch[0]),P(batch[1])) for batch in self.batches.values()],
-            name="cached_batches"
-        )
 
     def query_single_batch_db(self, batch_name: str) -> BatchAggregate | None:
         try:
@@ -70,7 +64,7 @@ class CachedData:
                 sales=sale_records,
                 feeds=feed_records,
             )
-            self.batches[batch_name] = (batch_aggregate, datetime.now())
+            self.batches[batch_name] = batch_aggregate
             return batch_aggregate
         except APIError as e:
             print(e)
@@ -114,13 +108,15 @@ class CachedData:
                 feed_dict[feed_record.batch_name].append(feed_record)
             batchaggr = {}
             for batch_name, breeds in breed_dict.items():
+                if batch_name is None:
+                    continue
                 batch_aggregate = BatchAggregate(
                     breeds=breeds,
-                    sales=sale_dict[batch_name],
-                    feeds=feed_dict[batch_name],
+                    sales=sale_dict.get(batch_name, []),
+                    feeds=feed_dict.get(batch_name, []),
                 )
                 batchaggr[batch_name] = batch_aggregate
-                self.batches[batch_name] = batch_aggregate, datetime.now()
+                self.batches[batch_name] = batch_aggregate
 
             return batchaggr
         except APIError as e:
@@ -200,7 +196,9 @@ def date_picker_component(end_date_str: str)-> FT:
     return Group(earlier_btn, date_input, later_btn,
                 id="date_picker", hx_swap_oob="true")
 
-def breed_table_component(breeds: list[BreedRecord])-> FT:
+def breed_table_component(batch: BatchAggregate)-> FT:
+    if not batch.breeds:
+        return P("No breeds data")
     return Table(
         Thead(
             Tr(
@@ -221,7 +219,7 @@ def breed_table_component(breeds: list[BreedRecord])-> FT:
                 Td(breed.breed_male),
                 Td(breed.breed_female),
             )
-            for breed in breeds
+            for breed in batch.breeds
         ),
         Tfoot(
             Tr(
@@ -229,16 +227,16 @@ def breed_table_component(breeds: list[BreedRecord])-> FT:
                 Th(),
                 Th(),
                 Th(),
-                Th(sum(breed.breed_male for breed in breeds)),
-                Th(sum(breed.breed_female for breed in breeds)),
+                Th(sum(breed.breed_male for breed in batch.breeds)),
+                Th(sum(breed.breed_female for breed in batch.breeds)),
             )
         )
     )
 
 
-def sales_table_component(batch: BatchAggregate)-> FT | None:
+def sales_table_component(batch: BatchAggregate)-> FT:
     if not batch.sales:
-        return None
+        return P("No sales data")
     return Table(
         Thead(
             Tr(
@@ -316,6 +314,56 @@ def sales_summary(batch: BatchAggregate)-> FT | None:
         ),
         name="sales_summary"
     )
+
+def feed_summary(batch: BatchAggregate)-> FT | None:
+    if not batch.feeds:
+        return None
+    return Div(
+        H4("飼料資料"),
+        # Ul(
+        #     Li('總飼料使用量：' + str(batch.feeds_summary.total_feed)),
+        #     Li('總飼料成本：' + f"{int(batch.feeds_summary.total_feed_cost):,}元"),
+        # ),
+        name="feed_summary"
+    )
+
+def feed_table_component(batch: BatchAggregate)-> FT | None:
+    if not batch.feeds:
+        return None
+    sub_location_group = groupby(batch.feeds, key=lambda x: x.sub_location)
+    def _render_feed_table(feeds: list[FeedRecord])-> FT:
+        feeds.sort(key=lambda x: x.feed_date)
+        return Div(
+                Table(
+                    Thead(
+                        Tr(
+                            Th(feeds[0].sub_location, colspan=6, style="text-align: center;"),
+                        ) if feeds[0].sub_location else None,
+                        Tr(
+                            Th("日期"),
+                            Th("供應商"),
+                            Th("品項"),
+                            Th("週齡"),
+                            Th("添加劑"),
+                            Th("備註"),
+                        )
+                    ),
+                Tbody(
+                    Tr(
+                        Td(feed.feed_date.strftime('%Y-%m-%d')),
+                        Td(feed.feed_manufacturer),
+                        Td(feed.feed_item),
+                        Td(feed.feed_week),
+                        Td(feed.feed_additive),
+                        Td(feed.feed_remark),
+                    )
+                    for feed in feeds
+                ),
+            ),
+        )
+    return Div(
+        *[_render_feed_table(feeds) for _, feeds in sub_location_group.items()],
+    )
     
 
 def batch_list_component(batch_list: dict[str, BatchAggregate])-> FT:
@@ -329,22 +377,30 @@ def batch_list_component(batch_list: dict[str, BatchAggregate])-> FT:
         # 使用 batch.safe_id 作為 CSS 選擇器，這是一個安全的 ID 格式
         breed_tab = Li(
             Button(
-                "飼養資料",
+                "批次",
                 hx_get=f'/content/{batch.batch_name}/breed',
                 hx_target=f"#{batch.safe_id}_batch_tab_content",
             ) if batch.breeds else None
         )
         sales_tab = Li(
             Button(
-                "銷售資料",
+                "銷售",
                 hx_get=f'/content/{batch.batch_name}/sales',
                 hx_target=f"#{batch.safe_id}_batch_tab_content",
             ) if batch.sales else None
+        )
+        feed_tab = Li(
+            Button(
+                "飼料",
+                hx_get=f'/content/{batch.batch_name}/feed',
+                hx_target=f"#{batch.safe_id}_batch_tab_content",
+            ) if batch.feeds else None
         )
         return Nav(
             Ul(
                 breed_tab,
                 sales_tab,
+                feed_tab,
             ),
             id="batch_nav_tabs"
         )
@@ -370,8 +426,11 @@ def batch_list_component(batch_list: dict[str, BatchAggregate])-> FT:
                         # _sales_summary(batch),
                         Div(
                             breed_summary(batch),
-                            breed_table_component(batch.breeds),
+                            breed_table_component(batch),
                             id=f"{batch.safe_id}_batch_tab_content"),
+                        footer=P(
+                            I('Updated at: ' + batch.last_updated_at.strftime('%Y-%m-%d %H:%M:%S'),Br()),
+                            I('Cached at: ' + batch.cached_time.strftime('%Y-%m-%d %H:%M:%S')), style="text-align: right;"),
                         ),
                     open=False,
                     cls="outline"
@@ -379,6 +438,10 @@ def batch_list_component(batch_list: dict[str, BatchAggregate])-> FT:
                 for batch in sorted(batch_list.values(), key=lambda x: x.breeds[0].breed_date)
             ], id="batch_list", hx_swap_oob="true"
             )
+
+@app.get("/")
+def index()-> Any:
+    return Redirect("/batches")
 
 @app.get("/batches")
 def batches(sess:dict)-> Any:
@@ -396,7 +459,7 @@ def batches(sess:dict)-> Any:
             batch_list_component(batch_list),
             # 使用 container 類來適應深色/淺色主題
             cls="container"
-        ),Footer(P(f"{cached_data.query_batches_db.cache_info()}", cls="text-center"),cached_data.cached_batches())
+        ),Footer(P(f"{cached_data.query_batches_db.cache_info()}", cls="text-center"))
     except APIError as e:
         return Main(
             Article(
@@ -449,9 +512,11 @@ def content(batch_name: str, tab_type: str)-> Any:
         if not batch:
             return str(f"未找到批次 {batch_name}")
         if tab_type == "breed":
-            return breed_summary(batch), breed_table_component(batch.breeds)
+            return breed_summary(batch), breed_table_component(batch)
         if tab_type == "sales":
             return sales_summary(batch), sales_table_component(batch)
+        if tab_type == "feed":
+            return feed_summary(batch), feed_table_component(batch)
     except Exception as e:
         return str(e)
 
