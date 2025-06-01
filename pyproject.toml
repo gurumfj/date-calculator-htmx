@@ -84,11 +84,11 @@ testpaths = [
 
 [tool.ruff]
 target-version = "py312"
-line-length = 88
+line-length = 120
 indent-width = 4
 fix = true
 exclude = [
-    "src/cleansales_backend/web",
+    # "src/cleansales_backend/web",
     ".bzr",
     ".direnv",
     ".eggs",
@@ -121,7 +121,7 @@ select = [
 ]
 fixable = ["ALL"]
 # extend-select = ["E501"]
-ignore = ["E501"]
+ignore = ["E501", "F405", "F403"]
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # [tool.ruff.format]
