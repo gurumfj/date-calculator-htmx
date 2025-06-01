@@ -1115,11 +1115,12 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "批次資料",
-                    hx_get=f"/content/{batch.batch_name}/breed",
+                    hx_get=f"/content/{batch.batch_name}/breed" if selected_tab != "breed" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "breed" else unselected_tab_style,
                 ),
                 cls="mr-2",
+                disabled=selected_tab == "breed",
             )
         )
 
@@ -1128,11 +1129,12 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "銷售記錄",
-                    hx_get=f"/content/{batch.batch_name}/sales",
+                    hx_get=f"/content/{batch.batch_name}/sales" if selected_tab != "sales" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "sales" else unselected_tab_style,
                 ),
                 cls="mr-2",
+                disabled=selected_tab == "sales",
             )
         )
 
@@ -1141,7 +1143,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "飼料記錄",
-                    hx_get=f"/content/{batch.batch_name}/feed",
+                    hx_get=f"/content/{batch.batch_name}/feed" if selected_tab != "feed" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "feed" else unselected_tab_style,
                 )
@@ -1153,7 +1155,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "結場報告",
-                    hx_get=f"/content/{batch.batch_name}/production",
+                    hx_get=f"/content/{batch.batch_name}/production" if selected_tab != "production" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "production" else unselected_tab_style,
                 )
@@ -1277,7 +1279,7 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                         breed_summary(batch),
                         breed_table_component(batch),
                         id=f"{batch.safe_id}_batch_tab_content",
-                        cls="bg-white p-4 rounded-b-lg",
+                        cls="bg-white p-2 rounded-b-lg",
                     ),
                     Div(
                         P(
@@ -1296,11 +1298,12 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                             ),
                             cls="text-xs mt-1",
                         ),
-                        cls="mt-4 text-right border-t border-gray-100 pt-2",
+                        cls="mt-4 text-right border-t border-gray-100 pt-2 pr-2 pb-2",
                     ),
-                    cls="p-4 bg-gray-50 rounded-b-lg border-t border-gray-200",
+                    cls="p-2 bg-gray-50 rounded-b-lg border-t border-gray-200",
                 ),
-                cls="mb-4 bg-white rounded-lg shadow-md overflow-hidden open:bg-amber-200",
+                cls="w-full mb-4 bg-white shadow-md overflow-hidden open:bg-amber-50 sm:mb-6 sm:rounded-lg",
+                # open="true",
             )
             for batch in sorted(batch_list.values(), key=lambda x: x.breeds[0].breed_date)
         ],
@@ -1499,24 +1502,32 @@ def batches(sess: dict) -> Any:
                 Div(
                     # 篩選器區域 - 使用 flex 佈局
                     Div(
-                        Div(
-                            breeds_selector_component(breed),
+                        Details(
+                            Summary(
+                                breeds_selector_component(breed),
+                                cls="list-none",
+                            ),
                             date_picker_component(end_date_str),
-                            cls="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6",
+                            cls="",
                         ),
-                        cls="container mx-auto px-4 mt-4",
+                        # Div(
+                        #     breeds_selector_component(breed),
+                        #     date_picker_component(end_date_str),
+                        #     cls="hidden md:block",
+                        # ),
+                        cls="container mt-4 px-2 mx-auto sm:px-4",
                     ),
                     # 批次列表區域
                     Div(
                         Div(
                             H2(
                                 "批次列表",
-                                cls="text-2xl font-semibold text-gray-800 mb-4",
+                                cls="hidden sm:block text-2xl font-semibold text-gray-800 mb-4",
                             ),
                             batch_list_component(batch_list),
-                            cls="bg-white p-6 rounded-lg shadow-md",
+                            cls="bg-white sm:p-6 sm:rounded-lg shadow-md",
                         ),
-                        cls="container mx-auto px-4 mb-8",
+                        cls="container sm:mx-auto sm:mb-8 sm:px-4",
                     ),
                     cls="bg-gray-100 min-h-screen pb-8",
                 ),
