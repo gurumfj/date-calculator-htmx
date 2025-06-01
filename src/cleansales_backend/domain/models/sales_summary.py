@@ -49,6 +49,18 @@ class SalesSummary:
     def sales_female(self) -> int:
         return sum(sale.female_count for sale in self.sales)
 
+    # 預估剩餘數量
+    @property
+    def remaining_male_estimation(self) -> int:
+        """預估剩餘數量"""
+        breed_male = int(sum(breed.breed_male for breed in self.breeds) * 0.9)
+        return max(round(breed_male - self.sales_male, -2), 0)
+
+    @property
+    def remaining_female_estimation(self) -> int:
+        breed_female = int(sum(breed.breed_female for breed in self.breeds) * 0.9)
+        return max(round(breed_female - self.sales_female, -2), 0)
+
     @property
     def total_sales(self) -> int:
         """總銷售數量"""
@@ -96,9 +108,10 @@ class SalesSummary:
     @property
     def sales_period_date(self) -> tuple[datetime, datetime]:
         """銷售期間"""
+        sorted_sales = sorted(self.sales, key=lambda sale: sale.sale_date)
         return (
-            min(sale.sale_date for sale in self.sales),
-            max(sale.sale_date for sale in self.sales),
+            sorted_sales[0].sale_date,
+            sorted_sales[-1].sale_date,
         )
 
     @property

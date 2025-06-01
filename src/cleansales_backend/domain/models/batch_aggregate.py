@@ -12,6 +12,7 @@ from ..utils import day_age
 from .batch_state import BatchState
 from .breed_record import BreedRecord
 from .feed_record import FeedRecord
+from .production_record import ProductionRecord
 from .sale_record import SaleRecord
 from .sales_summary import SalesSummaryModel
 
@@ -38,6 +39,7 @@ class BatchAggregate:
     breeds: list[BreedRecord]
     sales: list[SaleRecord]
     feeds: list[FeedRecord]
+    production: list[ProductionRecord]
     _cached_time: datetime
 
     def __init__(
@@ -45,10 +47,12 @@ class BatchAggregate:
         breeds: list[BreedRecord] = [],
         sales: list[SaleRecord] = [],
         feeds: list[FeedRecord] = [],
+        production: list[ProductionRecord] = [],
     ) -> None:
         self.breeds = breeds
         self.sales = sales
         self.feeds = feeds
+        self.production = production
         self._cached_time = datetime.now()
         self.validate()
 
@@ -68,6 +72,14 @@ class BatchAggregate:
                 raise ValueError("All feed records must be from the same batch")
             if feed_batch_name != batch_name:
                 raise ValueError("Feed batch name must match breed batch name")
+        if len(self.production) > 0:
+            production_batch_name = set(
+                [record.batch_name for record in self.production]
+            )
+            if len(production_batch_name) > 1:
+                raise ValueError("All production records must be from the same batch")
+            if production_batch_name != batch_name:
+                raise ValueError("Production batch name must match breed batch name")
 
     @property
     def cached_time(self) -> datetime:
@@ -79,6 +91,7 @@ class BatchAggregate:
             [breed.updated_at for breed in self.breeds]
             + [sale.updated_at for sale in self.sales]
             + [feed.updated_at for feed in self.feeds]
+            + [production.updated_at for production in self.production]
         )
 
     @property
