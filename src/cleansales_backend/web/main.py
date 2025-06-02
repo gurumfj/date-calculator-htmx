@@ -414,165 +414,121 @@ def sales_table_component(batch: BatchAggregate) -> FT:
             P("尚無銷售資料", cls="text-gray-500 text-center py-4"),
             cls="bg-gray-50 rounded-lg border border-gray-200 p-2",
         )
+    batch.sales.sort(key=lambda sale: sale.sale_date, reverse=True)
+
+    grouped_sales = groupby(batch.sales, key=lambda sale: sale.sale_date)
+
+    def _sales_records() -> FT:
+        thead = Tr(
+            Th("客戶", cls="text-left"),
+            Th("公數", cls="text-right"),
+            Th("母數", cls="text-right"),
+            Th("公重", cls="text-right"),
+            Th("母重", cls="text-right"),
+            Th("公價", cls="text-right"),
+            Th("母價", cls="text-right"),
+            Th("總重", cls="text-right"),
+            Th("單價", cls="text-right"),
+            Th("總價", cls="text-right"),
+            cls="bg-blue-50 border-b border-gray-200 [&>th]:px-4 [&>th]:py-2 [&>th]:text-blue-900",
+        )
+        tbody = []
+        for i, (sale_date, sales) in enumerate(grouped_sales.items()):
+            sales: list[SaleRecord] = list(sales)
+
+            if i % 5 == 0:
+                tbody.append(thead)
+
+            tbody.append(
+                Tr(
+                    Td(
+                        sale_date.strftime("%Y-%m-%d"),
+                        colspan=10,
+                        cls="text-center bg-gray-200 text-gray-500 px-4 py-2 font-bold",
+                    )
+                ),
+            )
+            tbody.extend(
+                [
+                    Tr(
+                        Td(sale.customer, cls="text-left"),
+                        Td(f"{sale.male_count if sale.male_count else '-'}", cls="text-right"),
+                        Td(f"{sale.female_count if sale.female_count else '-'}", cls="text-right"),
+                        Td(f"{sale.male_avg_weight:.2f}" if sale.male_avg_weight else "-", cls="text-right"),
+                        Td(f"{sale.female_avg_weight:.2f}" if sale.female_avg_weight else "-", cls="text-right"),
+                        Td(f"${sale.male_price:.0f}" if sale.male_price else "-", cls="text-right"),
+                        Td(f"${sale.female_price:.0f}" if sale.female_price else "-", cls="text-right"),
+                        Td(f"{sale.total_weight:.1f}" if sale.total_weight else "-", cls="text-right"),
+                        Td(f"${sale.avg_price:.0f}" if sale.avg_price else "-", cls="text-right"),
+                        Td(f"${sale.total_price:,.0f}" if sale.total_price else "-", cls="text-right"),
+                        cls="[&>td]:px-4 [&>td]:py-2"
+                        + (" bg-gray-100" if i % 2 == 1 else ""),
+                    )
+                    for i, sale in enumerate(sales)
+                ]
+            )
+        return Div(
+            Table(
+                Tbody(
+                    *tbody,
+                    cls="whitespace-nowrap text-sm text-gray-700",
+                ),
+                cls="text-sm font-medium whitespace-nowrap uppercase tracking-wider w-full",
+            ),
+            cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
+        )
 
     # 使用 Tailwind CSS 美化表格
     return Div(
         Div(
-            # 銷售摘要統計
             Div(
+                # 銷售摘要統計
                 Div(
                     Div(
-                        H4("銷售摘要", cls="text-base font-medium text-gray-700"),
-                        cls="mb-2",
+                        Div(
+                            H4("銷售摘要", cls="text-base font-medium text-gray-700"),
+                            cls="mb-2",
+                        ),
+                        Div(
+                            Div(
+                                P("總銷售量", cls="text-xs text-gray-500"),
+                                P(
+                                    f"{sum(sale.male_count + sale.female_count for sale in batch.sales):,} 隻",
+                                    cls="text-lg font-semibold text-gray-800",
+                                ),
+                                cls="p-3 bg-blue-50 rounded-lg",
+                            ),
+                            Div(
+                                P("總銷售額", cls="text-xs text-gray-500"),
+                                P(
+                                    f"${sum(int(sale.total_price) for sale in batch.sales if sale.total_price):,}",
+                                    cls="text-lg font-semibold text-green-600",
+                                ),
+                                cls="p-3 bg-green-50 rounded-lg",
+                            ),
+                            Div(
+                                P("平均單價", cls="text-xs text-gray-500"),
+                                P(
+                                    f"${sum(sale.total_price for sale in batch.sales if sale.total_price) / sum(sale.male_count + sale.female_count for sale in batch.sales):.1f}/隻"
+                                    if sum(sale.male_count + sale.female_count for sale in batch.sales) > 0
+                                    else "無資料",
+                                    cls="text-lg font-semibold text-gray-800",
+                                ),
+                                cls="p-3 bg-gray-50 rounded-lg",
+                            ),
+                            cls="grid grid-cols-3 gap-3 mb-4",
+                        ),
+                        cls="mb-4",
                     ),
-                    Div(
-                        Div(
-                            P("總銷售量", cls="text-xs text-gray-500"),
-                            P(
-                                f"{sum(sale.male_count + sale.female_count for sale in batch.sales):,} 隻",
-                                cls="text-lg font-semibold text-gray-800",
-                            ),
-                            cls="p-3 bg-blue-50 rounded-lg",
-                        ),
-                        Div(
-                            P("總銷售額", cls="text-xs text-gray-500"),
-                            P(
-                                f"${sum(int(sale.total_price) for sale in batch.sales if sale.total_price):,}",
-                                cls="text-lg font-semibold text-green-600",
-                            ),
-                            cls="p-3 bg-green-50 rounded-lg",
-                        ),
-                        Div(
-                            P("平均單價", cls="text-xs text-gray-500"),
-                            P(
-                                f"${sum(sale.total_price for sale in batch.sales if sale.total_price) / sum(sale.male_count + sale.female_count for sale in batch.sales):.1f}/隻"
-                                if sum(sale.male_count + sale.female_count for sale in batch.sales) > 0
-                                else "無資料",
-                                cls="text-lg font-semibold text-gray-800",
-                            ),
-                            cls="p-3 bg-gray-50 rounded-lg",
-                        ),
-                        cls="grid grid-cols-3 gap-3 mb-4",
-                    ),
-                    cls="mb-4",
+                    cls="bg-white p-4 rounded-lg shadow-sm mb-4",
                 ),
-                cls="bg-white p-4 rounded-lg shadow-sm mb-4",
+                _sales_records(),
+                # 銷售詳細表格
+                cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
             ),
-            # 銷售詳細表格
-            Table(
-                Thead(
-                    Tr(
-                        Th(
-                            "日期",
-                            cls="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "客戶",
-                            cls="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "公數",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "母數",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "公重",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "母重",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "公價",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "母價",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "總重",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "均價",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        Th(
-                            "總收",
-                            cls="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider",
-                        ),
-                        cls="bg-gray-50",
-                    )
-                ),
-                Tbody(
-                    *[
-                        Tr(
-                            Td(
-                                sale.sale_date.strftime("%Y-%m-%d"),
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-gray-700",
-                            ),
-                            Td(
-                                sale.customer or "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-gray-700",
-                            ),
-                            Td(
-                                f"{sale.male_count:,}",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"{sale.female_count:,}",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"{sale.male_avg_weight:.2f}" if sale.male_avg_weight else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"{sale.female_avg_weight:.2f}" if sale.female_avg_weight else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"${sale.male_price:.1f}" if sale.male_price else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"${sale.female_price:.1f}" if sale.female_price else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"{sale.total_weight:.1f}" if sale.total_weight else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"${sale.avg_price:.1f}" if sale.avg_price else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right text-gray-700",
-                            ),
-                            Td(
-                                f"${int(sale.total_price):,}" if sale.total_price else "-",
-                                cls="px-2 py-2 whitespace-nowrap text-sm text-right font-medium text-green-600",
-                            ),
-                            cls="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
-                            + (" bg-gray-50" if i % 2 == 0 else ""),
-                        )
-                        for i, sale in enumerate(
-                            sorted(
-                                batch.sales,
-                                key=lambda sale: sale.sale_date,
-                                reverse=True,
-                            )
-                        )
-                    ]
-                ),
-                cls="min-w-full divide-y divide-gray-200",
-            ),
-            cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
+            cls="p-4",
         ),
-        cls="mb-4",
+        cls="bg-white rounded-lg border border-gray-200 mb-4 shadow-sm",
     )
 
 
@@ -721,7 +677,6 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
                                     "母雞",
                                     cls="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider",
                                 ),
-                                cls="bg-gray-100",
                             )
                         ),
                         Tbody(
@@ -740,7 +695,6 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
                                     format_weight(batch.sales_summary.avg_female_weight),
                                     cls="px-3 py-2 text-sm text-center text-gray-700",
                                 ),
-                                cls="bg-gray-50",
                             ),
                             # 單價行
                             Tr(
@@ -772,7 +726,6 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
                                     batch.sales_summary.sales_female,
                                     cls="px-3 py-2 text-sm text-center text-gray-700",
                                 ),
-                                cls="bg-gray-50",
                             ),
                             # 剩餘數量
                             Tr(
@@ -789,6 +742,7 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
                                     cls="px-3 py-2 text-sm text-center text-gray-700",
                                 ),
                             ),
+                            cls="[&>tr:nth-child(odd)]:bg-gray-50 [&>tr]:hover:bg-gray-100",
                         ),
                         cls="min-w-full divide-y divide-gray-200",
                     ),
