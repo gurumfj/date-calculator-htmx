@@ -8,6 +8,7 @@ from fasthtml.common import *
 from postgrest.exceptions import APIError
 from rich.logging import RichHandler
 from starlette.middleware.gzip import GZipMiddleware
+from todoist_api_python.api import TodoistAPI
 
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
@@ -461,8 +462,7 @@ def sales_table_component(batch: BatchAggregate) -> FT:
                         Td(f"{sale.total_weight:.1f}" if sale.total_weight else "-", cls="text-right"),
                         Td(f"${sale.avg_price:.0f}" if sale.avg_price else "-", cls="text-right"),
                         Td(f"${sale.total_price:,.0f}" if sale.total_price else "-", cls="text-right"),
-                        cls="[&>td]:px-4 [&>td]:py-2"
-                        + (" bg-gray-100" if i % 2 == 1 else ""),
+                        cls="[&>td]:px-4 [&>td]:py-2" + (" bg-gray-100" if i % 2 == 1 else ""),
                     )
                     for i, sale in enumerate(sales)
                 ]
@@ -1501,6 +1501,57 @@ def batches(sess: dict) -> Any:
                 # 移除 container 類，因為我們已經在各個區域使用了 container
                 cls="flex flex-col min-h-screen",
             ),
+        )
+    except Exception as e:
+        return _render_exception_component(e)
+
+
+def get_todoist_api() -> TodoistAPI:
+    token = get_settings().TODOIST_API_TOKEN
+    if not token:
+        raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
+    return TodoistAPI(token)
+
+
+@app.get("/todoist")
+def todoist():
+    try:
+        api = get_todoist_api()
+        projects = api.get_projects()
+
+        return Div(
+            H1("Todoist", cls="text-2xl font-bold text-gray-800 mb-4"),
+            Label("專案", cls="text-lg font-bold text-gray-800 mb-2", _for="project_id"),
+            Select(
+                *[Option(p.name, value=p.id) for p in projects],
+                cls="",
+                id="project_id",
+                hx_get="/todoist/q",
+                hx_target="#task",
+                hx_trigger="change, load",
+                hx_indicator="#loading",
+            ),
+            Div(
+                P("載入中...", cls="text-gray-600"),
+                cls="flex justify-center items-center h-screen htmx-indicator",
+                id="loading",
+            ),
+            Div(
+                id="task",
+            ),
+            cls="container mx-auto px-4 py-3 flex flex-col justify-center items-center",
+        )
+    except Exception as e:
+        return _render_exception_component(e)
+
+
+@app.get("/todoist/q")
+def todoist_query(project_id: str | None = None):
+    try:
+        api = get_todoist_api()
+        tasks = api.get_tasks(project_id=project_id)
+        return Div(
+            *[Li(task.content, "".join(task.labels) if task.labels else "") for task in tasks],
         )
     except Exception as e:
         return _render_exception_component(e)
