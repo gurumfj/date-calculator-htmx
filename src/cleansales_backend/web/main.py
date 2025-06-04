@@ -151,6 +151,7 @@ custom_style = Style("""
     transform: rotate(180deg);
 }
 
+
 """)
 
 # 初始化 FastAPI 應用
@@ -1129,32 +1130,40 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
     )
 
 
+def _sales_progress_component(percentage: float, id: str) -> FT | None:
+    # if percentage:
+    #     使用 Tailwind CSS 自定義進度條
+    percentage = int(percentage * 100)
+
+    # 使用內嵌樣式代替 Tailwind 的動態寬度類
+    # 這樣可以精確控制進度條寬度
+    return Div(
+        Div(
+            Div(
+                Span(
+                    f"{percentage}%",
+                    cls="text-xs font-medium text-blue-100 text-center absolute inset-0 flex items-center justify-center",
+                )
+                if percentage > 10
+                else None,
+                style=f"width:{percentage}%;",
+                cls="bg-gradient-to-r from-blue-600 to-blue-200 h-5 rounded-full relative transition-width duration-600 ease",
+                id=f"{id}_progress_bar",
+            ),
+            cls="w-full bg-gray-200 rounded-full h-5 mb-1 relative overflow-hidden",
+        ),
+        cls="w-full",
+        id=id,
+    )
+
+
+@app.post("/sales_progress")
+def sales_progress(percentage: float, id: str):
+    return _sales_progress_component(percentage, id)
+
+
 def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
     # 銷售進度條組件
-    def _sales_progress_component(batch: BatchAggregate) -> FT | None:
-        if batch.sales_percentage:
-            # 使用 Tailwind CSS 自定義進度條
-            percentage = int(batch.sales_percentage * 100)
-
-            # 使用內嵌樣式代替 Tailwind 的動態寬度類
-            # 這樣可以精確控制進度條寬度
-            return Div(
-                Div(
-                    Div(
-                        Div(
-                            f"{percentage}%",
-                            cls="text-xs font-medium text-blue-100 text-center absolute inset-0 flex items-center justify-center",
-                        )
-                        if percentage > 10
-                        else None,
-                        style=f"width: {percentage}%",
-                        cls="bg-blue-600 h-5 rounded-full relative",
-                    ),
-                    cls="w-full bg-gray-200 rounded-full h-5 mb-1 relative",
-                ),
-                cls="w-full",
-            )
-        return None
 
     # 如果沒有批次數據，顯示空狀態
     if not batch_list:
@@ -1204,16 +1213,24 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                         cls="flex-grow",
                     ),
                     Div(
-                        _sales_progress_component(batch) if batch.sales_percentage else None,
-                        P(
-                            f"銷售進度: {int(batch.sales_percentage * 100)}%" if batch.sales_percentage else "尚未銷售",
-                            cls="text-xs text-gray-600",
+                        Div(
+                            _sales_progress_component(0.0, f"sales_progress_{batch.safe_id}"),
+                            hx_post="/sales_progress",
+                            # hx_target=f"#sales_progress_{batch.safe_id}",
+                            hx_trigger="revealed",
+                            hx_swap="outerHTML swap:.6s",
+                            hx_vals=f'{{"percentage": {batch.sales_percentage or 0}, "id": "sales_progress_{batch.safe_id}"}}',
+                            cls="hidden",
                         ),
+                        # P(
+                        #     f"銷售進度: {batch.sales_percentage * 100:.0f}%" if batch.sales_percentage else "尚未銷售",
+                        #     cls="text-xs text-gray-600",
+                        # ),
                         cls="w-1/3",
                     )
                     if batch.sales
                     else None,
-                    cls="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 open:bg-amber-200",
+                    cls="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50 open:bg-amber-200",
                     id=f"{batch.safe_id}_batch_summary",
                 ),
                 # 批次詳細內容
@@ -1459,7 +1476,7 @@ def batches(request: Request, sess: dict, breed: str | None = None, end_date: st
                                 cls="list-none",
                             ),
                             date_picker_component(end_date, breed),
-                            cls="",
+                            cls="max-h-auto transition-max-height duration-300 ease-in-out open:max-h-500 overflow-hidden",
                         ),
                         cls="container mt-4 px-2 mx-auto sm:px-4",
                     ),
@@ -1468,7 +1485,7 @@ def batches(request: Request, sess: dict, breed: str | None = None, end_date: st
                         Div(
                             H2(
                                 "批次列表",
-                                cls="htmx-indicator hidden sm:block text-2xl font-semibold text-gray-800 mb-4",
+                                cls="hidden sm:block text-2xl font-semibold text-gray-800 mb-4",
                             ),
                             batch_list_component(batch_list),
                             cls="bg-white sm:p-6 sm:rounded-lg shadow-md",
@@ -1516,7 +1533,7 @@ def todoist():
             Label("專案", cls="text-lg font-bold text-gray-800 mb-2", _for="project_id"),
             Select(
                 *[Option(p.name, value=p.id) for p in projects],
-                cls="",
+                cls="transition-all duration-300 ease-in-out",
                 id="project_id",
                 hx_get="/todoist/q",
                 hx_target="#task",
