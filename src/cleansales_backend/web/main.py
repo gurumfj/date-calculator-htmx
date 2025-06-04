@@ -150,15 +150,7 @@ custom_style = Style("""
 .rotate-180 {
     transform: rotate(180deg);
 }
-.htmx-indicator{
-    display: none;
-}
-.htmx-request .htmx-indicator{
-    display:block;
-}
-.htmx-request.htmx-indicator{
-    display:block;
-}
+
 """)
 
 # 初始化 FastAPI 應用
@@ -173,10 +165,14 @@ app, rt = fast_app(
 )
 
 
-def breeds_selector_component(selected_breed: str) -> FT:
+def breeds_selector_component(selected_breed: str, end_date: str) -> FT:
     # 雞種選項列表
     breeds = ["黑羽", "古早", "舍黑", "閹雞"]
-
+    indicator = Div(
+        Span("Loading...", cls="text-black opacity-50"),
+        id="loading_indicator",
+        cls="htmx-indicator",
+    )
     # 建立雞種選擇器組件，使用 Tailwind CSS 美化
     return Div(
         Div(
@@ -185,12 +181,14 @@ def breeds_selector_component(selected_breed: str) -> FT:
                 *[
                     Button(
                         breed,
-                        hx_get=f"/query_batches?breed={breed}",
+                        hx_get=f"/batches?breed={breed}&end_date={end_date}",
                         hx_indicator="#loading_indicator",
+                        hx_push_url="true",
                         cls=f"px-4 py-2 rounded-md text-sm font-medium {BTN_PRIMARY if breed == selected_breed else BTN_SECONDARY} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 inline-block mx-1",
                     )
                     for breed in breeds
                 ],
+                indicator,
                 cls="flex flex-row flex-wrap items-center space-x-2",
             ),
             cls="bg-white p-4 rounded-lg shadow-md mb-4",
@@ -201,21 +199,22 @@ def breeds_selector_component(selected_breed: str) -> FT:
     )
 
 
-def date_picker_component(end_date_str: str) -> FT:
+def date_picker_component(end_date_str: str, breed: str) -> FT:
     # 計算前後30天的日期
     earlier_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
     later_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=30)).strftime("%Y-%m-%d")
 
     # 使用 Tailwind CSS 美化日期選擇器組件
     return Div(
-        Div(
+        Form(
             H3("日期範圍選擇", cls="text-lg font-semibold mb-2 text-gray-700"),
             Div(
                 # 向前按鈕
                 Div(
                     Button(
                         Span("«", cls="text-xl"),
-                        hx_get=f"/query_batches?end_date={earlier_date_str}",
+                        hx_get=f"/batches?end_date={earlier_date_str}&breed={breed}",
+                        hx_push_url="true",
                         hx_indicator="#loading_indicator",
                         cls="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-l-lg transition duration-200 ease-in-out w-full",
                     ),
@@ -230,7 +229,7 @@ def date_picker_component(end_date_str: str) -> FT:
                             name="end_date",
                             id="end_date",
                             value=end_date_str,
-                            hx_get="/query_batches",
+                            hx_get="/batches",
                             hx_trigger="change delay:500ms",
                             hx_indicator="#loading_indicator",
                             cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
@@ -243,7 +242,7 @@ def date_picker_component(end_date_str: str) -> FT:
                 Div(
                     Button(
                         Span("»", cls="text-xl"),
-                        hx_get=f"/query_batches?end_date={later_date_str}",
+                        hx_get=f"/batches?end_date={later_date_str}&breed={breed}",
                         hx_indicator="#loading_indicator",
                         cls="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-r-lg transition duration-200 ease-in-out w-full",
                     ),
@@ -264,6 +263,11 @@ def date_picker_component(end_date_str: str) -> FT:
             cls="bg-white p-4 rounded-lg shadow-md mb-4",
         ),
         id="date_picker",
+        # hx_get="/batches",
+        # hx_trigger="change delay:500ms",
+        # hx_vals=f'{{"breed": "{breed}"}}',
+        # hx_target="#batch_list",
+        # hx_indicator="#loading_indicator",
         hx_swap_oob="true",
         cls="w-full md:w-1/2",
     )
@@ -1126,19 +1130,6 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
 
 
 def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
-    # loading indicator
-    indicator = Div(
-        Div(
-            Div(
-                P("Loading...", cls="text-black opacity-50"),
-                cls="w-1/4 h-10 items-center justify-center flex rounded-lg bg-white shadow-xl opacity-50",
-            ),
-            cls="flex h-full items-center justify-center",
-        ),
-        cls="htmx-indicator fixed inset-0 z-50",
-        id="loading_indicator",
-    )
-
     # 銷售進度條組件
     def _sales_progress_component(batch: BatchAggregate) -> FT | None:
         if batch.sales_percentage:
@@ -1168,7 +1159,6 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
     # 如果沒有批次數據，顯示空狀態
     if not batch_list:
         return Div(
-            indicator,
             Div(
                 Div(
                     Div(
@@ -1198,7 +1188,6 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
 
     # 返回批次列表
     return Div(
-        indicator,
         *[
             Details(
                 # 批次標題和進度條
@@ -1432,14 +1421,21 @@ def index() -> Any:
 
 
 @app.get("/batches")
-def batches(sess: dict) -> Any:
+def batches(request: Request, sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
     try:
-        if not sess.get("id"):
-            sess["id"] = uuid.uuid4().hex
-        breed = sess.get("breed", "黑羽")
-        end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-        start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
-        batch_list = cached_data.query_batches_db(start_date_str, end_date_str, breed)
+        sess["id"] = sess.get("id", uuid.uuid4().hex)
+        breed = breed or "黑羽"
+        end_date = end_date or datetime.now().strftime("%Y-%m-%d")
+        start_date = (datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
+        if request.headers.get("HX-Request"):
+            batch_list = cached_data.query_batches_db(start_date, end_date, breed)
+            return (
+                breeds_selector_component(breed, end_date),
+                date_picker_component(end_date, breed),
+                batch_list_component(batch_list),
+            )
+
+        batch_list = cached_data.query_batches_db(start_date, end_date, breed)
 
         # 使用 Tailwind CSS 美化主頁面佈局
         return (
@@ -1459,17 +1455,12 @@ def batches(sess: dict) -> Any:
                     Div(
                         Details(
                             Summary(
-                                breeds_selector_component(breed),
+                                breeds_selector_component(breed, end_date),
                                 cls="list-none",
                             ),
-                            date_picker_component(end_date_str),
+                            date_picker_component(end_date, breed),
                             cls="",
                         ),
-                        # Div(
-                        #     breeds_selector_component(breed),
-                        #     date_picker_component(end_date_str),
-                        #     cls="hidden md:block",
-                        # ),
                         cls="container mt-4 px-2 mx-auto sm:px-4",
                     ),
                     # 批次列表區域
@@ -1477,7 +1468,7 @@ def batches(sess: dict) -> Any:
                         Div(
                             H2(
                                 "批次列表",
-                                cls="hidden sm:block text-2xl font-semibold text-gray-800 mb-4",
+                                cls="htmx-indicator hidden sm:block text-2xl font-semibold text-gray-800 mb-4",
                             ),
                             batch_list_component(batch_list),
                             cls="bg-white sm:p-6 sm:rounded-lg shadow-md",
@@ -1752,29 +1743,28 @@ def todoist_query(project_id: str | None = None):
         return _render_exception_component(e)
 
 
-@app.get("/query_batches")
-def query_batches(sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
-    # time.sleep(1)
-    try:
-        if breed:
-            sess["breed"] = breed
-            end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-            start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
-            batch_list = cached_data.query_batches_db(start_date_str, end_date_str, breed)
-            return breeds_selector_component(breed), batch_list_component(batch_list)
-        if end_date:
-            # validate end_date is date
-            try:
-                datetime.strptime(end_date, "%Y-%m-%d")
-            except ValueError:
-                return
-            sess["end_date"] = datetime.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%d")
-            end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-            start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
-            batch_list = cached_data.query_batches_db(start_date_str, end_date_str, sess.get("breed", "黑羽"))
-            return date_picker_component(end_date_str), batch_list_component(batch_list)
-    except Exception as e:
-        return str(e)
+# @app.get("/query_batches")
+# def query_batches(request: Request, sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
+#     try:
+#         if breed:
+#             sess["breed"] = breed
+#             end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+#             start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
+#             batch_list = cached_data.query_batches_db(start_date_str, end_date_str, breed)
+#             return breeds_selector_component(breed), batch_list_component(batch_list)
+#         if end_date:
+#             # validate end_date is date
+#             try:
+#                 datetime.strptime(end_date, "%Y-%m-%d")
+#             except ValueError:
+#                 return
+#             sess["end_date"] = datetime.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%d")
+#             end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+#             start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
+#             batch_list = cached_data.query_batches_db(start_date_str, end_date_str, sess.get("breed", "黑羽"))
+#             return date_picker_component(end_date_str), batch_list_component(batch_list)
+#     except Exception as e:
+#         return str(e)
 
 
 @app.get("/reset")
