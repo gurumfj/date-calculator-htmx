@@ -1,9 +1,7 @@
 import json
 import logging
 import uuid
-from collections import defaultdict
 from datetime import datetime, timedelta
-from functools import lru_cache
 
 from fasthtml.common import *
 from postgrest.exceptions import APIError
@@ -13,11 +11,10 @@ from todoist_api_python.api import TodoistAPI
 
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
-from cleansales_backend.domain.models.breed_record import BreedRecord
 from cleansales_backend.domain.models.feed_record import FeedRecord
-from cleansales_backend.domain.models.production_record import ProductionRecord
 from cleansales_backend.domain.models.sale_record import SaleRecord
 from cleansales_backend.domain.utils import day_age, week_age
+from cleansales_backend.web import CachedDataService, DataServiceInterface
 from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
@@ -26,118 +23,18 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[RichHandler(rich_tracebacks=False, markup=True)],
 )
-supabase: Client = create_client(
-    supabase_url=get_settings().SUPABASE_CLIENT_URL,
-    supabase_key=get_settings().SUPABASE_ANON_KEY,
-)
 
 
-class CachedData:
-    ALIVE_TIME = 5 * 60  # 5 minutes
-
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
-        self.batches: dict[str, BatchAggregate] = {}
-
-    def query_batch(self, batch_name: str) -> BatchAggregate | None:
-        if batch_name in self.batches:
-            cached_batch = self.batches.get(batch_name)
-            if cached_batch and cached_batch.cached_time + timedelta(seconds=self.ALIVE_TIME) > datetime.now():
-                return cached_batch
-        return self.query_single_batch_db(batch_name)
-
-    def query_single_batch_db(self, batch_name: str) -> BatchAggregate | None:
-        try:
-            batch_response = (
-                self.supabase.table("batchaggregates").select("*").eq("batch_name", batch_name).single().execute()
-            )
-            if batch_response.data is None:
-                return None
-            breed_response = self.supabase.table("breedrecordorm").select("*").eq("batch_name", batch_name).execute()
-            sale_response = self.supabase.table("salerecordorm").select("*").eq("batch_name", batch_name).execute()
-            feed_response = self.supabase.table("feedrecordorm").select("*").eq("batch_name", batch_name).execute()
-            production_response = (
-                self.supabase.table("farm_production").select("*").eq("batch_name", batch_name).execute()
-            )
-            breed_records = [BreedRecord.model_validate(data) for data in breed_response.data]
-            sale_records = [SaleRecord.model_validate(data) for data in sale_response.data]
-            feed_records = [FeedRecord.model_validate(data) for data in feed_response.data]
-            production_records = [ProductionRecord.model_validate(data) for data in production_response.data]
-            batch_aggregate = BatchAggregate(
-                breeds=breed_records,
-                sales=sale_records,
-                feeds=feed_records,
-                production=production_records,
-            )
-            self.batches[batch_name] = batch_aggregate
-            return batch_aggregate
-        except APIError as e:
-            print(e)
-            return None
-        except Exception as e:
-            print(e)
-            return None
-
-    @lru_cache(maxsize=1)
-    def query_batches_db(self, start_date: str, end_date: str, chicken_breed: str) -> dict[str, BatchAggregate]:
-        try:
-            index_response = (
-                self.supabase.table("batchaggregates")
-                .select("batch_name")
-                .eq("chicken_breed", chicken_breed)
-                .gte("final_date", start_date)
-                .lte("initial_date", end_date)
-                .order("initial_date")
-                .execute()
-            )
-            if index_response.data is None:
-                return {}
-            batches = [data.get("batch_name") for data in index_response.data]
-            breed_response = self.supabase.table("breedrecordorm").select("*").in_("batch_name", batches).execute()
-            sale_response = self.supabase.table("salerecordorm").select("*").in_("batch_name", batches).execute()
-            feed_response = self.supabase.table("feedrecordorm").select("*").in_("batch_name", batches).execute()
-            production_response = (
-                self.supabase.table("farm_production").select("*").in_("batch_name", batches).execute()
-            )
-            breed_records = [BreedRecord.model_validate(data) for data in breed_response.data]
-            sale_records = [SaleRecord.model_validate(data) for data in sale_response.data]
-            feed_records = [FeedRecord.model_validate(data) for data in feed_response.data]
-            production_records = [ProductionRecord.model_validate(data) for data in production_response.data]
-            breed_dict = defaultdict(list)
-            sale_dict = defaultdict(list)
-            feed_dict = defaultdict(list)
-            production_dict = defaultdict(list)
-            for breed_record in breed_records:
-                breed_dict[breed_record.batch_name].append(breed_record)
-            for sale_record in sale_records:
-                sale_dict[sale_record.batch_name].append(sale_record)
-            for feed_record in feed_records:
-                feed_dict[feed_record.batch_name].append(feed_record)
-            for production_record in production_records:
-                production_dict[production_record.batch_name].append(production_record)
-            batchaggr = {}
-            for batch_name, breeds in breed_dict.items():
-                if batch_name is None:
-                    continue
-                batch_aggregate = BatchAggregate(
-                    breeds=breeds,
-                    sales=sale_dict.get(batch_name, []),
-                    feeds=feed_dict.get(batch_name, []),
-                    production=production_dict.get(batch_name, []),
-                )
-                batchaggr[batch_name] = batch_aggregate
-                self.batches[batch_name] = batch_aggregate
-
-            return batchaggr
-        except APIError as e:
-            print(e)
-            raise APIError({"error": str(e)})
-        except Exception as e:
-            print(e)
-            raise Exception({"error": str(e)})
+def create_data_service() -> DataServiceInterface:
+    supabase: Client = create_client(
+        supabase_url=get_settings().SUPABASE_CLIENT_URL,
+        supabase_key=get_settings().SUPABASE_ANON_KEY,
+    )
+    return CachedDataService(supabase)
 
 
-cached_data = CachedData(supabase)
+cached_data = create_data_service()
+
 
 BTN_PRIMARY = "bg-blue-500 text-white hover:bg-blue-600"
 BTN_SECONDARY = "bg-blue-100 text-blue-700 hover:bg-blue-200"
@@ -1445,14 +1342,16 @@ def batches(request: Request, sess: dict, breed: str | None = None, end_date: st
         end_date = end_date or datetime.now().strftime("%Y-%m-%d")
         start_date = (datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
         if request.headers.get("HX-Request"):
-            batch_list = cached_data.query_batches_db(start_date, end_date, breed)
+            batch_list = cached_data.query_batches(start_date, end_date, breed)
             return (
                 breeds_selector_component(breed, end_date),
                 date_picker_component(end_date, breed),
                 batch_list_component(batch_list),
             )
 
-        batch_list = cached_data.query_batches_db(start_date, end_date, breed)
+        batch_list = cached_data.query_batches(start_date, end_date, breed)
+        cache_info = cached_data.cache_info()
+        hit_rate = (cache_info["hit_count"] / (cache_info["hit_count"] + cache_info["miss_count"])) * 100
 
         # 使用 Tailwind CSS 美化主頁面佈局
         return (
@@ -1498,7 +1397,7 @@ def batches(request: Request, sess: dict, breed: str | None = None, end_date: st
                 Footer(
                     Div(
                         P(
-                            f"查詢快取資訊: {cached_data.query_batches_db.cache_info()}",
+                            f"命中率: {hit_rate:.2f}%",
                             cls="text-sm text-gray-500",
                         ),
                         P(f"Session ID: {sess['id']}", cls="text-sm text-gray-500"),
@@ -1558,25 +1457,15 @@ def todoist():
 def query_sales(offset: int = 0, search: str | None = None):
     try:
         if search and search.strip() != "":
-            reponse = (
-                supabase.table("salerecordorm")
-                .select("*")
-                .or_(f"batch_name.ilike.%{search}%,customer.ilike.%{search}%")
-                .order("sale_date", desc=True)
-                .limit(100)
-                .offset(offset)
-            )
+            result = cached_data.query_sales(search_term=search, offset=offset, page_size=100)
         else:
-            reponse = (
-                supabase.table("salerecordorm").select("*").order("sale_date", desc=True).limit(100).offset(offset)
-            )
-        reponse = reponse.execute()
+            result = cached_data.query_sales(offset=offset, page_size=100)
         from starlette.responses import Response
 
-        if not reponse.data:
+        if not result.data:
             content = Span("未找到結果", id="search_error", cls="text-green-500", hx_swap_oob="true").__html__()
             return Response(content=content, headers={"HX-Reswap": "none"})
-        sales = [SaleRecord.model_validate(data) for data in reponse.data]
+        # sales = [SaleRecord.model_validate(data) for data in result.data]
         return [
             Tr(
                 # 日期欄位
@@ -1604,7 +1493,7 @@ def query_sales(offset: int = 0, search: str | None = None):
                 ),
                 cls="hover:bg-blue-50 transition-colors duration-150 even:bg-gray-50",
             )
-            for sale in sales
+            for sale in result.data
         ] + [
             Tr(
                 hx_get=f"/sales/q?offset={offset + 100}&search={search}",
@@ -1760,30 +1649,6 @@ def todoist_query(project_id: str | None = None):
         return _render_exception_component(e)
 
 
-# @app.get("/query_batches")
-# def query_batches(request: Request, sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
-#     try:
-#         if breed:
-#             sess["breed"] = breed
-#             end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-#             start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
-#             batch_list = cached_data.query_batches_db(start_date_str, end_date_str, breed)
-#             return breeds_selector_component(breed), batch_list_component(batch_list)
-#         if end_date:
-#             # validate end_date is date
-#             try:
-#                 datetime.strptime(end_date, "%Y-%m-%d")
-#             except ValueError:
-#                 return
-#             sess["end_date"] = datetime.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%d")
-#             end_date_str = sess.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-#             start_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
-#             batch_list = cached_data.query_batches_db(start_date_str, end_date_str, sess.get("breed", "黑羽"))
-#             return date_picker_component(end_date_str), batch_list_component(batch_list)
-#     except Exception as e:
-#         return str(e)
-
-
 @app.get("/reset")
 def reset(sess: dict) -> Any:
     try:
@@ -1827,5 +1692,9 @@ def content(batch_name: str, tab_type: str) -> Any:
         return str(e)
 
 
-if __name__ == "__main__":
+def main():
     serve()
+
+
+if __name__ == "__main__":
+    main()
