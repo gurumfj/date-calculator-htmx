@@ -5,6 +5,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.routing import Mount
 
 from .batches_route import app as batches_app
+from .sales_route import app as sales_app
 
 # 添加 TailwindCSS CDN 和自定義樣式
 tailwind_cdn = Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")
@@ -26,7 +27,7 @@ app, rt = fast_app(
     hdrs=(tailwind_cdn, custom_style),
     pico=False,
     middleware=(Middleware(GZipMiddleware),),
-    routes=(Mount("/batches", batches_app),),
+    routes=(Mount("/batches", batches_app), Mount("/sales", sales_app)),
 )
 
 

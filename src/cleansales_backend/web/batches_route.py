@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -79,7 +78,7 @@ def breeds_selector_component(selected_breed: str, end_date: str) -> FT:
                 *[
                     Button(
                         breed,
-                        hx_get=f"/batches?breed={breed}&end_date={end_date}",
+                        hx_get=f"?breed={breed}&end_date={end_date}",
                         hx_indicator="#loading_indicator",
                         hx_push_url="true",
                         cls=f"px-4 py-2 rounded-md text-sm font-medium {BTN_PRIMARY if breed == selected_breed else BTN_SECONDARY} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 inline-block mx-1",
@@ -111,7 +110,7 @@ def date_picker_component(end_date_str: str, breed: str) -> FT:
                 Div(
                     Button(
                         Span("«", cls="text-xl"),
-                        hx_get=f"/batches?end_date={earlier_date_str}&breed={breed}",
+                        hx_get=f"?end_date={earlier_date_str}&breed={breed}",
                         hx_push_url="true",
                         hx_indicator="#loading_indicator",
                         cls="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-l-lg transition duration-200 ease-in-out w-full",
@@ -127,7 +126,7 @@ def date_picker_component(end_date_str: str, breed: str) -> FT:
                             name="end_date",
                             id="end_date",
                             value=end_date_str,
-                            hx_get="/batches",
+                            hx_get="?",
                             hx_trigger="change delay:500ms",
                             hx_indicator="#loading_indicator",
                             cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
@@ -140,7 +139,7 @@ def date_picker_component(end_date_str: str, breed: str) -> FT:
                 Div(
                     Button(
                         Span("»", cls="text-xl"),
-                        hx_get=f"/batches?end_date={later_date_str}&breed={breed}",
+                        hx_get=f"?end_date={later_date_str}&breed={breed}",
                         hx_indicator="#loading_indicator",
                         cls="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-r-lg transition duration-200 ease-in-out w-full",
                     ),
@@ -153,7 +152,7 @@ def date_picker_component(end_date_str: str, breed: str) -> FT:
                 Button(
                     "重置所有篩選",
                     type="reset",
-                    hx_get="/reset",
+                    hx_get="reset",
                     cls="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1 px-3 rounded-md text-sm transition duration-200 ease-in-out w-full",
                 ),
                 cls="mt-2",
@@ -161,11 +160,6 @@ def date_picker_component(end_date_str: str, breed: str) -> FT:
             cls="bg-white p-4 rounded-lg shadow-md mb-4",
         ),
         id="date_picker",
-        # hx_get="/batches",
-        # hx_trigger="change delay:500ms",
-        # hx_vals=f'{{"breed": "{breed}"}}',
-        # hx_target="#batch_list",
-        # hx_indicator="#loading_indicator",
         hx_swap_oob="true",
         cls="w-full md:w-1/2",
     )
@@ -972,7 +966,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "批次資料",
-                    hx_get=f"/content/{batch.batch_name}/breed" if selected_tab != "breed" else None,
+                    hx_get=f"content/{batch.batch_name}/breed" if selected_tab != "breed" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "breed" else unselected_tab_style,
                 ),
@@ -986,7 +980,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "銷售記錄",
-                    hx_get=f"/content/{batch.batch_name}/sales" if selected_tab != "sales" else None,
+                    hx_get=f"content/{batch.batch_name}/sales" if selected_tab != "sales" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "sales" else unselected_tab_style,
                 ),
@@ -1000,7 +994,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "飼料記錄",
-                    hx_get=f"/content/{batch.batch_name}/feed" if selected_tab != "feed" else None,
+                    hx_get=f"content/{batch.batch_name}/feed" if selected_tab != "feed" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "feed" else unselected_tab_style,
                 )
@@ -1012,7 +1006,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
             Div(
                 Button(
                     "結場報告",
-                    hx_get=f"/content/{batch.batch_name}/production" if selected_tab != "production" else None,
+                    hx_get=f"content/{batch.batch_name}/production" if selected_tab != "production" else None,
                     hx_target=f"#{batch.safe_id}_batch_tab_content",
                     cls=selected_tab_style if selected_tab == "production" else unselected_tab_style,
                 )
@@ -1027,7 +1021,7 @@ def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
     )
 
 
-def _sales_progress_component(percentage: float, id: str) -> FT | None:
+def _sales_progress_component(percentage: float, id: str) -> FT:
     # if percentage:
     #     使用 Tailwind CSS 自定義進度條
     percentage = int(percentage * 100)
@@ -1055,7 +1049,7 @@ def _sales_progress_component(percentage: float, id: str) -> FT | None:
 
 
 @app.post("/sales_progress")
-def sales_progress(percentage: float, id: str):
+def sales_progress(percentage: float, id: str) -> FT:
     return _sales_progress_component(percentage, id)
 
 
@@ -1111,11 +1105,11 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                     ),
                     Div(
                         Div(
-                            _sales_progress_component(0.0, f"sales_progress_{batch.safe_id}"),
-                            hx_post="/sales_progress",
+                            _sales_progress_component(0.4, f"sales_progress_{batch.safe_id}"),
+                            hx_post="sales_progress",
                             # hx_target=f"#sales_progress_{batch.safe_id}",
                             hx_trigger="revealed",
-                            hx_swap="outerHTML swap:.6s",
+                            hx_swap="outerHTML swap:true",
                             hx_vals=f'{{"percentage": {batch.sales_percentage or 0}, "id": "sales_progress_{batch.safe_id}"}}',
                             cls="hidden",
                         ),
@@ -1329,13 +1323,13 @@ def _render_exception_component(e: Exception):
             return render("發生錯誤")
 
 
+# @app.get("/")
+# def index() -> Any:
+#     return Redirect("/batches")
+
+
 @app.get("/")
-def index() -> Any:
-    return Redirect("/batches")
-
-
-@app.get("/batches")
-def batches(request: Request, sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
+def index(request: Request, sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
     try:
         sess["id"] = sess.get("id", uuid.uuid4().hex)
         breed = breed or "黑羽"
@@ -1419,234 +1413,6 @@ def get_todoist_api() -> TodoistAPI:
     if not token:
         raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
     return TodoistAPI(token)
-
-
-@app.get("/todoist")
-def todoist():
-    try:
-        api = get_todoist_api()
-        projects = api.get_projects()
-
-        return Div(
-            H1("Todoist", cls="text-2xl font-bold text-gray-800 mb-4"),
-            Label("專案", cls="text-lg font-bold text-gray-800 mb-2", _for="project_id"),
-            Select(
-                *[Option(p.name, value=p.id) for p in projects],
-                cls="transition-all duration-300 ease-in-out",
-                id="project_id",
-                hx_get="/todoist/q",
-                hx_target="#task",
-                hx_trigger="change, load",
-                hx_indicator="#loading",
-            ),
-            Div(
-                P("載入中...", cls="text-gray-600"),
-                cls="flex justify-center items-center h-screen htmx-indicator",
-                id="loading",
-            ),
-            Div(
-                id="task",
-            ),
-            cls="container mx-auto px-4 py-3 flex flex-col justify-center items-center",
-        )
-    except Exception as e:
-        return _render_exception_component(e)
-
-
-@app.get("/sales/q")
-def query_sales(offset: int = 0, search: str | None = None):
-    try:
-        if search and search.strip() != "":
-            result = cached_data.query_sales(search_term=search, offset=offset, page_size=100)
-        else:
-            result = cached_data.query_sales(offset=offset, page_size=100)
-        from starlette.responses import Response
-
-        if not result.data:
-            content = Span("未找到結果", id="search_error", cls="text-green-500", hx_swap_oob="true").__html__()
-            return Response(content=content, headers={"HX-Reswap": "none"})
-        # sales = [SaleRecord.model_validate(data) for data in result.data]
-        return [
-            Tr(
-                # 日期欄位
-                Td(
-                    sale.sale_date.strftime("%Y-%m-%d"),
-                    cls="font-medium text-gray-700",
-                ),
-                # 批次欄位
-                Td(sale.batch_name, cls="text-blue-600 hover:text-blue-800"),
-                # 客戶欄位
-                Td(sale.customer, cls="text-gray-800"),
-                # 公數欄位
-                Td(sale.male_count, cls="text-center font-medium"),
-                # 母數欄位
-                Td(sale.female_count, cls="text-center font-medium"),
-                # 公重欄位
-                Td(
-                    f"{sale.male_avg_weight:.2f}" if sale.male_avg_weight else "-",
-                    cls="text-right text-green-700 font-medium",
-                ),
-                # 母重欄位
-                Td(
-                    f"{sale.female_avg_weight:.2f}" if sale.female_avg_weight else "-",
-                    cls="text-right text-green-700 font-medium",
-                ),
-                cls="hover:bg-blue-50 transition-colors duration-150 even:bg-gray-50",
-            )
-            for sale in result.data
-        ] + [
-            Tr(
-                hx_get=f"/sales/q?offset={offset + 100}&search={search}",
-                hx_target="#sales_table",
-                hx_swap="beforeend",
-                hx_trigger="revealed",
-            )
-        ], Span("", id="search_error", cls="text-red-500", hx_swap_oob="true")
-    except APIError:
-        # sales_table保持不變，只更新錯誤訊息
-        # 返回一個帶有 hx_swap_oob="true" 的 Span，但需要設置額外的 HTTP 頭
-        # 告訴 HTMX 不要更新目標元素
-        from starlette.responses import Response
-
-        content = Span("錯誤輸入", id="search_error", cls="text-red-500", hx_swap_oob="true").__html__()
-        return Response(content=content, headers={"HX-Reswap": "none", "HX-Current-url": "/sales"})
-    except Exception as e:
-        return _render_exception_component(e)
-
-
-@app.get("/sales")
-def sales(offset: int = 0, search: str | None = None):
-    try:
-        # 頁面佈局組件
-        def _layout_component(children: list[FT]):
-            return Div(
-                # 標題區塊
-                Div(
-                    H1("銷售紀錄", cls="text-3xl font-bold text-gray-800"),
-                    P("所有批次的銷售資料總覽", cls="text-gray-500 mt-1"),
-                    cls="mb-6 text-center",
-                ),
-                # 卡片容器
-                Div(*children, cls="bg-white rounded-lg shadow-md p-6 w-full max-w-6xl"),
-                cls="container mx-auto px-4 py-8 flex flex-col justify-center items-center",
-            )
-
-        # 表頭樣式
-        th_style = "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-        # 表格內容樣式
-        td_style = "px-6 py-4 whitespace-nowrap text-sm"
-
-        def _form_component():
-            return Form(
-                Label(
-                    "Search",
-                    Input(
-                        placeholder="Search...",
-                        name="search",
-                        cls="px-2 py-1 border border-gray-300 rounded",
-                        hx_get="/sales/q",
-                        hx_target="#sales_table",
-                        hx_swap="innerHTML",
-                        hx_trigger="change, keyup delay:500ms",
-                        # hx_push_url="true",
-                    ),
-                    Span(id="search_error", cls="text-red-500", hx_swap_oob="true"),
-                    type="search",
-                    cls="flex items-center gap-4 p-2",
-                ),
-                cls="mb-4",
-            )
-
-        # 銷售表格組件
-        def _sales_table():
-            return Div(
-                # 表格標題
-                Div(H2("銷售明細表", cls="text-xl font-semibold text-gray-700"), cls="mb-4"),
-                # 表格容器
-                Div(
-                    Table(
-                        Colgroup(
-                            Col(span=1, cls="w-1/8"),  # 日期
-                            Col(span=1, cls="w-1/8"),  # 批次
-                            Col(span=1, cls="w-1/4"),  # 客戶
-                            Col(span=1, cls="w-1/12"),  # 公數
-                            Col(span=1, cls="w-1/12"),  # 母數
-                            Col(span=1, cls="w-1/8"),  # 公重
-                            Col(span=1, cls="w-1/8"),  # 母重
-                        ),
-                        Thead(
-                            Tr(
-                                Th("日期"),
-                                Th("批次"),
-                                Th("客戶"),
-                                Th("公數", cls="text-center"),
-                                Th("母數", cls="text-center"),
-                                Th("公重", cls="text-right"),
-                                Th("母重", cls="text-right"),
-                                cls=" ".join([f"[&>th]:{s}" for s in th_style.split(" ")]),
-                            ),
-                            cls="bg-gray-50 border-b border-gray-200",
-                        ),
-                        Tbody(
-                            Tr(
-                                hx_get="/sales/q",
-                                hx_vals=json.dumps(
-                                    {"offset": offset if offset else 0, "search": search if search else ""}
-                                ),
-                                hx_target="#sales_table",
-                                hx_swap="beforeend",
-                                hx_trigger="revealed",
-                            ),
-                            cls=" ".join([f"[&>tr>td]:{s}" for s in td_style.split(" ")]),
-                            id="sales_table",
-                        ),
-                        cls="min-w-full divide-y divide-gray-200 border-collapse",
-                    ),
-                    cls="overflow-x-auto rounded-md border border-gray-200",
-                ),
-                cls="w-full",
-            )
-
-        return _layout_component([_form_component(), _sales_table()])
-    except Exception as e:
-        return _render_exception_component(e)
-
-
-@app.get("/todoist/labels")
-def labels():
-    try:
-        api = get_todoist_api()
-        # projects = api.get_projects()
-        # archives_items: list[CompletedItems] = []
-        archives_items = api.get_completed_items(project_id="2352145073")
-        # for project in projects:
-        #     archives_items.append(api.get_completed_items(project_id=project.id))
-        print(archives_items.items[0])
-        labels = [item.labels for item in archives_items.items]
-        return Div(*[Li(l) for l in labels])
-    except Exception as e:
-        return _render_exception_component(e)
-
-
-@app.get("/todoist/q")
-def todoist_query(project_id: str | None = None):
-    try:
-        api = get_todoist_api()
-        tasks = api.get_tasks(project_id=project_id)
-        result = []
-        for task in tasks:
-            result.append(
-                Details(
-                    Summary(
-                        H3(task.content),
-                        Ul(*[Li(l) for l in task.labels]) if task.labels else None,
-                    ),
-                    *[Li(f"{k}: {v}") for k, v in task.to_dict().items()],
-                )
-            )
-        return Div(*result)
-    except Exception as e:
-        return _render_exception_component(e)
 
 
 @app.get("/reset")
