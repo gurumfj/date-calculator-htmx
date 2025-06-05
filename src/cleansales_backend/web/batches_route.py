@@ -16,6 +16,8 @@ from cleansales_backend.domain.utils import day_age, week_age
 from cleansales_backend.web import CachedDataService, DataServiceInterface
 from supabase import Client, create_client
 
+from .resources import common_headers
+
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(
@@ -38,25 +40,13 @@ cached_data = create_data_service()
 BTN_PRIMARY = "bg-blue-500 text-white hover:bg-blue-600"
 BTN_SECONDARY = "bg-blue-100 text-blue-700 hover:bg-blue-200"
 
-# 添加 TailwindCSS CDN 和自定義樣式
-tailwind_cdn = Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")
-
-# 自定義樣式 CSS
-custom_style = Style("""
-.rotate-180 {
-    transform: rotate(180deg);
-}
-
-
-""")
-
 # 初始化 FastAPI 應用
 app, rt = fast_app(
     live=True,
     key_fname=".sesskey",
     session_cookie="cleansales",
     max_age=3600,
-    hdrs=(tailwind_cdn, custom_style),
+    hdrs=common_headers,
     pico=False,
     middleware=(Middleware(GZipMiddleware),),
 )
@@ -1349,12 +1339,12 @@ def index(request: Request, sess: dict, breed: str | None = None, end_date: str 
 
         # 使用 Tailwind CSS 美化主頁面佈局
         return (
-            Title("雞隻批次查詢系統"),
+            Title("批次查詢系統"),
             Main(
                 # 頂部導航欄
                 Div(
                     Div(
-                        H1("雞隻批次查詢系統", cls="text-3xl font-bold text-white"),
+                        H1("批次查詢系統", cls="text-3xl font-bold text-white"),
                         cls="container mx-auto px-4 py-3",
                     ),
                     cls="bg-blue-600 shadow-md",

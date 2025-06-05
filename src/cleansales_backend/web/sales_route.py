@@ -21,6 +21,8 @@ def create_data_service() -> DataServiceInterface:
 
 
 cached_data = create_data_service()
+# SVG favicon link
+favicon_link = Link(rel="icon", type="image/svg+xml", href="/static/favicon.svg")
 
 tailwind_cdn = Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")
 
@@ -35,7 +37,7 @@ app, rt = fast_app(
     key_fname=".sesskey",
     session_cookie="cleansales",
     max_age=3600,
-    hdrs=(tailwind_cdn, custom_style),
+    hdrs=(tailwind_cdn, favicon_link, custom_style),
     pico=False,
     middleware=(Middleware(GZipMiddleware),),
 )
