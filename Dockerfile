@@ -30,8 +30,9 @@ RUN bun run build
 
 ## ---- Backend Stage ----
 # 1. Base 階段：最小化的 Python 環境，僅安裝 production 依賴
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS base
+FROM ghcr.io/astral-sh/uv:python3.13-alpine AS base
 WORKDIR /app
+
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy

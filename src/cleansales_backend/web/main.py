@@ -25,7 +25,7 @@ app, rt = fast_app(
 
 
 @app.get("/")
-def index():
+def index() -> Any:
     nav_link = {
         "批次": "/batches",
         "銷售": "/sales",
