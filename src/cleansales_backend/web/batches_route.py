@@ -2,8 +2,10 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 from itertools import groupby
+from typing import Annotated
 
 from fasthtml.common import *
+from pydantic import BaseModel, StringConstraints, ValidationError, field_validator
 from starlette.middleware.gzip import GZipMiddleware
 
 from cleansales_backend.core.config import get_settings
@@ -189,7 +191,9 @@ def render_search_bar():
     )
 
 
-def render_search_result(result: list[dict[str, Any]]) -> FT:
+def render_search_result(result: list[dict[str, Any]], message: str | None = None) -> FT:
+    if message:
+        return Div(message, cls="bg-white p-4 rounded-lg shadow-md mb-4")
     if not result:
         return Div("未找到結果", cls="bg-white p-4 rounded-lg shadow-md mb-4")
     return Div(
@@ -937,7 +941,7 @@ def render_feed_table(batch: BatchAggregate) -> FT | None:
                     #     P(", ".join(feed_items) if feed_items else "無資料",
                     #       cls="text-sm text-gray-700"),
                     # ),
-                    # cls="flex mb-3"
+                    cls="flex mb-3",
                 ),
                 cls="bg-white p-3 rounded-t-lg border-b border-gray-200",
             ),
@@ -1574,14 +1578,41 @@ def batch_dashboard_controller(
         return render_error_page(e)
 
 
+# 為查詢參數驗證定義 Pydantic 模型
+class QueryRouteParams(BaseModel):
+    # 搜尋字串，長度在 1 到 10 之間
+    search: Annotated[str, StringConstraints(min_length=1, max_length=10)]
+
+    @classmethod
+    @field_validator("search")
+    def search_must_not_be_blank(cls, value: str) -> str:
+        # Pydantic 會確保在調用此驗證器之前 'value' 是一個字串
+        # 此驗證器確保搜尋字串在去除前後空白後不為空
+        stripped_value = value.strip()
+        if not stripped_value:
+            raise ValueError("Search term cannot be blank.")
+        return stripped_value  # 返回處理過的字串供後續使用
+
+
 @app.get("/query")
-def query_batch_controller(search: str) -> Any:
+def query_batch_controller(search: str) -> Any:  # fasthtml 將查詢參數 'search' 作為字串傳入
     try:
-        if not search or search.strip() == "":
-            return Fragment()
-        result = cached_data.query_batches_by_batch_name(search)
+        try:
+            # 使用 Pydantic 模型驗證和處理輸入的 search 參數
+            validated_query = QueryRouteParams(search=search)
+            # 使用經過驗證且去除前後空白的搜尋詞
+            search_term_to_use = validated_query.search
+        except ValidationError as e:
+            # 若驗證失敗，記錄錯誤訊息
+            logger.info(f"Invalid search query provided: '{search}'. Validation errors: {e.errors()}")
+            # 返回 Fragment，與原先處理空搜尋的行為一致
+            return render_search_result([], "長度需在 1 到 10 之間。")
+
+        result = cached_data.query_batches_by_batch_name(search_term_to_use)
         return render_search_result(result)
     except Exception as e:
+        # 捕獲處理或渲染過程中其他未預期的錯誤
+        logger.error(f"Error in query_batch_controller for search '{search}': {e}", exc_info=True)
         return render_error_page(e)
 
 
