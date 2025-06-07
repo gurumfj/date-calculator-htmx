@@ -1,14 +1,14 @@
-function selectTab(tab_id) {
-    const cssSelectedRemove = ["border-transparent", "bg-gray-100", "text-gray-600"];
-    const cssSelectedAdd = ["border-blue-500", "bg-white", "text-blue-600"];
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove(...cssSelectedAdd);
-        button.classList.add(...cssSelectedRemove);
-        button.disabled = false;
-    });
-    document.getElementById(tab_id).classList.add(...cssSelectedAdd);
-    document.getElementById(tab_id).disabled = true;
-}
+// function selectTab(tab_id) {
+//     const cssSelectedRemove = ["border-transparent", "bg-gray-100", "text-gray-600"];
+//     const cssSelectedAdd = ["border-blue-500", "bg-white", "text-blue-600"];
+//     document.querySelectorAll('.tab-button').forEach(button => {
+//         button.classList.remove(...cssSelectedAdd);
+//         button.classList.add(...cssSelectedRemove);
+//         button.disabled = false;
+//     });
+//     document.getElementById(tab_id).classList.add(...cssSelectedAdd);
+//     document.getElementById(tab_id).disabled = true;
+// }
 
 // 本地計算day_age
 function dayAge(dateStr) {

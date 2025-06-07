@@ -324,8 +324,8 @@ def sales_table_component(batch: BatchAggregate) -> FT:
             cls="bg-blue-50 border-b border-gray-200 [&>th]:px-4 [&>th]:py-2 [&>th]:text-blue-900",
         )
         tbody = []
-        for i, (sale_date, sales) in enumerate(grouped_sales.items()):
-            sales: list[SaleRecord] = list(sales)
+        for i, (sale_date, records) in enumerate(grouped_sales.items()):
+            sales: list[SaleRecord] = list(records)
 
             if i % 5 == 0:
                 tbody.append(thead)
@@ -949,79 +949,54 @@ def production_table_component(batch: BatchAggregate) -> FT:
 
 # 導航標籤組件
 def nav_tabs(batch: BatchAggregate) -> FT:
-    # 創建標籤按鈕
-    tabs = []
-    # selected_tab_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-blue-500 bg-white text-blue-600 focus:outline-none"
-    # unselected_tab_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
-    base_classes = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
-    # 選中時要額外添加或替換的樣式
-    selected_specific_classes_add = (
-        "border-blue-500 bg-white text-blue-600"  # 替換 border-transparent, bg-gray-100, text-gray-600
-    )
-    # selected_specific_classes_remove = "border-transparent bg-gray-100 text-gray-600"
+    tabs_dict = {
+        "breed": {
+            "title": "批次資料",
+            "hx_get": f"content/{batch.batch_name}/breed",
+        },
+        "sales": {
+            "title": "銷售記錄",
+            "hx_get": f"content/{batch.batch_name}/sales",
+        },
+        "feed": {
+            "title": "飼料記錄",
+            "hx_get": f"content/{batch.batch_name}/feed",
+        },
+        "production": {
+            "title": "結場報告",
+            "hx_get": f"content/{batch.batch_name}/production",
+        },
+    }
 
-    def _tab_button(tab_title: str, tab_id: str, hx_get: str, selected: bool = False):
-        return Button(
-            tab_title,
-            hx_get=hx_get,
-            hx_target=f"#{batch.safe_id}_batch_tab_content",
-            cls="tab-button " + base_classes + (" " + selected_specific_classes_add if selected else ""),
-            onclick=f"selectTab('{batch.safe_id}_{tab_id}_tab')",
-            id=f"{batch.safe_id}_{tab_id}_tab",
-            disabled=selected,
-            # name=f"{batch.safe_id}_{tab_id}_tab",
-        )
-
-    if batch.breeds:
-        tabs.append(
-            Div(
-                _tab_button("批次資料", "breed", f"content/{batch.batch_name}/breed", selected=True),
-                cls="mr-2",
-            )
-        )
-
-    if batch.sales:
-        tabs.append(
-            Div(
-                _tab_button("銷售記錄", "sales", f"content/{batch.batch_name}/sales"),
-                cls="mr-2",
-            )
-        )
-
-    if batch.feeds:
-        tabs.append(
-            Div(
-                _tab_button("飼料記錄", "feed", f"content/{batch.batch_name}/feed"),
-                cls="mr-2",
-            )
-        )
-
-    if batch.production:
-        tabs.append(
-            Div(
-                _tab_button("結場報告", "production", f"content/{batch.batch_name}/production"),
-                cls="mr-2",
-            )
-        )
-
-    # tabs.append(
-    #     Div(
-    #         _tab_button("Todoist", "todoist", f"content/{batch.batch_name}/todoist"),
-    #         # Button(
-    #         #     "Todoist",
-    #         #     hx_get=f"todoist/{batch.batch_name}",
-    #         #     hx_target=f"#{batch.safe_id}_batch_tab_content",
-    #         #     cls=selected_tab_style if selected_tab == "todoist" else unselected_tab_style,
-    #         #     onclick="selectTab('todoist')",
-    #         #     id="todoist_tab",
-    #         # )
-    #     )
-    # )
+    def _tab_button(tab_value: str, tab_title: str, hx_get: str):
+        base_classes = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
+        selected_specific_classes_add = "border-blue-500 bg-white text-blue-600"
+        raw_html = f"""
+        <button
+            @click=activeTab='{tab_value}'
+            :class="{{'{selected_specific_classes_add}': activeTab === '{tab_value}'}}"
+            :disabled="activeTab === '{tab_value}'"
+            hx-get="{hx_get}"
+            hx-target="#{batch.safe_id}_batch_tab_content"
+            class="{base_classes}"
+        >
+            {tab_title}
+        </button>
+        """
+        return Safe(raw_html)
 
     return Div(
-        Div(*tabs, cls="flex border-b border-gray-200"),
-        id=f"{batch.safe_id}_batch_nav_tabs",
-        hx_swap_oob="true",
+        Div(
+            *[
+                Div(
+                    _tab_button(k, tab["title"], tab["hx_get"]),
+                    cls="mr-2",
+                )
+                for k, tab in tabs_dict.items()
+            ],
+            cls="flex flex-row items-center space-x-2",
+            x_data="{activeTab: 'breed'}",
+        ),
         cls="mb-4",
     )
 
