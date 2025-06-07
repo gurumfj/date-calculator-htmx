@@ -36,16 +36,6 @@ def create_data_service() -> DataServiceInterface:
 
 cached_data = create_data_service()
 
-# day_age_script = Script("""
-# function dayAge(dateStr) {
-#     console.log(dateStr);
-#     const date = new Date(dateStr);
-#     const today = new Date();
-#     const diffTime = Math.abs(today - date);
-#     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-#     return diffDays;
-# }
-# """)
 
 domain_utils_script = Script(src="/static/batches.js")
 
@@ -277,9 +267,7 @@ def breed_table_component(batch: BatchAggregate) -> FT:
                         ),
                         cls="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
                         + (" bg-gray-50" if i % 2 == 0 else ""),
-                        x_data={
-                            "breed_date": breed.breed_date,
-                        },
+                        x_data=f"{{ breed_date: '{breed.breed_date.strftime('%Y-%m-%d')}' }}",
                     )
                     for i, breed in enumerate(batch.breeds)
                 ]
