@@ -25,3 +25,22 @@ function weekAge(dayAge) {
     let day = dayAge % 7;
     return `${week}/${dayOfWeek[day]}`;
 }
+
+function processBar(data) {
+    return {
+        startValue: 0,
+        targetValue: data || 0,
+        currentValue: 0,
+        initTransition(){
+            // this.currentValue = 0;
+            // this.$nextTick(() => {
+            //     this.currentValue = this.targetValue;
+            //     console.log(this.currentValue);
+            // });
+
+            setTimeout(() => {
+                this.currentValue = this.targetValue;
+            }, 100);
+        }
+    }
+}

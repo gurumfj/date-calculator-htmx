@@ -1027,6 +1027,8 @@ def nav_tabs(batch: BatchAggregate) -> FT:
 
 
 def _sales_progress_component(percentage: float, id: str) -> FT:
+    if percentage == 0:
+        return Fragment()
     # if percentage:
     #     使用 Tailwind CSS 自定義進度條
     percentage = int(percentage * 100)
@@ -1039,23 +1041,19 @@ def _sales_progress_component(percentage: float, id: str) -> FT:
                 Span(
                     f"{percentage}%",
                     cls="text-xs font-medium text-blue-100 text-center absolute inset-0 flex items-center justify-center",
-                )
-                if percentage > 10
-                else None,
-                style=f"width:{percentage}%;",
-                cls="bg-gradient-to-r from-blue-600 to-blue-200 h-5 rounded-full relative transition-width duration-600 ease",
+                    x_show=f"{percentage} > 10",
+                ),
+                {":style": "`width: ${currentValue}%`"},
+                cls="bg-gradient-to-r from-blue-600 to-blue-200 h-5 rounded-full relative transition-[width] duration-[2000ms] ease-out",
                 id=f"{id}_progress_bar",
+                x_data=f"processBar({percentage})",
+                x_init="initTransition()",
             ),
             cls="w-full bg-gray-200 rounded-full h-5 mb-1 relative overflow-hidden",
         ),
         cls="w-full",
         id=id,
     )
-
-
-@app.post("/sales_progress")
-def sales_progress(percentage: float, id: str) -> FT:
-    return _sales_progress_component(percentage, id)
 
 
 def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
@@ -1127,18 +1125,8 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                     ),
                     Div(
                         Div(
-                            _sales_progress_component(0.4, f"sales_progress_{batch.safe_id}"),
-                            hx_post="sales_progress",
-                            # hx_target=f"#sales_progress_{batch.safe_id}",
-                            hx_trigger="revealed",
-                            hx_swap="outerHTML swap:true",
-                            hx_vals=f'{{"percentage": {batch.sales_percentage or 0}, "id": "sales_progress_{batch.safe_id}"}}',
-                            cls="hidden",
+                            _sales_progress_component(batch.sales_percentage or 0, f"sales_progress_{batch.safe_id}"),
                         ),
-                        # P(
-                        #     f"銷售進度: {batch.sales_percentage * 100:.0f}%" if batch.sales_percentage else "尚未銷售",
-                        #     cls="text-xs text-gray-600",
-                        # ),
                         cls="w-1/3",
                     )
                     if batch.sales
