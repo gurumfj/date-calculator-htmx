@@ -6,8 +6,8 @@ from fasthtml.common import *
 from postgrest.exceptions import APIError
 from rich.logging import RichHandler
 from starlette.middleware.gzip import GZipMiddleware
-from todoist_api_python.api import TodoistAPI
 
+# from todoist_api_python.api import TodoistAPI
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
 from cleansales_backend.domain.models.feed_record import FeedRecord
@@ -36,6 +36,18 @@ def create_data_service() -> DataServiceInterface:
 
 cached_data = create_data_service()
 
+# day_age_script = Script("""
+# function dayAge(dateStr) {
+#     console.log(dateStr);
+#     const date = new Date(dateStr);
+#     const today = new Date();
+#     const diffTime = Math.abs(today - date);
+#     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+#     return diffDays;
+# }
+# """)
+
+domain_utils_script = Script(src="/static/batches.js")
 
 BTN_PRIMARY = "bg-blue-500 text-white hover:bg-blue-600"
 BTN_SECONDARY = "bg-blue-100 text-blue-700 hover:bg-blue-200"
@@ -46,7 +58,7 @@ app, rt = fast_app(
     key_fname=".sesskey",
     session_cookie="cleansales",
     max_age=3600,
-    hdrs=common_headers,
+    hdrs=(common_headers, domain_utils_script),
     pico=False,
     middleware=(Middleware(GZipMiddleware),),
 )
@@ -248,12 +260,12 @@ def breed_table_component(batch: BatchAggregate) -> FT:
                             cls="px-4 py-2 whitespace-nowrap text-sm text-gray-700",
                         ),
                         Td(
-                            day_age(breed.breed_date),
                             cls="px-4 py-2 whitespace-nowrap text-sm text-center text-gray-700",
+                            x_text=day_age(breed.breed_date),
                         ),
                         Td(
-                            week_age(day_age(breed.breed_date)),
                             cls="px-4 py-2 whitespace-nowrap text-sm text-center text-gray-700",
+                            x_text=f"`{week_age(day_age(breed.breed_date))}`",
                         ),
                         Td(
                             f"{breed.breed_male:,}",
@@ -265,6 +277,9 @@ def breed_table_component(batch: BatchAggregate) -> FT:
                         ),
                         cls="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
                         + (" bg-gray-50" if i % 2 == 0 else ""),
+                        x_data={
+                            "breed_date": breed.breed_date,
+                        },
                     )
                     for i, breed in enumerate(batch.breeds)
                 ]
@@ -945,63 +960,75 @@ def production_table_component(batch: BatchAggregate) -> FT:
 
 
 # 導航標籤組件
-def nav_tabs(batch: BatchAggregate, selected_tab: str = "breed") -> FT:
+def nav_tabs(batch: BatchAggregate) -> FT:
     # 創建標籤按鈕
     tabs = []
-    selected_tab_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-blue-500 bg-white text-blue-600 focus:outline-none"
-    unselected_tab_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
+    # selected_tab_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-blue-500 bg-white text-blue-600 focus:outline-none"
+    # unselected_tab_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
+    base_classes = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
+    # 選中時要額外添加或替換的樣式
+    selected_specific_classes_add = (
+        "border-blue-500 bg-white text-blue-600"  # 替換 border-transparent, bg-gray-100, text-gray-600
+    )
+    # selected_specific_classes_remove = "border-transparent bg-gray-100 text-gray-600"
+
+    def _tab_button(tab_title: str, tab_id: str, hx_get: str, selected: bool = False):
+        return Button(
+            tab_title,
+            hx_get=hx_get,
+            hx_target=f"#{batch.safe_id}_batch_tab_content",
+            cls="tab-button " + base_classes + (" " + selected_specific_classes_add if selected else ""),
+            onclick=f"selectTab('{batch.safe_id}_{tab_id}_tab')",
+            id=f"{batch.safe_id}_{tab_id}_tab",
+            disabled=selected,
+            # name=f"{batch.safe_id}_{tab_id}_tab",
+        )
 
     if batch.breeds:
         tabs.append(
             Div(
-                Button(
-                    "批次資料",
-                    hx_get=f"content/{batch.batch_name}/breed" if selected_tab != "breed" else None,
-                    hx_target=f"#{batch.safe_id}_batch_tab_content",
-                    cls=selected_tab_style if selected_tab == "breed" else unselected_tab_style,
-                ),
+                _tab_button("批次資料", "breed", f"content/{batch.batch_name}/breed", selected=True),
                 cls="mr-2",
-                disabled=selected_tab == "breed",
             )
         )
 
     if batch.sales:
         tabs.append(
             Div(
-                Button(
-                    "銷售記錄",
-                    hx_get=f"content/{batch.batch_name}/sales" if selected_tab != "sales" else None,
-                    hx_target=f"#{batch.safe_id}_batch_tab_content",
-                    cls=selected_tab_style if selected_tab == "sales" else unselected_tab_style,
-                ),
+                _tab_button("銷售記錄", "sales", f"content/{batch.batch_name}/sales"),
                 cls="mr-2",
-                disabled=selected_tab == "sales",
             )
         )
 
     if batch.feeds:
         tabs.append(
             Div(
-                Button(
-                    "飼料記錄",
-                    hx_get=f"content/{batch.batch_name}/feed" if selected_tab != "feed" else None,
-                    hx_target=f"#{batch.safe_id}_batch_tab_content",
-                    cls=selected_tab_style if selected_tab == "feed" else unselected_tab_style,
-                )
+                _tab_button("飼料記錄", "feed", f"content/{batch.batch_name}/feed"),
+                cls="mr-2",
             )
         )
 
     if batch.production:
         tabs.append(
             Div(
-                Button(
-                    "結場報告",
-                    hx_get=f"content/{batch.batch_name}/production" if selected_tab != "production" else None,
-                    hx_target=f"#{batch.safe_id}_batch_tab_content",
-                    cls=selected_tab_style if selected_tab == "production" else unselected_tab_style,
-                )
+                _tab_button("結場報告", "production", f"content/{batch.batch_name}/production"),
+                cls="mr-2",
             )
         )
+
+    # tabs.append(
+    #     Div(
+    #         _tab_button("Todoist", "todoist", f"content/{batch.batch_name}/todoist"),
+    #         # Button(
+    #         #     "Todoist",
+    #         #     hx_get=f"todoist/{batch.batch_name}",
+    #         #     hx_target=f"#{batch.safe_id}_batch_tab_content",
+    #         #     cls=selected_tab_style if selected_tab == "todoist" else unselected_tab_style,
+    #         #     onclick="selectTab('todoist')",
+    #         #     id="todoist_tab",
+    #         # )
+    #     )
+    # )
 
     return Div(
         Div(*tabs, cls="flex border-b border-gray-200"),
@@ -1087,9 +1114,26 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                             batch.batch_name,
                             cls="text-lg font-semibold text-gray-800",
                         ),
-                        P(
-                            f"週齡: {week_age_str(batch)} | {sum([breed.breed_male + breed.breed_female for breed in batch.breeds])}隻",
-                            cls="text-sm text-gray-600",
+                        # P(
+                        #     f"週齡: {week_age_str(batch)} | {sum([breed.breed_male + breed.breed_female for breed in batch.breeds])}隻",
+                        #     cls="text-sm text-gray-600",
+                        # ),
+                        Div(
+                            Span(
+                                "週齡",
+                                # cls="text-sm text-gray-600",
+                                x_text="`週齡: ${weekAge(dayAge(breed_date))} (${dayAge(breed_date)})`",
+                                x_data=f"{{ breed_date: '{batch.breeds[0].breed_date.strftime('%Y-%m-%d')}' }}",
+                            ),
+                            Span(
+                                "|",
+                                # cls="text-sm text-gray-600",
+                            ),
+                            Span(
+                                f"隻數: {sum([breed.breed_male + breed.breed_female for breed in batch.breeds])}",
+                                # cls="text-sm text-gray-600",
+                            ),
+                            cls="flex items-center gap-2 text-sm text-gray-600",
                         ),
                         cls="flex-grow",
                     ),
@@ -1398,11 +1442,11 @@ def index(request: Request, sess: dict, breed: str | None = None, end_date: str 
         return _render_exception_component(e)
 
 
-def get_todoist_api() -> TodoistAPI:
-    token = get_settings().TODOIST_API_TOKEN
-    if not token:
-        raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
-    return TodoistAPI(token)
+# def get_todoist_api() -> TodoistAPI:
+#     token = get_settings().TODOIST_API_TOKEN
+#     if not token:
+#         raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
+#     return TodoistAPI(token)
 
 
 @app.get("/reset")
@@ -1422,30 +1466,41 @@ def content(batch_name: str, tab_type: str) -> Any:
             return str(f"未找到批次 {batch_name}")
         if tab_type == "breed":
             return (
-                nav_tabs(batch, "breed"),
+                # nav_tabs(batch, "breed"),
                 breed_summary(batch),
                 breed_table_component(batch),
             )
         if tab_type == "sales":
             return (
-                nav_tabs(batch, "sales"),
+                # nav_tabs(batch, "sales"),
                 sales_summary(batch),
                 sales_table_component(batch),
             )
         if tab_type == "feed":
             return (
-                nav_tabs(batch, "feed"),
+                # nav_tabs(batch, "feed"),
                 feed_summary(batch),
                 feed_table_component(batch),
             )
         if tab_type == "production":
             return (
-                nav_tabs(batch, "production"),
+                # nav_tabs(batch, "production"),
                 production_summary(batch),
                 production_table_component(batch),
             )
+        # if tab_type == "todoist":
+        #     return todoist(batch_name)
     except Exception as e:
         return str(e)
+
+
+# def todoist(batch_name: str) -> Any:
+#     try:
+#         todoist_api = get_todoist_api()
+#         tasks = todoist_api.get_tasks(label=batch_name)
+#         return Ul(*[Li(task.content) for task in next(tasks)])
+#     except Exception as e:
+#         return str(e)
 
 
 def main():

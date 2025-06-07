@@ -161,8 +161,10 @@ class CachedDataService(DataServiceInterface):
                 .order("initial_date")
                 .execute()
             )
-            if index_response.data is None:
-                return {}
+            # print(index_response.count)
+            # if not index_response.count:
+            #     return {}
+
             batches = [data.get("batch_name") for data in index_response.data]
             breed_response = self.supabase.table("breedrecordorm").select("*").in_("batch_name", batches).execute()
             sale_response = self.supabase.table("salerecordorm").select("*").in_("batch_name", batches).execute()
