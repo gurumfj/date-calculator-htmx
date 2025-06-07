@@ -37,8 +37,9 @@ function processBar(data) {
             //     this.currentValue = this.targetValue;
             //     console.log(this.currentValue);
             // });
-
+            // this.currentValue = 0;
             setTimeout(() => {
+                console.log(this.targetValue);
                 this.currentValue = this.targetValue;
             }, 100);
         }

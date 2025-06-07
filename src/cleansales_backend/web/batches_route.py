@@ -1,13 +1,11 @@
 import logging
 import uuid
 from datetime import datetime, timedelta
+from itertools import groupby
 
 from fasthtml.common import *
-from postgrest.exceptions import APIError
-from rich.logging import RichHandler
 from starlette.middleware.gzip import GZipMiddleware
 
-# from todoist_api_python.api import TodoistAPI
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
 from cleansales_backend.domain.models.feed_record import FeedRecord
@@ -20,13 +18,15 @@ from .resources import common_headers
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[RichHandler(rich_tracebacks=False, markup=True)],
-)
-
 
 def create_data_service() -> DataServiceInterface:
+    """建立並返回一個資料服務實例。
+
+    根據環境變數中的 Supabase 配置來初始化 `CachedDataService`。
+
+    Returns:
+        DataServiceInterface: 資料服務的實例。
+    """
     supabase: Client = create_client(
         supabase_url=get_settings().SUPABASE_CLIENT_URL,
         supabase_key=get_settings().SUPABASE_ANON_KEY,
@@ -39,10 +39,7 @@ cached_data = create_data_service()
 
 domain_utils_script = Script(src="/static/batches.js")
 
-BTN_PRIMARY = "bg-blue-500 text-white hover:bg-blue-600"
-BTN_SECONDARY = "bg-blue-100 text-blue-700 hover:bg-blue-200"
 
-# 初始化 FastAPI 應用
 app, rt = fast_app(
     live=True,
     key_fname=".sesskey",
@@ -54,30 +51,43 @@ app, rt = fast_app(
 )
 
 
-def breeds_selector_component(selected_breed: str, end_date: str) -> FT:
-    # 雞種選項列表
-    breeds = ["黑羽", "古早", "舍黑", "閹雞"]
-    indicator = Div(
+def render_breed_selector(selected_breed: str, end_date: str) -> FT:
+    """Renders breed selection component with interactive buttons.
+
+    Args:
+        selected_breed: Currently selected breed type
+        end_date: Current end date for building breed selection links
+
+    Returns:
+        FastHTML component containing breed selection buttons
+    """
+    available_breeds = ["黑羽", "古早", "舍黑", "閹雞"]
+    loading_indicator = Div(
         Span("Loading...", cls="text-black opacity-50"),
         id="loading_indicator",
         cls="htmx-indicator",
     )
-    # 建立雞種選擇器組件，使用 Tailwind CSS 美化
+
+    primary_button_style = "bg-blue-500 text-white hover:bg-blue-600"
+    secondary_button_style = "bg-blue-100 text-blue-700 hover:bg-blue-200"
+
+    breed_buttons = [
+        Button(
+            breed,
+            hx_get=f"?breed={breed}&end_date={end_date}",
+            hx_indicator="#loading_indicator",
+            hx_push_url="true",
+            cls=f"px-4 py-2 rounded-md text-sm font-medium {primary_button_style if breed == selected_breed else secondary_button_style} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 inline-block mx-1",
+        )
+        for breed in available_breeds
+    ]
+
     return Div(
         Div(
             H3("雞種選擇", cls="text-lg font-semibold mb-2 text-gray-700"),
             Div(
-                *[
-                    Button(
-                        breed,
-                        hx_get=f"?breed={breed}&end_date={end_date}",
-                        hx_indicator="#loading_indicator",
-                        hx_push_url="true",
-                        cls=f"px-4 py-2 rounded-md text-sm font-medium {BTN_PRIMARY if breed == selected_breed else BTN_SECONDARY} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 inline-block mx-1",
-                    )
-                    for breed in breeds
-                ],
-                indicator,
+                *breed_buttons,
+                loading_indicator,
                 cls="flex flex-row flex-wrap items-center space-x-2",
             ),
             cls="bg-white p-4 rounded-lg shadow-md mb-4",
@@ -88,58 +98,63 @@ def breeds_selector_component(selected_breed: str, end_date: str) -> FT:
     )
 
 
-def date_picker_component(end_date_str: str, breed: str) -> FT:
-    # 計算前後30天的日期
-    earlier_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") - timedelta(days=30)).strftime("%Y-%m-%d")
-    later_date_str = (datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=30)).strftime("%Y-%m-%d")
+def render_date_picker(end_date_str: str, breed: str) -> FT:
+    """Renders date picker component with navigation controls.
 
-    # 使用 Tailwind CSS 美化日期選擇器組件
+    Args:
+        end_date_str: Current selected end date in YYYY-MM-DD format
+        breed: Current selected breed for building date change links
+
+    Returns:
+        FastHTML component containing date picker functionality
+    """
+    current_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+    previous_month_date = (current_date - timedelta(days=30)).strftime("%Y-%m-%d")
+    next_month_date = (current_date + timedelta(days=30)).strftime("%Y-%m-%d")
+
+    navigation_button_style = (
+        "bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 transition duration-200 ease-in-out w-full"
+    )
+
     return Div(
         Form(
             H3("日期範圍選擇", cls="text-lg font-semibold mb-2 text-gray-700"),
             Div(
-                # 向前按鈕
                 Div(
                     Button(
                         Span("«", cls="text-xl"),
-                        hx_get=f"?end_date={earlier_date_str}&breed={breed}",
+                        hx_get=f"?end_date={previous_month_date}&breed={breed}",
                         hx_push_url="true",
                         hx_indicator="#loading_indicator",
-                        cls="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-l-lg transition duration-200 ease-in-out w-full",
+                        cls=f"{navigation_button_style} rounded-l-lg",
                     ),
                     cls="w-1/4",
                 ),
-                # 日期顯示和選擇
                 Div(
-                    Div(
-                        Input(
-                            type="date",
-                            aria_label="Date",
-                            name="end_date",
-                            id="end_date",
-                            value=end_date_str,
-                            hx_get="?",
-                            hx_trigger="change delay:500ms",
-                            hx_indicator="#loading_indicator",
-                            cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                        ),
-                        cls="flex flex-col",
+                    Input(
+                        type="date",
+                        aria_label="Date",
+                        name="end_date",
+                        id="end_date",
+                        value=end_date_str,
+                        hx_get="?",
+                        hx_trigger="change delay:500ms",
+                        hx_indicator="#loading_indicator",
+                        cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                     ),
                     cls="w-2/4 px-2",
                 ),
-                # 向後按鈕
                 Div(
                     Button(
                         Span("»", cls="text-xl"),
-                        hx_get=f"?end_date={later_date_str}&breed={breed}",
+                        hx_get=f"?end_date={next_month_date}&breed={breed}",
                         hx_indicator="#loading_indicator",
-                        cls="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-r-lg transition duration-200 ease-in-out w-full",
+                        cls=f"{navigation_button_style} rounded-r-lg",
                     ),
                     cls="w-1/4",
                 ),
                 cls="flex items-center mb-2",
             ),
-            # 重置按鈕
             Div(
                 Button(
                     "重置所有篩選",
@@ -158,20 +173,21 @@ def date_picker_component(end_date_str: str, breed: str) -> FT:
 
 
 @dataclass
-class DashboardItem:
+class DashboardMetric:
     title: str
     value: str
 
 
-def render_dashboard_component(data: list[DashboardItem]) -> FT:
-    """
-    Render dashboard component, better for less than 4 digits
+def render_dashboard_metrics(metrics: list[DashboardMetric]) -> FT:
+    """Renders dashboard component with key metrics.
+
     Args:
-        data (list[DashboardItem]): Dashboard data
+        metrics: List of dashboard metrics to display
+
     Returns:
-        FT: FastHTML component
+        FastHTML component displaying dashboard metrics
     """
-    colors = [
+    metric_colors = [
         ("bg-red-50", "text-red-600"),
         ("bg-orange-50", "text-orange-600"),
         ("bg-yellow-50", "text-yellow-600"),
@@ -182,39 +198,47 @@ def render_dashboard_component(data: list[DashboardItem]) -> FT:
         ("bg-violet-50", "text-violet-600"),
     ]
 
-    return Div(  # Grid Frame
-        *[
+    metric_cards = [
+        Div(
             Div(
-                Div(
-                    Span(item.value, cls=colors[i % len(colors)][1] + " font-bold text-2xl"),
-                    cls="mb-1",
-                ),
-                P(item.title, cls="text-xs text-gray-500"),
-                cls=f"{colors[i % len(colors)][0]} p-3 rounded-lg text-center",
-            )
-            for i, item in enumerate(data)
-        ],
+                Span(metric.value, cls=f"{metric_colors[i % len(metric_colors)][1]} font-bold text-2xl"),
+                cls="mb-1",
+            ),
+            P(metric.title, cls="text-xs text-gray-500"),
+            cls=f"{metric_colors[i % len(metric_colors)][0]} p-3 rounded-lg text-center",
+        )
+        for i, metric in enumerate(metrics)
+    ]
+
+    return Div(
+        *metric_cards,
         cls="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4",
     )
 
 
-def breed_table_component(batch: BatchAggregate) -> FT:
-    # 如果沒有品種數據，顯示友好的空狀態提示
+def render_breed_table(batch: BatchAggregate) -> FT:
+    """Renders detailed breed information table for a specific batch.
+
+    Args:
+        batch: Batch aggregate containing breed data
+
+    Returns:
+        FastHTML component containing breed information table
+    """
     if not batch.breeds:
         return Div(
             P("尚無品種資料", cls="text-gray-500 text-center py-4"),
             cls="bg-gray-50 rounded-lg border border-gray-200 p-2",
         )
 
-    # 使用 Tailwind CSS 美化表格
+    table_header_style = "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+    table_cell_style = "px-4 py-2 whitespace-nowrap text-sm text-gray-700"
+
     return Div(
         Table(
             Thead(
                 Tr(
-                    Th(
-                        "種母場",
-                        cls="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
-                    ),
+                    Th("種母場", cls=table_header_style),
                     Th(
                         "入雛日",
                         cls="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
@@ -298,7 +322,17 @@ def breed_table_component(batch: BatchAggregate) -> FT:
     )
 
 
-def sales_table_component(batch: BatchAggregate) -> FT:
+def render_sales_table(batch: BatchAggregate) -> FT:
+    """呈現特定批次的銷售記錄表格。
+
+    表格包含銷售日期、銷售類型、客戶、隻數、均重、單價、總額和備註等欄位。
+
+    Args:
+        batch (BatchAggregate): 包含批次銷售資料的物件。
+
+    Returns:
+        FT: 包含銷售記錄表格的 FastHTML 組件。
+    """
     # 如果沒有銷售數據，顯示友好的空狀態提示
     if not batch.sales:
         return Div(
@@ -310,6 +344,7 @@ def sales_table_component(batch: BatchAggregate) -> FT:
     grouped_sales = groupby(batch.sales, key=lambda sale: sale.sale_date)
 
     def _sales_records() -> FT:
+        """內部輔助函數，生成銷售記錄表格的內容。"""
         thead = Tr(
             Th("客戶", cls="text-left"),
             Th("公數", cls="text-right"),
@@ -422,15 +457,25 @@ def sales_table_component(batch: BatchAggregate) -> FT:
     )
 
 
-def breed_summary(batch: BatchAggregate) -> FT:
+def render_breed_summary(batch: BatchAggregate) -> FT:
+    """呈現特定批次的雞種摘要資訊。
+
+    顯示關鍵的雞種相關數據，如雞種名稱、入舍日期、目前週齡等。
+
+    Args:
+        batch (BatchAggregate): 包含批次資料的物件。
+
+    Returns:
+        FT: 包含雞種摘要資訊的 FastHTML 組件。
+    """
     # 如果沒有品種數據，返回空組件
     if not batch.breeds:
         return Div()
 
     # 創建資訊項目的函數
-    def info_item(label: str, value: str | None) -> FT:
+    def create_info_item(label: str, value: str | None) -> FT:
         if not value:
-            return Div()  # 返回空的 Div 而不是 None，確保返回值始終是 FT 類型
+            return Div()
         return Div(
             Span(f"{label}：", cls="text-gray-600 font-medium"),
             Span(value, cls="text-gray-800"),
@@ -446,15 +491,15 @@ def breed_summary(batch: BatchAggregate) -> FT:
             ),
             Div(
                 Div(
-                    info_item("管理人", batch.breeds[0].farmer_name),
-                    info_item("供應商", batch.breeds[0].supplier),
-                    info_item("獸醫", batch.breeds[0].veterinarian),
+                    create_info_item("管理人", batch.breeds[0].farmer_name),
+                    create_info_item("供應商", batch.breeds[0].supplier),
+                    create_info_item("獸醫", batch.breeds[0].veterinarian),
                     cls="md:w-1/2",
                 ),
                 Div(
-                    info_item("農場", batch.breeds[0].farm_name),
-                    info_item("地址", batch.breeds[0].address),
-                    info_item("許可證號碼", batch.breeds[0].farm_license),
+                    create_info_item("農場", batch.breeds[0].farm_name),
+                    create_info_item("地址", batch.breeds[0].address),
+                    create_info_item("許可證號碼", batch.breeds[0].farm_license),
                     cls="md:w-1/2",
                 ),
                 cls="flex flex-wrap",
@@ -465,7 +510,17 @@ def breed_summary(batch: BatchAggregate) -> FT:
     )
 
 
-def sales_summary(batch: BatchAggregate) -> FT | None:
+def render_sales_summary(batch: BatchAggregate) -> FT | None:
+    """呈現特定批次的銷售摘要資訊。
+
+    顯示銷售總覽數據，如總銷售隻數、平均售價、總收入等。
+
+    Args:
+        batch (BatchAggregate): 包含批次銷售資料的物件。
+
+    Returns:
+        FT: 包含銷售摘要資訊的 FastHTML 組件。
+    """
     # 如果沒有銷售摘要數據，顯示友好的空狀態提示
     if not batch.sales_summary:
         return Div(
@@ -483,22 +538,26 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
         )
 
     # 格式化百分比和數值的輔助函數
-    def format_percentage(value):
+    def format_percentage(value: float | None) -> str:
+        """格式化百分比顯示。"""
         if value is None:
             return "-"
         return f"{value * 100:.1f}%"
 
-    def format_weight(value):
+    def format_weight(value: float | None) -> str:
+        """格式化重量顯示。"""
         if value is None:
             return "-"
         return f"{value:.2f} 斤"
 
-    def format_price(value):
+    def format_price(value: float | None) -> str:
+        """格式化價格顯示。"""
         if value is None:
             return "-"
         return f"{value:.1f} 元"
 
-    def format_revenue(value):
+    def format_revenue(value: float | None) -> str:
+        """格式化總收入顯示。"""
         if value is None:
             return "-"
         return f"{int(value):,} 元"
@@ -514,35 +573,35 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
                     cls="flex items-center mb-3",
                 ),
                 # 主要統計數據卡片
-                render_dashboard_component(
+                render_dashboard_metrics(
                     [
-                        DashboardItem(
+                        DashboardMetric(
                             title="銷售成數",
                             value=f"{batch.sales_summary.sales_percentage * 100:.1f}%",
                         ),
-                        DashboardItem(
+                        DashboardMetric(
                             title="平均重量",
                             value=f"{batch.sales_summary.avg_weight:.2f} 斤",
                         ),
-                        DashboardItem(
+                        DashboardMetric(
                             title="平均單價",
                             value=f"${batch.sales_summary.avg_price_weight:.1f}"
                             if batch.sales_summary.avg_price_weight
                             else "-",
                         ),
-                        DashboardItem(
+                        DashboardMetric(
                             title="開場天數",
                             value=f"{batch.sales_summary.sales_duration} 天"
                             if batch.sales_summary.sales_duration
                             else "-",
                         ),
-                        DashboardItem(
+                        DashboardMetric(
                             title="開場日齡",
                             value=f"{batch.sales_summary.sales_open_close_dayage[0]} 天"
                             if batch.sales_summary.sales_open_close_dayage
                             else "-",
                         ),
-                        DashboardItem(
+                        DashboardMetric(
                             title="結案日齡",
                             value=f"{batch.sales_summary.sales_open_close_dayage[1]} 天"
                             if batch.sales_summary.sales_open_close_dayage
@@ -665,7 +724,17 @@ def sales_summary(batch: BatchAggregate) -> FT | None:
     )
 
 
-def feed_summary(batch: BatchAggregate) -> FT | None:
+def render_feed_summary(batch: BatchAggregate) -> FT | None:
+    """呈現特定批次的飼料摘要資訊。
+
+    顯示飼料使用總覽，如總耗料量、平均換肉率等。
+
+    Args:
+        batch (BatchAggregate): 包含批次飼料資料的物件。
+
+    Returns:
+        FT: 包含飼料摘要資訊的 FastHTML 組件。
+    """
     # 如果沒有飼料數據，返回空
     if not batch.feeds:
         return Div(
@@ -760,7 +829,17 @@ def feed_summary(batch: BatchAggregate) -> FT | None:
     )
 
 
-def feed_table_component(batch: BatchAggregate) -> FT | None:
+def render_feed_table(batch: BatchAggregate) -> FT | None:
+    """呈現特定批次的飼料使用記錄表格。
+
+    表格包含日期、飼料類型、用量、單價、總額和備註等欄位。
+
+    Args:
+        batch (BatchAggregate): 包含批次飼料資料的物件。
+
+    Returns:
+        FT: 包含飼料記錄表格的 FastHTML 組件。
+    """
     # 如果沒有飼料數據，顯示友好的空狀態提示
     if not batch.feeds:
         return Div(
@@ -773,6 +852,7 @@ def feed_table_component(batch: BatchAggregate) -> FT | None:
 
     # 渲染單個飼料表格的函數
     def _render_feed_table(feeds: list[FeedRecord]) -> FT:
+        """內部輔助函數，生成飼料記錄表格的內容。"""
         # 按日期排序
         feeds.sort(key=lambda x: x.feed_date)
 
@@ -887,7 +967,17 @@ def feed_table_component(batch: BatchAggregate) -> FT | None:
     )
 
 
-def production_summary(batch: BatchAggregate) -> FT:
+def render_production_summary(batch: BatchAggregate) -> FT:
+    """呈現特定批次的生產摘要資訊。
+
+    顯示生產效能相關數據，如育成率、總飼料成本、每隻雞成本等。
+
+    Args:
+        batch (BatchAggregate): 包含批次生產資料的物件。
+
+    Returns:
+        FT: 包含生產摘要資訊的 FastHTML 組件。
+    """
     if not batch.production:
         return Div(
             P("尚無生產資料", cls="text-gray-500 text-center py-4"),
@@ -909,29 +999,29 @@ def production_summary(batch: BatchAggregate) -> FT:
                 ),
                 cls="flex items-center mb-3",
             ),
-            render_dashboard_component(
+            render_dashboard_metrics(
                 [
-                    DashboardItem(
+                    DashboardMetric(
                         title="換肉率",
                         value=f"{data.fcr:.2f}",
                     ),
-                    DashboardItem(
+                    DashboardMetric(
                         title="造肉成本",
                         value=f"{data.meat_cost:.2f}元",
                     ),
-                    DashboardItem(
+                    DashboardMetric(
                         title="成本單價",
                         value=f"{data.cost_price:.2f}元",
                     ),
-                    DashboardItem(
+                    DashboardMetric(
                         title="平均單價",
                         value=f"{data.avg_price:.2f}元",
                     ),
-                    DashboardItem(
+                    DashboardMetric(
                         title="利潤",
                         value=f"{profit:,}元",
                     ),
-                    DashboardItem(
+                    DashboardMetric(
                         title="利潤率",
                         value=f"{profit_rate:.2f}%",
                     ),
@@ -943,56 +1033,84 @@ def production_summary(batch: BatchAggregate) -> FT:
     )
 
 
-def production_table_component(batch: BatchAggregate) -> FT:
+def render_production_table(batch: BatchAggregate) -> FT:
+    """呈現特定批次的生產記錄表格。
+
+    表格包含生產日期、生產類型、產量、單價、總額和備註等欄位。
+
+    Args:
+        batch (BatchAggregate): 包含批次生產資料的物件。
+
+    Returns:
+        FT: 包含生產記錄表格的 FastHTML 組件。
+    """
     return Div(P("生產資料尚未提供"), cls="text-center")
 
 
-# 導航標籤組件
-def nav_tabs(batch: BatchAggregate) -> FT:
+def render_nav_tabs(batch: BatchAggregate) -> FT:
+    """呈現用於在不同批次資訊分頁（如雞種、銷售、飼料、生產）之間導覽的標籤組件。
+
+    Args:
+        batch (BatchAggregate): 當前批次的資料物件，主要用於獲取批次名稱以構建連結。
+
+    Returns:
+        FT: 包含導覽標籤的 FastHTML 組件。
+    """
     tabs_dict = {
         "breed": {
+            "key": "breed",
             "title": "批次資料",
             "hx_get": f"content/{batch.batch_name}/breed",
         },
         "sales": {
+            "key": "sales",
             "title": "銷售記錄",
             "hx_get": f"content/{batch.batch_name}/sales",
         },
         "feed": {
+            "key": "feed",
             "title": "飼料記錄",
             "hx_get": f"content/{batch.batch_name}/feed",
         },
         "production": {
+            "key": "production",
             "title": "結場報告",
             "hx_get": f"content/{batch.batch_name}/production",
         },
     }
+    tab_list = [
+        tabs_dict["breed"],
+        tabs_dict["sales"] if batch.sales else None,
+        tabs_dict["feed"] if batch.feeds else None,
+        tabs_dict["production"] if batch.production else None,
+    ]
 
-    def _tab_button(tab_value: str, tab_title: str, hx_get: str):
-        base_classes = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
-        selected_specific_classes_add = "border-blue-500 bg-white text-blue-600"
-        raw_html = f"""
+    def create_tab_button(tab_value: str, tab_title: str, hx_get: str) -> Safe:
+        base_button_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
+        active_button_style = "border-blue-500 bg-white text-blue-600"
+
+        return Safe(f"""
         <button
             @click=activeTab='{tab_value}'
-            :class="{{'{selected_specific_classes_add}': activeTab === '{tab_value}'}}"
+            :class="{{'{active_button_style}': activeTab === '{tab_value}'}}"
             :disabled="activeTab === '{tab_value}'"
             hx-get="{hx_get}"
             hx-target="#{batch.safe_id}_batch_tab_content"
-            class="{base_classes}"
+            class="{base_button_style}"
         >
             {tab_title}
         </button>
-        """
-        return Safe(raw_html)
+        """)
 
     return Div(
         Div(
             *[
                 Div(
-                    _tab_button(k, tab["title"], tab["hx_get"]),
+                    create_tab_button(tab["key"], tab["title"], tab["hx_get"]),
                     cls="mr-2",
                 )
-                for k, tab in tabs_dict.items()
+                for tab in tab_list
+                if tab
             ],
             cls="flex flex-row items-center space-x-2",
             x_data="{activeTab: 'breed'}",
@@ -1001,37 +1119,50 @@ def nav_tabs(batch: BatchAggregate) -> FT:
     )
 
 
-def _sales_progress_component(percentage: float, id: str) -> FT:
+def render_sales_progress(percentage: float, progress_id: str) -> Safe:
+    """呈現一個銷售進度條組件。
+
+    Args:
+        percentage (float): 銷售完成的百分比 (0.0 到 100.0)。
+        id (str): 組件的 HTML ID。
+
+    Returns:
+        Div: 包含進度條的 FastHTML Div 組件。
+    """
     if percentage == 0:
-        return Fragment()
-    # if percentage:
-    #     使用 Tailwind CSS 自定義進度條
+        return Safe("")
     percentage = int(percentage * 100)
 
-    # 使用內嵌樣式代替 Tailwind 的動態寬度類
-    # 這樣可以精確控制進度條寬度
-    return Div(
-        Div(
-            Div(
-                Span(
-                    f"{percentage}%",
-                    cls="text-xs font-medium text-blue-100 text-center absolute inset-0 flex items-center justify-center",
-                    x_show=f"{percentage} > 10",
-                ),
-                {":style": "`width: ${currentValue}%`"},
-                cls="bg-gradient-to-r from-blue-600 to-blue-200 h-5 rounded-full relative transition-[width] duration-[2000ms] ease-out",
-                id=f"{id}_progress_bar",
-                x_data=f"processBar({percentage})",
-                x_init="initTransition()",
-            ),
-            cls="w-full bg-gray-200 rounded-full h-5 mb-1 relative overflow-hidden",
-        ),
-        cls="w-full",
-        id=id,
-    )
+    raw_html = f"""
+    <div id="{progress_id}_progress_bar" class="w-full bg-gray-200 rounded-full h-5 mb-1 relative overflow-hidden">
+        <div
+        class="bg-gradient-to-r from-blue-600 to-blue-200 h-5 rounded-full relative transition-[width] duration-[2000ms] ease-out" 
+        :style="`width: ${{currentValue}}%`"
+        x-data="processBar({percentage})"
+        x-init="initTransition()">
+            <span
+                class="text-xs font-medium text-blue-100 text-center absolute inset-0 flex items-center justify-center"
+            >
+                {percentage}%
+            </span>
+        </div>
+    </div>
+    """
+    return Safe(raw_html)
 
 
-def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
+def render_batch_list(batch_list: dict[str, BatchAggregate]) -> FT:
+    """呈現批次列表組件。
+
+    為每個批次顯示一個卡片，包含批次名稱、週齡、銷售進度等摘要資訊，
+    並提供導覽標籤以查看詳細資訊。
+
+    Args:
+        batch_list (dict[str, BatchAggregate]): 以批次名稱為鍵，批次資料為值的字典。
+
+    Returns:
+        FT: 包含批次列表的 FastHTML 組件。
+    """
     # 銷售進度條組件
 
     # 如果沒有批次數據，顯示空狀態
@@ -1060,6 +1191,7 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
         )
 
     def week_age_str(batch: BatchAggregate) -> str:
+        """內部輔助函數，將批次的日齡轉換為週齡和日齡的字串表示。"""
         return ", ".join(
             [week_age(day_age(breed.breed_date)) for breed in sorted(batch.breeds, key=lambda breed: breed.breed_date)]
         )
@@ -1100,7 +1232,7 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                     ),
                     Div(
                         Div(
-                            _sales_progress_component(batch.sales_percentage or 0, f"sales_progress_{batch.safe_id}"),
+                            render_sales_progress(batch.sales_percentage or 0, f"sales_progress_{batch.safe_id}"),
                         ),
                         cls="w-1/3",
                     )
@@ -1111,10 +1243,10 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
                 ),
                 # 批次詳細內容
                 Div(
-                    nav_tabs(batch),
+                    render_nav_tabs(batch),
                     Div(
-                        breed_summary(batch),
-                        breed_table_component(batch),
+                        render_breed_summary(batch),
+                        render_breed_table(batch),
                         id=f"{batch.safe_id}_batch_tab_content",
                         cls="bg-white p-2 rounded-b-lg",
                     ),
@@ -1149,172 +1281,158 @@ def batch_list_component(batch_list: dict[str, BatchAggregate]) -> FT:
     )
 
 
-def _render_exception_component(e: Exception):
-    """
-    Render exception component
-    TODO: reduce excetion presentation on production
+def render_error_page(exception: Exception) -> Any:
+    """Renders standardized error message component.
+
     Args:
-        e (Exception): Exception to render
+        exception: Exception object to render
+
     Returns:
-        FT: FastHTML component
+        FastHTML component displaying error message
     """
+    error_details = []
 
-    def render(title: str):
-        # 顯示異常的詳細信息
-        error_details = []
-
-        # 解析錯誤訊息，處理可能的嵌套字典
-        def parse_error_message(msg):
-            # 如果是字典，直接返回
-            if isinstance(msg, dict):
-                return msg
-
-            # 嘗試解析字串中的字典
-            if isinstance(msg, str):
-                try:
-                    # 處理字典被轉成字串的情況
-                    if msg.startswith("{") and msg.endswith("}"):
-                        # 使用 eval 小心處理，只在確定是字典的情況下使用
-                        import ast
-
-                        return ast.literal_eval(msg)
-                except (SyntaxError, ValueError):
-                    pass
+    def parse_error_message(msg):
+        if isinstance(msg, dict):
             return msg
 
-        # 格式化錯誤訊息，處理嵌套結構
-        def format_error_dict(error_dict, indent=0):
-            if not isinstance(error_dict, dict):
-                return str(error_dict)
+        if isinstance(msg, str):
+            try:
+                if msg.startswith("{") and msg.endswith("}"):
+                    import ast
 
-            result = []
-            for k, v in error_dict.items():
-                if isinstance(v, dict):
-                    result.append(f"{' ' * indent}{k}:")
-                    result.append(format_error_dict(v, indent + 2))
-                else:
-                    result.append(f"{' ' * indent}{k}: {v}")
-            return "\n".join(result)
+                    return ast.literal_eval(msg)
+            except (SyntaxError, ValueError):
+                pass
+        return msg
 
-        # 添加異常的主要信息
-        error_msg = str(e)
-        parsed_error = parse_error_message(error_msg)
+    def format_error_dict(error_dict, indent=0):
+        if not isinstance(error_dict, dict):
+            return str(error_dict)
 
-        if isinstance(parsed_error, dict):
-            formatted_error = format_error_dict(parsed_error)
-            error_details.append(
-                Li(
-                    Pre(
-                        formatted_error,
-                        cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
-                    )
+        result = []
+        for k, v in error_dict.items():
+            if isinstance(v, dict):
+                result.append(f"{' ' * indent}{k}:")
+                result.append(format_error_dict(v, indent + 2))
+            else:
+                result.append(f"{' ' * indent}{k}: {v}")
+        return "\n".join(result)
+
+    error_msg = str(exception)
+    parsed_error = parse_error_message(error_msg)
+
+    if isinstance(parsed_error, dict):
+        formatted_error = format_error_dict(parsed_error)
+        error_details.append(
+            Li(
+                Pre(
+                    formatted_error,
+                    cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
                 )
             )
-        else:
-            error_details.append(Li(P(f"錯誤訊息: {error_msg}", cls="font-semibold text-red-700")))
+        )
+    else:
+        error_details.append(Li(P(f"錯誤訊息: {error_msg}", cls="font-semibold text-red-700")))
 
-        # 如果異常有 args 屬性，顯示它
-        if hasattr(e, "args") and e.args:
-            for i, arg in enumerate(e.args):
-                parsed_arg = parse_error_message(arg)
-                if isinstance(parsed_arg, dict):
-                    formatted_arg = format_error_dict(parsed_arg)
-                    error_details.append(Li(H3(f"參數 {i + 1}:", cls="font-semibold mt-2")))
-                    error_details.append(
-                        Li(
-                            Pre(
-                                formatted_arg,
-                                cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
-                            )
-                        )
-                    )
-                else:
-                    error_details.append(Li(P(f"參數 {i + 1}: {arg}", cls="text-gray-700")))
-
-        # 如果異常有 __dict__ 屬性，顯示它的內容
-        if hasattr(e, "__dict__"):
-            for k, v in e.__dict__.items():
-                if k != "args" and not k.startswith("_"):
-                    parsed_v = parse_error_message(v)
-                    if isinstance(parsed_v, dict):
-                        formatted_v = format_error_dict(parsed_v)
-                        error_details.append(Li(H3(f"{k}:", cls="font-semibold mt-2")))
-                        error_details.append(
-                            Li(
-                                Pre(
-                                    formatted_v,
-                                    cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
-                                )
-                            )
-                        )
-                    else:
-                        error_details.append(Li(P(f"{k}: {v}", cls="text-gray-700")))
-
-        # 如果有 __context__，顯示異常的上下文（即引發此異常的原因）
-        if e.__context__:
-            error_details.append(Li(H3("引發此異常的原因:", cls="mt-4 text-lg font-bold text-red-600")))
-            context_msg = str(e.__context__)
-            parsed_context = parse_error_message(context_msg)
-
-            if isinstance(parsed_context, dict):
-                formatted_context = format_error_dict(parsed_context)
-                error_details.append(Li(P(f"{e.__context__.__class__.__name__}:", cls="font-semibold")))
+    if hasattr(exception, "args") and exception.args:
+        for i, arg in enumerate(exception.args):
+            parsed_arg = parse_error_message(arg)
+            if isinstance(parsed_arg, dict):
+                formatted_arg = format_error_dict(parsed_arg)
+                error_details.append(Li(H3(f"參數 {i + 1}:", cls="font-semibold mt-2")))
                 error_details.append(
                     Li(
                         Pre(
-                            formatted_context,
+                            formatted_arg,
                             cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
                         )
                     )
                 )
             else:
-                error_details.append(
-                    Li(
-                        P(
-                            f"{e.__context__.__class__.__name__}: {context_msg}",
-                            cls="text-gray-700",
+                error_details.append(Li(P(f"參數 {i + 1}: {arg}", cls="text-gray-700")))
+
+    if hasattr(exception, "__dict__"):
+        for k, v in exception.__dict__.items():
+            if k != "args" and not k.startswith("_"):
+                parsed_v = parse_error_message(v)
+                if isinstance(parsed_v, dict):
+                    formatted_v = format_error_dict(parsed_v)
+                    error_details.append(Li(H3(f"{k}:", cls="font-semibold mt-2")))
+                    error_details.append(
+                        Li(
+                            Pre(
+                                formatted_v,
+                                cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
+                            )
                         )
                     )
+                else:
+                    error_details.append(Li(P(f"{k}: {v}", cls="text-gray-700")))
+
+    if exception.__context__:
+        error_details.append(Li(H3("引發此異常的原因:", cls="mt-4 text-lg font-bold text-red-600")))
+        context_msg = str(exception.__context__)
+        parsed_context = parse_error_message(context_msg)
+
+        if isinstance(parsed_context, dict):
+            formatted_context = format_error_dict(parsed_context)
+            error_details.append(Li(P(f"{exception.__context__.__class__.__name__}:", cls="font-semibold")))
+            error_details.append(
+                Li(
+                    Pre(
+                        formatted_context,
+                        cls="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto",
+                    )
                 )
-
-        # 如果有 traceback，顯示它
-        tb_info = []
-        tb = e.__traceback__
-        while tb:
-            tb_info.append(
-                f"檔案 '{tb.tb_frame.f_code.co_filename}', 行 {tb.tb_lineno}, 在 {tb.tb_frame.f_code.co_name}"
             )
-            tb = tb.tb_next
+        else:
+            error_details.append(
+                Li(
+                    P(
+                        f"{exception.__context__.__class__.__name__}: {context_msg}",
+                        cls="text-gray-700",
+                    )
+                )
+            )
 
-        if tb_info:
-            error_details.append(Li(H3("錯誤追蹤:", cls="mt-4 text-lg font-bold text-red-600")))
-            for info in tb_info:
-                error_details.append(Li(P(info, cls="text-sm font-mono text-gray-700")))
+    tb_info = []
+    tb = exception.__traceback__
+    while tb:
+        tb_info.append(f"檔案 '{tb.tb_frame.f_code.co_filename}', 行 {tb.tb_lineno}, 在 {tb.tb_frame.f_code.co_name}")
+        tb = tb.tb_next
 
-        return Title(title), Main(
-            H1(title, cls="text-3xl font-bold text-red-500 mb-6"),
-            Div(
-                H2("錯誤詳情:", cls="text-xl font-bold text-red-600 mb-4"),
-                Ul(*error_details, cls="space-y-2 mb-6"),
-                cls="bg-white p-6 rounded-lg shadow-md",
-            ),
-            cls="container mx-auto px-4 py-8 bg-gray-50 min-h-screen",
-        )
+    if tb_info:
+        error_details.append(Li(H3("錯誤追蹤:", cls="mt-4 text-lg font-bold text-red-600")))
+        for info in tb_info:
+            error_details.append(Li(P(info, cls="text-sm font-mono text-gray-700")))
 
-    match e:
-        case APIError():
-            return render("資料庫查詢錯誤")
-        case Exception():
-            return render("發生錯誤")
-
-
-# @app.get("/")
-# def index() -> Any:
-#     return Redirect("/batches")
+    return Title("錯誤"), Main(
+        H1("錯誤", cls="text-3xl font-bold text-red-500 mb-6"),
+        Div(
+            H2("錯誤詳情:", cls="text-xl font-bold text-red-600 mb-4"),
+            Ul(*error_details, cls="space-y-2 mb-6"),
+            cls="bg-white p-6 rounded-lg shadow-md",
+        ),
+        cls="container mx-auto px-4 py-8 bg-gray-50 min-h-screen",
+    )
 
 
 @app.get("/")
-def index(request: Request, sess: dict, breed: str | None = None, end_date: str | None = None) -> Any:
+def batch_dashboard_controller(
+    request: Request, sess: dict, breed: str | None = None, end_date: str | None = None
+) -> Any:
+    """Main dashboard controller for batch management system.
+
+    Args:
+        request: Starlette Request object
+        sess: User session dictionary
+        breed: Optional breed filter
+        end_date: Optional end date filter in YYYY-MM-DD format
+
+    Returns:
+        Complete FastHTML page or error component
+    """
     try:
         sess["id"] = sess.get("id", uuid.uuid4().hex)
         breed = breed or "黑羽"
@@ -1323,9 +1441,9 @@ def index(request: Request, sess: dict, breed: str | None = None, end_date: str 
         if request.headers.get("HX-Request"):
             batch_list = cached_data.query_batches(start_date, end_date, breed)
             return (
-                breeds_selector_component(breed, end_date),
-                date_picker_component(end_date, breed),
-                batch_list_component(batch_list),
+                render_breed_selector(breed, end_date),
+                render_date_picker(end_date, breed),
+                render_batch_list(batch_list),
             )
 
         batch_list = cached_data.query_batches(start_date, end_date, breed)
@@ -1350,10 +1468,10 @@ def index(request: Request, sess: dict, breed: str | None = None, end_date: str 
                     Div(
                         Details(
                             Summary(
-                                breeds_selector_component(breed, end_date),
+                                render_breed_selector(breed, end_date),
                                 cls="list-none",
                             ),
-                            date_picker_component(end_date, breed),
+                            render_date_picker(end_date, breed),
                             cls="max-h-auto transition-max-height duration-300 ease-in-out open:max-h-500 overflow-hidden",
                         ),
                         cls="container mt-4 px-2 mx-auto sm:px-4",
@@ -1365,7 +1483,7 @@ def index(request: Request, sess: dict, breed: str | None = None, end_date: str 
                                 "批次列表",
                                 cls="hidden sm:block text-2xl font-semibold text-gray-800 mb-4",
                             ),
-                            batch_list_component(batch_list),
+                            render_batch_list(batch_list),
                             cls="bg-white sm:p-6 sm:rounded-lg shadow-md",
                         ),
                         cls="container sm:mx-auto sm:mb-8 sm:px-4",
@@ -1390,68 +1508,81 @@ def index(request: Request, sess: dict, breed: str | None = None, end_date: str 
             ),
         )
     except Exception as e:
-        return _render_exception_component(e)
-
-
-# def get_todoist_api() -> TodoistAPI:
-#     token = get_settings().TODOIST_API_TOKEN
-#     if not token:
-#         raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
-#     return TodoistAPI(token)
+        return render_error_page(e)
 
 
 @app.get("/reset")
-def reset(sess: dict) -> Any:
+def reset_session_controller(sess: dict) -> Any:
+    """Controller for resetting user session and redirecting to main dashboard.
+
+    Args:
+        sess: User session dictionary
+
+    Returns:
+        Redirect to main page on success, error component on failure
+    """
     try:
         sess.clear()
-        return Redirect("/batches")
+        return Redirect("/")
     except Exception as e:
-        return str(e)
+        logger.error(f"Error resetting session: {e}", exc_info=True)
+        return render_error_page(e)
 
 
 @app.get("/content/{batch_name}/{tab_type}")
-def content(batch_name: str, tab_type: str) -> Any:
+def batch_content_controller(batch_name: str, tab_type: str) -> Any:
+    """Controller for dynamically loading specific batch content tabs.
+
+    Args:
+        batch_name: Name of the batch to query
+        tab_type: Type of content tab to display (breed, sales, feed, production)
+
+    Returns:
+        Corresponding content tab FastHTML component or error message
+    """
     try:
         batch = cached_data.query_batch(batch_name)
         if not batch:
-            return str(f"未找到批次 {batch_name}")
+            return Div(P(f"錯誤：未找到批次 {batch_name}"), cls="text-red-500 p-4")
+
+        active_components = []
+
         if tab_type == "breed":
-            return (
-                # nav_tabs(batch, "breed"),
-                breed_summary(batch),
-                breed_table_component(batch),
+            active_components.extend(
+                [
+                    render_breed_summary(batch),
+                    render_breed_table(batch),
+                ]
             )
-        if tab_type == "sales":
-            return (
-                # nav_tabs(batch, "sales"),
-                sales_summary(batch),
-                sales_table_component(batch),
+        elif tab_type == "sales":
+            active_components.extend(
+                [
+                    render_sales_summary(batch),
+                    render_sales_table(batch),
+                ]
             )
-        if tab_type == "feed":
-            return (
-                # nav_tabs(batch, "feed"),
-                feed_summary(batch),
-                feed_table_component(batch),
+        elif tab_type == "feed":
+            active_components.extend(
+                [
+                    render_feed_summary(batch),
+                    render_feed_table(batch),
+                ]
             )
-        if tab_type == "production":
-            return (
-                # nav_tabs(batch, "production"),
-                production_summary(batch),
-                production_table_component(batch),
+        elif tab_type == "production":
+            active_components.extend(
+                [
+                    render_production_summary(batch),
+                    render_production_table(batch),
+                ]
             )
-        # if tab_type == "todoist":
-        #     return todoist(batch_name)
+        else:
+            return Div(P(f"錯誤：無效的分頁類型 '{tab_type}'"), cls="text-red-500 p-4")
+
+        return tuple(active_components) if len(active_components) > 1 else active_components[0]
+
     except Exception as e:
-        return str(e)
-
-
-# def todoist(batch_name: str) -> Any:
-#     try:
-#         todoist_api = get_todoist_api()
-#         tasks = todoist_api.get_tasks(label=batch_name)
-#         return Ul(*[Li(task.content) for task in next(tasks)])
-#     except Exception as e:
-#         return str(e)
+        logger.error(f"Error loading content for batch {batch_name}, tab {tab_type}: {e}", exc_info=True)
+        return render_error_page(e)
 
 
 def main():

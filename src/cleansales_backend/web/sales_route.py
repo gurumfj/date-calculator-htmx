@@ -7,7 +7,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from cleansales_backend.core.config import get_settings
-from cleansales_backend.web.batches_route import _render_exception_component
+from cleansales_backend.web.batches_route import render_error_page
 from cleansales_backend.web.data_service import CachedDataService, DataServiceInterface
 from supabase import Client, create_client
 
@@ -133,7 +133,7 @@ def query_sales(offset: int = 0, search: str | None = None):
         content = Span("錯誤輸入", id="search_error", cls="text-red-500", hx_swap_oob="true").__html__()
         return Response(content=content, headers={"HX-Reswap": "none", "HX-Current-url": "/sales"})
     except Exception as e:
-        return _render_exception_component(e)
+        return render_error_page(e)
 
 
 @app.get("/")
@@ -231,7 +231,7 @@ def sales(offset: int = 0, search: str | None = None):
 
         return _layout_component([_form_component(), _sales_table()])
     except Exception as e:
-        return _render_exception_component(e)
+        return render_error_page(e)
 
 
 # @app.get("/todoist/labels")
