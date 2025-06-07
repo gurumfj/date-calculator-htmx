@@ -39,7 +39,7 @@ function processBar(data) {
             // });
             // this.currentValue = 0;
             setTimeout(() => {
-                console.log(this.targetValue);
+                // console.log(this.targetValue);
                 this.currentValue = this.targetValue;
             }, 100);
         }

@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Generic, Protocol, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 from postgrest.exceptions import APIError
 
@@ -30,6 +30,8 @@ class DataServiceInterface(Protocol):
 
     def query_batches(self, start_date: str, end_date: str, chicken_breed: str) -> dict[str, BatchAggregate]: ...
 
+    def query_batches_by_batch_name(self, batch_name: str) -> list[dict[str, Any]]: ...
+
     def query_sales(
         self, search_term: str | None = None, offset: int = 0, page_size: int = 100
     ) -> PaginatedData[SaleRecord]: ...
@@ -55,6 +57,12 @@ class CachedDataService(DataServiceInterface):
         self._cache: dict[str, CacheResult] = {}
         self._hit_count: int = 0
         self._miss_count: int = 0
+
+    def query_batches_by_batch_name(self, batch_name: str) -> list[dict[str, Any]]:
+        query = self.supabase.table("batchaggregates").select("*").ilike("batch_name", f"%{batch_name}%").execute()
+        if query.data is None:
+            return []
+        return query.data
 
     def query_batch(self, batch_name: str) -> BatchAggregate | None:
         if batch_name in self.batches:

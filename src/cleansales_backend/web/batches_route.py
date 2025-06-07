@@ -172,6 +172,59 @@ def render_date_picker(end_date_str: str, breed: str) -> FT:
     )
 
 
+def render_search_bar():
+    return Div(
+        Input(
+            type="text",
+            name="search",
+            id="search",
+            placeholder="搜尋批次",
+            cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+            hx_get="query",
+            hx_trigger="input delay:500ms, compositionend delay:10ms, change",
+            hx_target="#search_result",
+            hx_indicator="#loading_indicator",
+        ),
+        cls="w-full md:w-1/2 p-4 bg-white rounded-lg shadow-md mb-4",
+    )
+
+
+def render_search_result(result: list[dict[str, Any]]) -> FT:
+    if not result:
+        return Div("未找到結果", cls="bg-white p-4 rounded-lg shadow-md mb-4")
+    return Div(
+        Ul(
+            *[
+                Li(
+                    Div(
+                        H3(batch.get("batch_name"), cls="font-semibold"),
+                        P(
+                            Span(batch.get("chicken_breed"), cls="text-sm text-gray-500 mr-2"),
+                            Span(batch.get("initial_date"), cls="text-sm text-gray-500 mr-2"),
+                            Span(batch.get("final_date"), cls="text-sm text-gray-500 mr-2"),
+                            cls="mb-2",
+                        ),
+                        cls="mb-2",
+                        hx_get=f"?breed={batch.get('chicken_breed')}&end_date={batch.get('final_date')}&selected={batch.get('batch_name')}",
+                        hx_target="#batch_list",
+                        hx_push_url="true",
+                        hx_indicator="#loading_indicator",
+                    ),
+                    {
+                        "@click": f'selected = "{batch.get("batch_name")}"',
+                        ":class": f'selected === "{batch.get("batch_name")}" ? "bg-amber-50" : "bg-white"',
+                    },
+                    cls="p-2 rounded-lg shadow-md m-2",
+                )
+                for batch in result
+            ],
+            cls="space-y-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+        ),
+        cls="bg-white p-4 rounded-lg shadow-md mb-4",
+        x_data='{selected:""}',
+    )
+
+
 @dataclass
 class DashboardMetric:
     title: str
@@ -1151,7 +1204,7 @@ def render_sales_progress(percentage: float, progress_id: str) -> Safe:
     return Safe(raw_html)
 
 
-def render_batch_list(batch_list: dict[str, BatchAggregate]) -> FT:
+def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | None = None) -> FT:
     """呈現批次列表組件。
 
     為每個批次顯示一個卡片，包含批次名稱、週齡、銷售進度等摘要資訊，
@@ -1272,7 +1325,7 @@ def render_batch_list(batch_list: dict[str, BatchAggregate]) -> FT:
                     cls="p-2 bg-gray-50 rounded-b-lg border-t border-gray-200",
                 ),
                 cls="w-full mb-4 bg-white shadow-md overflow-hidden open:bg-amber-50 sm:mb-6 sm:rounded-lg",
-                # open="true",
+                open=True if selected == batch.batch_name else False,
             )
             for batch in sorted(batch_list.values(), key=lambda x: x.breeds[0].breed_date)
         ],
@@ -1420,7 +1473,7 @@ def render_error_page(exception: Exception) -> Any:
 
 @app.get("/")
 def batch_dashboard_controller(
-    request: Request, sess: dict, breed: str | None = None, end_date: str | None = None
+    request: Request, sess: dict, breed: str | None = None, end_date: str | None = None, selected: str | None = None
 ) -> Any:
     """Main dashboard controller for batch management system.
 
@@ -1443,7 +1496,7 @@ def batch_dashboard_controller(
             return (
                 render_breed_selector(breed, end_date),
                 render_date_picker(end_date, breed),
-                render_batch_list(batch_list),
+                render_batch_list(batch_list, selected),
             )
 
         batch_list = cached_data.query_batches(start_date, end_date, breed)
@@ -1472,7 +1525,17 @@ def batch_dashboard_controller(
                                 cls="list-none",
                             ),
                             render_date_picker(end_date, breed),
+                            Details(
+                                Summary(
+                                    render_search_bar(),
+                                    cls="list-none",
+                                ),
+                                Div(id="search_result"),
+                                cls="flex flex-col",
+                                open="true",
+                            ),
                             cls="max-h-auto transition-max-height duration-300 ease-in-out open:max-h-500 overflow-hidden",
+                            open="true",
                         ),
                         cls="container mt-4 px-2 mx-auto sm:px-4",
                     ),
@@ -1511,6 +1574,17 @@ def batch_dashboard_controller(
         return render_error_page(e)
 
 
+@app.get("/query")
+def query_batch_controller(search: str) -> Any:
+    try:
+        if not search or search.strip() == "":
+            return Fragment()
+        result = cached_data.query_batches_by_batch_name(search)
+        return render_search_result(result)
+    except Exception as e:
+        return render_error_page(e)
+
+
 @app.get("/reset")
 def reset_session_controller(sess: dict) -> Any:
     """Controller for resetting user session and redirecting to main dashboard.
@@ -1523,7 +1597,7 @@ def reset_session_controller(sess: dict) -> Any:
     """
     try:
         sess.clear()
-        return Redirect("/")
+        return Redirect("?")
     except Exception as e:
         logger.error(f"Error resetting session: {e}", exc_info=True)
         return render_error_page(e)
