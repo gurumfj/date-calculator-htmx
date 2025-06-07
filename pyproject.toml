@@ -19,7 +19,7 @@ dependencies = [
     "python-json-logger>=2.0.7",
     "psycopg2-binary>=2.9.10",
     "supabase>=2.15.0",
-    "todoist-api-python>=2.1.7",
+    "todoist-api-python<3.0.0",
     "python-fasthtml>=0.12.18",
     "pytz>=2025.2",
 ]
