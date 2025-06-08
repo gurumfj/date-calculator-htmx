@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -225,7 +226,7 @@ def render_search_result(result: list[dict[str, Any]], message: str | None = Non
             cls="space-y-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
         ),
         cls="bg-white p-4 rounded-lg shadow-md mb-4",
-        x_data='{selected:""}',
+        x_data=json.dumps({"selected": ""}),
     )
 
 
@@ -332,11 +333,11 @@ def render_breed_table(batch: BatchAggregate) -> FT:
                         ),
                         Td(
                             cls="px-4 py-2 whitespace-nowrap text-sm text-center text-gray-700",
-                            x_text=day_age(breed.breed_date),
+                            x_text="computeAge(breed_date).dayAgeStr",
                         ),
                         Td(
                             cls="px-4 py-2 whitespace-nowrap text-sm text-center text-gray-700",
-                            x_text=f"`{week_age(day_age(breed.breed_date))}`",
+                            x_text="computeAge(breed_date).weekAgeStr",
                         ),
                         Td(
                             f"{breed.breed_male:,}",
@@ -348,7 +349,7 @@ def render_breed_table(batch: BatchAggregate) -> FT:
                         ),
                         cls="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
                         + (" bg-gray-50" if i % 2 == 0 else ""),
-                        x_data=f"{{ breed_date: '{breed.breed_date.strftime('%Y-%m-%d')}' }}",
+                        x_data=json.dumps({"breed_date": breed.breed_date.strftime("%Y-%m-%d")}),
                     )
                     for i, breed in enumerate(batch.breeds)
                 ]
@@ -1146,18 +1147,17 @@ def render_nav_tabs(batch: BatchAggregate) -> FT:
         base_button_style = "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 border-transparent hover:border-gray-300 bg-gray-100 text-gray-600 hover:text-gray-800 focus:outline-none"
         active_button_style = "border-blue-500 bg-white text-blue-600"
 
-        return Safe(f"""
-        <button
-            @click=activeTab='{tab_value}'
-            :class="{{'{active_button_style}': activeTab === '{tab_value}'}}"
-            :disabled="activeTab === '{tab_value}'"
-            hx-get="{hx_get}"
-            hx-target="#{batch.safe_id}_batch_tab_content"
-            class="{base_button_style}"
-        >
-            {tab_title}
-        </button>
-        """)
+        return Button(
+            {
+                "@click": f"activeTab='{tab_value}'",
+                ":disabled": f"activeTab === '{tab_value}'",
+                ":class": f"{{'{active_button_style}': activeTab === '{tab_value}'}}",
+            },
+            tab_title,
+            cls=base_button_style,
+            hx_get=hx_get,
+            hx_target=f"#{batch.safe_id}_batch_tab_content",
+        )
 
     return Div(
         Div(
@@ -1170,7 +1170,7 @@ def render_nav_tabs(batch: BatchAggregate) -> FT:
                 if tab
             ],
             cls="flex flex-row items-center space-x-2",
-            x_data="{activeTab: 'breed'}",
+            x_data=json.dumps({"activeTab": "breed"}),
         ),
         cls="mb-4",
     )
@@ -1253,6 +1253,8 @@ def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | Non
             [week_age(day_age(breed.breed_date)) for breed in sorted(batch.breeds, key=lambda breed: breed.breed_date)]
         )
 
+    alpine_weekage_fn = "${computeAge(breed_date).weekAgeStr}"
+    alpine_dayage_fn = "${computeAge(breed_date).dayAgeStr}"
     # 返回批次列表
     return Div(
         *[
@@ -1272,8 +1274,8 @@ def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | Non
                             Span(
                                 "週齡",
                                 # cls="text-sm text-gray-600",
-                                x_text="`週齡: ${weekAge(dayAge(breed_date))} (${dayAge(breed_date)})`",
-                                x_data=f"{{ breed_date: '{batch.breeds[0].breed_date.strftime('%Y-%m-%d')}' }}",
+                                x_text=f"`週齡: {alpine_weekage_fn} (${alpine_dayage_fn})`",
+                                x_data=json.dumps({"breed_date": batch.breeds[0].breed_date.strftime("%Y-%m-%d")}),
                             ),
                             Span(
                                 "|",
