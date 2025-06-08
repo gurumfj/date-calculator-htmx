@@ -22,7 +22,7 @@ function dayAge(dateStr) {
 
 function weekAge(dayAge) {
     const dayOfWeek = [7, 1, 2, 3, 4, 5, 6];
-    let week = Math.floor(dayAge / 7);
+    let week = dayAge % 7 === 0 ? Math.floor(dayAge / 7) - 1 : Math.floor(dayAge / 7);
     let day = dayAge % 7;
     return `${week}/${dayOfWeek[day]}`;
 }

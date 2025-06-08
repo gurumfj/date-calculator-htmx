@@ -1274,7 +1274,7 @@ def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | Non
                             Span(
                                 "週齡",
                                 # cls="text-sm text-gray-600",
-                                x_text=f"`週齡: {alpine_weekage_fn} (${alpine_dayage_fn})`",
+                                x_text=f"`週齡: {alpine_weekage_fn} ({alpine_dayage_fn})`",
                                 x_data=json.dumps({"breed_date": batch.breeds[0].breed_date.strftime("%Y-%m-%d")}),
                             ),
                             Span(
