@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     # Todoist 配置
     TODOIST_API_TOKEN: str | None = Field(default=None)
 
+    # Google 配置
+    GOOGLE_CLIENT_ID: str | None = Field(default=None)
+    GOOGLE_CLIENT_SECRET: str | None = Field(default=None)
+
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
         env_file_encoding="utf-8",

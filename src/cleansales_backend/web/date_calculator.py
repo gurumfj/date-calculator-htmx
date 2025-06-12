@@ -12,7 +12,7 @@ from fasthtml.common import *
 
 # tailwindcdn = Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")
 
-app, rt = fast_app(live=True)
+app, rt = fast_app(live=True, key_fname=".sesskey", session_cookie="cleansales", max_age=86400)
 
 
 @dataclass
@@ -30,6 +30,31 @@ class DateData:
         elif self.unit not in ["days", "weeks", "months"]:
             raise ValueError("wrong unit")
 
+    def to_json(self):
+        return json.dumps({
+            'id': self.id,
+            'base_date': self.base_date.strftime('%Y/%m/%d'),
+            'operation': self.operation,  # Corrected to 'operation'
+            'amount': self.amount,
+            'unit': self.unit,
+            'result': self.result.strftime('%Y/%m/%d')
+        })
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "DateData":
+        """
+        Reconstructs a DateData object from a JSON string.
+        """
+        data = json.loads(json_str)
+        return cls(
+            id=data['id'],
+            base_date=datetime.strptime(data['base_date'], '%Y/%m/%d').date(),
+            operation=data['operation'],
+            amount=data['amount'],
+            unit=data['unit'],
+            result=datetime.strptime(data['result'], '%Y/%m/%d').date()
+        )        
+
     @classmethod
     def calculate_date(cls, data: "DateData") -> "DateData":
         if data.unit == "days":
@@ -46,7 +71,7 @@ class DateData:
                     else:
                         result_date = result_date.replace(month=result_date.month + 1)
                 return cls(
-                    id=str(uuid.uuid4()),
+                    id=str(uuid.uuid4().hex),
                     base_date=data.base_date,
                     operation=data.operation,
                     amount=data.amount,
@@ -61,7 +86,7 @@ class DateData:
                     else:
                         result_date = result_date.replace(month=result_date.month - 1)
                 return cls(
-                    id=str(uuid.uuid4()),
+                    id=str(uuid.uuid4().hex),
                     base_date=data.base_date,
                     operation=data.operation,
                     amount=data.amount,
@@ -85,12 +110,12 @@ class DateData:
 
 
 class Viewer:
-    def render_page(self):
+    def render_page(self, store:list[DateData]):
         return Titled(
             "日期計算機",
             Body(
                 self.render_date_picker(),
-                self.render_result_section(),
+                self.render_result_section(store),
             ),
         )
 
@@ -142,6 +167,14 @@ class Viewer:
                     value="before",
                 ),
                 Button(
+                    "清除記錄",
+                    cls="form-button",
+                    type="button",
+                    hx_post='delete/all',
+                    hx_target='#result-table',
+                    hx_swap='outerHTML'
+                ),
+                Button(
                     "向後計算",
                     cls="form-button",
                     type="submit",
@@ -164,7 +197,7 @@ class Viewer:
             return fill_form(form, data)
         return form
 
-    def render_result_section(self):
+    def render_result_section(self, store:list[DateData]):
         return Div(
             Table(
                 Thead(
@@ -173,12 +206,15 @@ class Viewer:
                     Th("數量"),
                     Th("單位"),
                     Th("結果"),
+                    Th('刪除'),
                 ),
                 Tbody(
+                    *[self.render_result_atom(data) for data in store],
                     id="result-table-body"
                 ),
             ),
             cls="overflow-auto",
+            id="result-table",
         )
 
     def render_result_atom(self, date_data: "DateData"):
@@ -217,6 +253,7 @@ class Viewer:
             Td(date_data.amount),
             Td(date_data.unit),
             Td(date_data.result.strftime("%Y-%m-%d"), _pickup_btn(date_data, True)),
+            Td(AX('⌫', hx_delete=f'delete/{date_data.id}', hx_target='closest tr')),
             id="id_" + date_data.id,
         )
 
@@ -228,12 +265,15 @@ class Controller:
     def __init__(self, viewer: Viewer):
         self.viewer = viewer
 
-    def home(self):
-        return self.viewer.render_page()
+    def home(self, store: list[DateData]):
+        return self.viewer.render_page(store)
 
-    def calculate(self, data: DateData):
+    def calculate(self, data: DateData, sess:dict):
         try:
             result = DateData.calculate_date(data)
+            store = sess.get('store', [])
+            store.append(result.to_json())
+            sess['store'] = store
             return self.viewer.render_result_atom(result)
         except ValueError:
             return Response("Invalid date calculation", status_code=400)
@@ -241,25 +281,13 @@ class Controller:
     def pickup(self, data: DateData):
         return self.viewer.render_date_picker(data)
 
-    def validate_operation(self, operation: str) -> Literal["before", "after"]:
-        match operation:
-            case "before":
-                return "before"
-            case "after":
-                return "after"
-            case _:
-                raise ValueError("Invalid operation")
 
-    def validate_unit(self, unit: str) -> Literal["days", "weeks", "months"]:
-        match unit:
-            case "days":
-                return "days"
-            case "weeks":
-                return "weeks"
-            case "months":
-                return "months"
-            case _:
-                raise ValueError("Invalid unit")
+    def delete_date_data(self, id: str, sess: dict):
+        store_json = sess.get('store', []) # 1. Get current stored JSON strings
+        # 2. Filter out the item to be deleted
+        updated_store = [json_str for json_str in store_json if DateData.from_json(json_str).id != id]
+        sess['store'] = updated_store # 3. Update the session with the new, filtered list
+        return "" # 4. Return an empty string for HTMX to remove the UI element
 
 
 viewer = Viewer()
@@ -268,16 +296,17 @@ controller = Controller(viewer)
 
 def setup_routes(app, rt):
     @rt("/")
-    def get_home():
-        return controller.home()
+    def get_home(sess:dict):
+        store_json:list[str] = sess.get('store', [])
+
+        store = [DateData.from_json(r) for r in store_json]
+        return controller.home(store)
 
     @app.post("/calculate")
-    def post(form: DateData):
+    def post(sess:dict, form: DateData):
         try:
-            print(form)
-            return controller.calculate(form)
+            return controller.calculate(form, sess)
         except ValueError:
-            print("response 400")
             return Response("Invalid operation or unit", 400)
 
     @app.post("/pickup")
@@ -287,6 +316,14 @@ def setup_routes(app, rt):
         except ValueError:
             return "Invalid operation or unit", 400
 
+    @app.delete("/delete/{id}")
+    def delete(id:str, sess:dict):
+        controller.delete_date_data(id, sess)
+
+    @app.post("/delete/all")
+    def delete_all(sess:dict):
+        sess.clear()
+        return viewer.render_result_section([])
 
 setup_routes(app, rt)
 

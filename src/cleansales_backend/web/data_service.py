@@ -2,9 +2,13 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from re import Pattern
 from typing import Any, Generic, Protocol, TypeVar
 
+from dataclass_wizard import DatePattern
 from postgrest.exceptions import APIError
+from todoist_api_python.api import TodoistAPI
+from todoist_api_python.models import ApiDue, Task
 
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
 from cleansales_backend.domain.models.breed_record import BreedRecord
@@ -36,6 +40,14 @@ class DataServiceInterface(Protocol):
         self, search_term: str | None = None, offset: int = 0, page_size: int = 100
     ) -> PaginatedData[SaleRecord]: ...
 
+    def query_todo(self, label: str) -> list[Task]: ...
+
+    def task_done(self, task_id: str) -> bool: ...
+
+    def add_todo(self, form: 'TodoForm') -> Task | None: ...
+
+    def delete_task(self, task_id: str) -> bool: ...
+
     def cache_info(self) -> dict[str, int]: ...
 
     def clear_cache(self) -> None: ...
@@ -47,12 +59,22 @@ class CacheResult:
     cached_time: datetime
     hit_count: int = 0
 
+@dataclass
+class TodoForm:
+    batch_name: str
+    content: str
+    due_date: str | None = None
+    priority: int | None = None
+    labels: list[str] | None = None
+    description: str | None = None
+    
 
 class CachedDataService(DataServiceInterface):
     ALIVE_TIME = 5 * 60  # 5 minutes
 
-    def __init__(self, supabase: Client):
+    def __init__(self, supabase: Client, todo_service: TodoistAPI | None = None):
         self.supabase = supabase
+        self.todo_service = todo_service
         self.batches: dict[str, BatchAggregate] = {}
         self._cache: dict[str, CacheResult] = {}
         self._hit_count: int = 0
@@ -105,11 +127,64 @@ class CachedDataService(DataServiceInterface):
                 has_more=offset + page_size < total,
             )
         except APIError as e:
-            print(e)
+            logger.error(e)
             raise APIError({"error": str(e)})
         except Exception as e:
-            print(e)
+            logger.error(e)
             raise APIError({"error": str(e)})
+
+    def query_todo(self, label: str) -> list[Task]:
+        logger.debug(f"Querying todo for label: {label}")
+        if self.todo_service is None:
+            return []
+        try:
+            response = self.todo_service.get_tasks(label=label)
+            tasks = []
+            while True:
+                try:
+                    tasks.extend(next(response))
+                except StopIteration:
+                    break
+            logger.debug(f"Found {len(tasks)} tasks for label: {label}")
+            return tasks
+        except Exception as e:
+            logger.error(e)
+            return []
+
+    def add_todo(self, form: TodoForm) -> Task | None:
+        if self.todo_service is None:
+            return None
+        try:
+            return self.todo_service.add_task(
+                content=form.content,
+                labels=[form.batch_name],
+                due_date=datetime.strptime(form.due_date, "%Y-%m-%d") if form.due_date else None,
+                priority=form.priority,
+                description=form.description,
+            )
+        except Exception as e:
+            logger.error(e)
+            return None
+
+    def task_done(self, task_id: str) -> bool:
+        if self.todo_service is None:
+            return False
+        try:
+            self.todo_service.complete_task(task_id)
+            return True
+        except Exception as e:
+            logger.error(e)
+            return False
+
+    def delete_task(self, task_id: str) -> bool:
+        if self.todo_service is None:
+            return False
+        try:
+            self.todo_service.delete_task(task_id)
+            return True
+        except Exception as e:
+            logger.error(e)
+            return False
 
     def cache_info(self) -> dict[str, int]:
         return {
@@ -150,10 +225,10 @@ class CachedDataService(DataServiceInterface):
             self._miss_count += 1
             return batch_aggregate
         except APIError as e:
-            print(e)
+            logger.error(e)
             return None
         except Exception as e:
-            print(e)
+            logger.error(e)
             return None
 
     # @lru_cache(maxsize=1)

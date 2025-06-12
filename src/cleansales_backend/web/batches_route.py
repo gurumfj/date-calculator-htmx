@@ -3,11 +3,42 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 from itertools import groupby
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
+from urllib.parse import quote, unquote
 
+from dataclass_wizard.v1 import UTCDateTimePattern
 from fasthtml.common import *
+from gotrue import Literal
 from pydantic import BaseModel, StringConstraints, ValidationError, field_validator
 from starlette.middleware.gzip import GZipMiddleware
+from todoist_api_python.api import TodoistAPI
+from todoist_api_python.models import ApiDue, Task
+
+from cleansales_backend.web.data_service import TodoForm
+
+def ComponentWrap(component_name: str, *children, **kwargs) -> FT:
+    """Custom FastHTML tag that wraps content with HTML comments for component identification.
+
+    Args:
+        component_name: Name of the component (e.g., 'render_breed_selector')
+        *children: Child elements to wrap
+        **kwargs: Additional attributes to pass to the wrapper Div
+
+    Returns:
+        FastHTML component with start/end comments
+    """
+    return Div(Safe(f"<!-- START: {component_name} -->"), *children, Safe(f"<!-- END: {component_name} -->"), **kwargs)
+
+
+def start_comment(component_name: str) -> Safe:
+    """Generate start comment for manual component wrapping."""
+    return Safe(f"<!-- START: {component_name} -->")
+
+
+def end_comment(component_name: str) -> Safe:
+    """Generate end comment for manual component wrapping."""
+    return Safe(f"<!-- END: {component_name} -->")
+
 
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
@@ -34,7 +65,11 @@ def create_data_service() -> DataServiceInterface:
         supabase_url=get_settings().SUPABASE_CLIENT_URL,
         supabase_key=get_settings().SUPABASE_ANON_KEY,
     )
-    return CachedDataService(supabase)
+    todoist_token = get_settings().TODOIST_API_TOKEN
+    if todoist_token is None:
+        raise ValueError("請在 .env 檔中設定 TODOIST_API_TOKEN")
+    todo_service = TodoistAPI(token=todoist_token)
+    return CachedDataService(supabase, todo_service)
 
 
 cached_data = create_data_service()
@@ -42,14 +77,23 @@ cached_data = create_data_service()
 
 domain_utils_script = Script(src="/static/batches.js")
 
+markdown_js = MarkdownJS(sel=".marked")
+# marked_css = Link(rel="stylesheet", href="/static/marked.css")
+
+# def auth_before(req: Request, sess):
+#     print('=== auth_before ===')
+#     req.scope['auth'] = sess.get('auth', None)
+#     if not req.scope['auth']:
+#         return RedirectResponse('/login')
 
 app, rt = fast_app(
     live=True,
     key_fname=".sesskey",
     session_cookie="cleansales",
-    max_age=3600,
-    hdrs=(common_headers, domain_utils_script),
+    max_age=86400,
+    hdrs=(common_headers, domain_utils_script, markdown_js),
     pico=False,
+    # before=(Beforeware(auth_before, skip=(r'/login', r'^/static/.*')),),
     middleware=(Middleware(GZipMiddleware),),
 )
 
@@ -85,7 +129,8 @@ def render_breed_selector(selected_breed: str, end_date: str) -> FT:
         for breed in available_breeds
     ]
 
-    return Div(
+    return ComponentWrap(
+        "render_breed_selector",
         Div(
             H3("雞種選擇", cls="text-lg font-semibold mb-2 text-gray-700"),
             Div(
@@ -119,7 +164,8 @@ def render_date_picker(end_date_str: str, breed: str) -> FT:
         "bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 transition duration-200 ease-in-out w-full"
     )
 
-    return Div(
+    return ComponentWrap(
+        "render_date_picker",
         Form(
             H3("日期範圍選擇", cls="text-lg font-semibold mb-2 text-gray-700"),
             Div(
@@ -175,8 +221,9 @@ def render_date_picker(end_date_str: str, breed: str) -> FT:
     )
 
 
-def render_search_bar():
-    return Div(
+def render_search_bar() -> FT:
+    return ComponentWrap(
+        "render_search_bar",
         Input(
             type="text",
             name="search",
@@ -194,10 +241,11 @@ def render_search_bar():
 
 def render_search_result(result: list[dict[str, Any]], message: str | None = None) -> FT:
     if message:
-        return Div(message, cls="bg-white p-4 rounded-lg shadow-md mb-4")
+        return ComponentWrap("render_search_result", message, cls="bg-white p-4 rounded-lg shadow-md mb-4")
     if not result:
-        return Div("未找到結果", cls="bg-white p-4 rounded-lg shadow-md mb-4")
-    return Div(
+        return ComponentWrap("render_search_result", "未找到結果", cls="bg-white p-4 rounded-lg shadow-md mb-4")
+    return ComponentWrap(
+        "render_search_result",
         Ul(
             *[
                 Li(
@@ -268,7 +316,8 @@ def render_dashboard_metrics(metrics: list[DashboardMetric]) -> FT:
         for i, metric in enumerate(metrics)
     ]
 
-    return Div(
+    return ComponentWrap(
+        "render_dashboard_metrics",
         *metric_cards,
         cls="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4",
     )
@@ -284,15 +333,16 @@ def render_breed_table(batch: BatchAggregate) -> FT:
         FastHTML component containing breed information table
     """
     if not batch.breeds:
-        return Div(
+        return ComponentWrap(
+            "render_breed_table",
             P("尚無品種資料", cls="text-gray-500 text-center py-4"),
             cls="bg-gray-50 rounded-lg border border-gray-200 p-2",
         )
 
     table_header_style = "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-    table_cell_style = "px-4 py-2 whitespace-nowrap text-sm text-gray-700"
 
-    return Div(
+    return ComponentWrap(
+        "render_breed_table",
         Table(
             Thead(
                 Tr(
@@ -393,7 +443,8 @@ def render_sales_table(batch: BatchAggregate) -> FT:
     """
     # 如果沒有銷售數據，顯示友好的空狀態提示
     if not batch.sales:
-        return Div(
+        return ComponentWrap(
+            "render_sales_table",
             P("尚無銷售資料", cls="text-gray-500 text-center py-4"),
             cls="bg-gray-50 rounded-lg border border-gray-200 p-2",
         )
@@ -450,68 +501,75 @@ def render_sales_table(batch: BatchAggregate) -> FT:
                     for i, sale in enumerate(sales)
                 ]
             )
-        return Div(
-            Table(
-                Tbody(
-                    *tbody,
-                    cls="whitespace-nowrap text-sm text-gray-700",
+
+        return ComponentWrap(
+            "_sales_records",
+            Div(
+                Table(
+                    Tbody(
+                        *tbody,
+                        cls="whitespace-nowrap text-sm text-gray-700",
+                    ),
+                    cls="text-sm font-medium whitespace-nowrap uppercase tracking-wider w-full",
                 ),
-                cls="text-sm font-medium whitespace-nowrap uppercase tracking-wider w-full",
+                cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
             ),
-            cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
         )
 
     # 使用 Tailwind CSS 美化表格
-    return Div(
+    return ComponentWrap(
+        "render_sales_table",
         Div(
             Div(
-                # 銷售摘要統計
                 Div(
+                    # 銷售摘要統計
                     Div(
                         Div(
-                            H4("銷售摘要", cls="text-base font-medium text-gray-700"),
-                            cls="mb-2",
+                            Div(
+                                H4("銷售摘要", cls="text-base font-medium text-gray-700"),
+                                cls="mb-2",
+                            ),
+                            Div(
+                                Div(
+                                    P("總銷售量", cls="text-xs text-gray-500"),
+                                    P(
+                                        f"{sum(sale.male_count + sale.female_count for sale in batch.sales):,} 隻",
+                                        cls="text-lg font-semibold text-gray-800",
+                                    ),
+                                    cls="p-3 bg-blue-50 rounded-lg",
+                                ),
+                                Div(
+                                    P("總銷售額", cls="text-xs text-gray-500"),
+                                    P(
+                                        f"${sum(int(sale.total_price) for sale in batch.sales if sale.total_price):,}",
+                                        cls="text-lg font-semibold text-green-600",
+                                    ),
+                                    cls="p-3 bg-green-50 rounded-lg",
+                                ),
+                                Div(
+                                    P("平均單價", cls="text-xs text-gray-500"),
+                                    P(
+                                        f"${sum(sale.total_price for sale in batch.sales if sale.total_price) / sum(sale.male_count + sale.female_count for sale in batch.sales):.1f}/隻"
+                                        if sum(sale.male_count + sale.female_count for sale in batch.sales) > 0
+                                        else "無資料",
+                                        cls="text-lg font-semibold text-gray-800",
+                                    ),
+                                    cls="p-3 bg-gray-50 rounded-lg",
+                                ),
+                                cls="grid grid-cols-3 gap-3 mb-4",
+                            ),
+                            cls="mb-4",
                         ),
-                        Div(
-                            Div(
-                                P("總銷售量", cls="text-xs text-gray-500"),
-                                P(
-                                    f"{sum(sale.male_count + sale.female_count for sale in batch.sales):,} 隻",
-                                    cls="text-lg font-semibold text-gray-800",
-                                ),
-                                cls="p-3 bg-blue-50 rounded-lg",
-                            ),
-                            Div(
-                                P("總銷售額", cls="text-xs text-gray-500"),
-                                P(
-                                    f"${sum(int(sale.total_price) for sale in batch.sales if sale.total_price):,}",
-                                    cls="text-lg font-semibold text-green-600",
-                                ),
-                                cls="p-3 bg-green-50 rounded-lg",
-                            ),
-                            Div(
-                                P("平均單價", cls="text-xs text-gray-500"),
-                                P(
-                                    f"${sum(sale.total_price for sale in batch.sales if sale.total_price) / sum(sale.male_count + sale.female_count for sale in batch.sales):.1f}/隻"
-                                    if sum(sale.male_count + sale.female_count for sale in batch.sales) > 0
-                                    else "無資料",
-                                    cls="text-lg font-semibold text-gray-800",
-                                ),
-                                cls="p-3 bg-gray-50 rounded-lg",
-                            ),
-                            cls="grid grid-cols-3 gap-3 mb-4",
-                        ),
-                        cls="mb-4",
+                        cls="bg-white p-4 rounded-lg shadow-sm mb-4",
                     ),
-                    cls="bg-white p-4 rounded-lg shadow-sm mb-4",
+                    _sales_records(),
+                    # 銷售詳細表格
+                    cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
                 ),
-                _sales_records(),
-                # 銷售詳細表格
-                cls="overflow-x-auto rounded-lg shadow-sm border border-gray-200",
+                cls="p-4",
             ),
-            cls="p-4",
+            cls="bg-white rounded-lg border border-gray-200 mb-4 shadow-sm",
         ),
-        cls="bg-white rounded-lg border border-gray-200 mb-4 shadow-sm",
     )
 
 
@@ -541,7 +599,8 @@ def render_breed_summary(batch: BatchAggregate) -> FT:
         )
 
     # 使用 Tailwind CSS 美化飼養摘要
-    return Div(
+    return ComponentWrap(
+        "render_breed_summary",
         Div(
             H4(
                 "飼養資料",
@@ -621,7 +680,8 @@ def render_sales_summary(batch: BatchAggregate) -> FT | None:
         return f"{int(value):,} 元"
 
     # 銷售摘要卡片
-    return Div(
+    return ComponentWrap(
+        "render_sales_summary",
         Div(
             # 標題區域
             Div(
@@ -778,7 +838,6 @@ def render_sales_summary(batch: BatchAggregate) -> FT | None:
             ),
             cls="bg-white rounded-lg border border-gray-200 mb-4 shadow-sm",
         ),
-        name="sales_summary",
     )
 
 
@@ -1114,26 +1173,34 @@ def render_nav_tabs(batch: BatchAggregate) -> FT:
     Returns:
         FT: 包含導覽標籤的 FastHTML 組件。
     """
+    # URL 編碼批次名稱以處理特殊字符
+    encoded_batch_name = quote(batch.batch_name) if batch.batch_name else ""
+
     tabs_dict = {
         "breed": {
             "key": "breed",
             "title": "批次資料",
-            "hx_get": f"content/{batch.batch_name}/breed",
+            "hx_get": f"content/{encoded_batch_name}/breed",
         },
         "sales": {
             "key": "sales",
             "title": "銷售記錄",
-            "hx_get": f"content/{batch.batch_name}/sales",
+            "hx_get": f"content/{encoded_batch_name}/sales",
         },
         "feed": {
             "key": "feed",
             "title": "飼料記錄",
-            "hx_get": f"content/{batch.batch_name}/feed",
+            "hx_get": f"content/{encoded_batch_name}/feed",
         },
         "production": {
             "key": "production",
             "title": "結場報告",
-            "hx_get": f"content/{batch.batch_name}/production",
+            "hx_get": f"content/{encoded_batch_name}/production",
+        },
+        "todo": {
+            "key": "todo",
+            "title": "待辦事項",
+            "hx_get": f"content/{encoded_batch_name}/todo",
         },
     }
     tab_list = [
@@ -1141,6 +1208,7 @@ def render_nav_tabs(batch: BatchAggregate) -> FT:
         tabs_dict["sales"] if batch.sales else None,
         tabs_dict["feed"] if batch.feeds else None,
         tabs_dict["production"] if batch.production else None,
+        tabs_dict["todo"],
     ]
 
     def create_tab_button(tab_value: str, tab_title: str, hx_get: str) -> Safe:
@@ -1159,7 +1227,8 @@ def render_nav_tabs(batch: BatchAggregate) -> FT:
             hx_target=f"#{batch.safe_id}_batch_tab_content",
         )
 
-    return Div(
+    return ComponentWrap(
+        "render_nav_tabs",
         Div(
             *[
                 Div(
@@ -1207,6 +1276,300 @@ def render_sales_progress(percentage: float, progress_id: str) -> Safe:
     """
     return Safe(raw_html)
 
+class TodoFormState(Enum):
+    ADD_BTN = "add_btn"
+    TASK_FORM = "task_form"
+
+
+class TodoPageRender:
+    def __init__(self, batch: BatchAggregate):
+        self.batch = batch
+
+    def render_page_layout(self, state: TodoFormState, tasks: list[Task]) -> FT:
+        return ComponentWrap(
+            "render_todo_page",
+            Div(
+                H2("📋 待辦事項", cls="text-xl font-semibold text-gray-800 mb-4 flex items-center"),
+                self.render_todo_form(state),
+                self.render_tasks(tasks),
+                cls="bg-white p-6 rounded-lg shadow-sm border border-gray-200",
+                id=f"todo_{self.batch.safe_id}_todo_list",
+            ),
+            cls="mb-4",
+        )
+    
+    def render_todo_form(self, state: TodoFormState) -> FT:
+        match state:
+            case TodoFormState.ADD_BTN:
+                    state_comp=Button(
+                        "+ 新增待辦",
+                        cls="bg-green-500 text-white px-4 py-2 rounded",
+                        hx_get=f"todo/{TodoFormState.TASK_FORM.value}/{self.batch.batch_name}",
+                        hx_target=f"#todo_{self.batch.safe_id}_todo_form",
+                        hx_swap="outerHTML",
+                    ),
+            case TodoFormState.TASK_FORM:
+                state_comp=Form(
+                    # 隱藏欄位 - 批次名稱
+                    Hidden(
+                        name="batch_name",
+                        value=self.batch.batch_name,
+                    ),
+                    
+                    # 任務輸入欄位 - 使用卡片式設計
+                    Div(
+                        Div(
+                            Label(
+                                "✏️ 任務標題",
+                                cls="block text-sm font-medium text-gray-700 mb-1"
+                            ),
+                            Input(
+                                type="text",
+                                placeholder="輸入待辦事項標題...",
+                                name="content",
+                                cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                required=True,
+                                hx_post="todo/preview",
+                                hx_trigger="keyup delay:500ms",
+                                hx_target=f"#todo_{self.batch.safe_id}_todo_preview",
+                                hx_swap="innerHTML",
+                            ),
+                            cls="mb-4"
+                        ),
+                        
+                        # 描述輸入欄位
+                        Div(
+                            Label(
+                                "📝 詳細描述",
+                                cls="block text-sm font-medium text-gray-700 mb-1"
+                            ),
+                            Textarea(
+                                name="description",
+                                cls="w-full border border-gray-300 rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                required=False,
+                                placeholder="輸入詳細描述...",
+                                hx_post="todo/preview",
+                                hx_target=f"#todo_{self.batch.safe_id}_todo_preview",
+                                hx_swap="innerHTML",
+                                hx_trigger="keyup delay:500ms",
+                            ),
+                            cls="mb-4"
+                        ),
+                        
+                        # 優先度和到期日欄位 - 使用網格布局
+                        Div(
+                            Div(
+                                Label(
+                                    "🔔 優先度",
+                                    cls="block text-sm font-medium text-gray-700 mb-1"
+                                ),
+                                Select(
+                                    Option("高", value=1),
+                                    Option("中", value=2),
+                                    Option("低", value=3),
+                                    Option("無", value=4, selected=True),
+                                    name="priority",
+                                    cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                    required=False,
+                                    hx_post="todo/preview",
+                                    hx_target=f"#todo_{self.batch.safe_id}_todo_preview",
+                                    hx_swap="innerHTML",
+                                    hx_trigger="change",
+                                ),
+                                cls="mb-4"
+                            ),
+                            Div(
+                                Label(
+                                    "📅 到期日",
+                                    cls="block text-sm font-medium text-gray-700 mb-1"
+                                ),
+                                Input(
+                                    type="date",
+                                    name="due_date",
+                                    value=datetime.now().strftime("%Y-%m-%d"),
+                                    cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                    required=False,
+                                    placeholder="到期日",
+                                    hx_post="todo/preview",
+                                    hx_target=f"#todo_{self.batch.safe_id}_todo_preview",
+                                    hx_swap="innerHTML",
+                                    hx_trigger="change",
+                                ),
+                                cls="mb-4"
+                            ),
+                            cls="grid grid-cols-2 gap-4 mb-4"
+                        ),
+                        
+                        # 預覽區域
+                        Div(
+                            Div(
+                                "預覽",
+                                cls="text-sm font-medium text-gray-700 mb-2"
+                            ),
+                            Div(
+                                id=f"todo_{self.batch.safe_id}_todo_preview",
+                                cls="border border-gray-200 rounded-md p-3 bg-gray-50 min-h-[100px] mb-4"
+                            ),
+                            cls="mb-4",
+                            hx_disable='true'
+                        ),
+
+                        # 表單按鈕 - 美化按鈕
+                        Div(
+                            Button(
+                                Span("取消", cls="flex items-center"),
+                                type="button",
+                                cls="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-md transition duration-200 flex items-center justify-center",
+                                hx_get=f"todo/{TodoFormState.ADD_BTN.value}/{self.batch.batch_name}",
+                                hx_target=f"#todo_{self.batch.safe_id}_todo_form",
+                                hx_swap="outerHTML",
+                            ),
+                            Button(
+                                Span("✓ 新增任務", cls="flex items-center"),
+                                type="submit",
+                                cls="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-md transition duration-200 flex items-center justify-center",
+                            ),
+                            cls="flex justify-end gap-3 mt-2",
+                        ),
+                        cls="bg-white p-5 rounded-lg shadow-sm border border-gray-200",
+                    ),
+                    action="#",
+                    hx_post="todo/add_task",
+                    hx_target=f"#{self.batch.safe_id}_batch_tab_content",
+                    hx_disabled_elt='this',
+                    cls="w-full",
+                ),
+
+        return Fragment(Div(state_comp, cls="mb-4",id = f"todo_{self.batch.safe_id}_todo_form"),ComponentWrap(
+            "render_todo_preview",
+            Div(
+                cls="space-y-3",
+                id=f"todo_{self.batch.safe_id}_todo_preview",
+                hx_swap_oob='true',
+                # hx_disabled='true',
+            ),
+        ))
+
+    
+    def render_task(self, task: Task, preview: bool = False) -> FT:
+        return Details(
+            Summary(
+                Div(
+                    Div(
+                        Input(
+                            id=f"todo_{task.id}_done",
+                            # name="done",
+                            type="checkbox",
+                            checked=task.is_completed,
+                            cls="h-7 w-7 text-blue-600 rounded-full border-2 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer",
+                            hx_patch='todo_done',
+                            hx_vals=json.dumps({'batch_name':self.batch.batch_name,'task_id':task.id}),
+                            hx_target=f"#{self.batch.safe_id}_batch_tab_content",
+                            hx_trigger="change",  # 只在勾選時觸發
+                            hx_disabled_elt="this",  # 請求期間禁用自己
+                            hx_indicator=f"#todo_{task.id}_loading",  # 指定載入指示器
+                            disabled=task.is_completed or preview,  # 已完成的任務禁用
+                        ),
+                        Div(
+                            "⏳",
+                            id=f"todo_{task.id}_loading",
+                            cls="htmx-indicator text-sm ml-1",
+                        ),
+                        cls="flex items-center justify-center pr-3",
+                    ),
+                    Div(
+                        H3(task.content, cls="text-lg font-semibold text-gray-800 mb-2 leading-tight"),
+                        Div(
+                            Span(
+                                "📅 " + task.due.date.strftime("%Y-%m-%d")
+                                if task.due
+                                else "",
+                                cls="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full mr-2",
+                            )
+                            if task.due
+                            else "",
+                            Span(
+                                f"🐣 {day_age(self.batch.breeds[0].breed_date, task.due.date)}日齡"
+                                if task.due
+                                else "",
+                                cls="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full mr-2",
+                            )
+                            if task.due
+                            else "",
+                            A(
+                                "🔗 連結",
+                                href=task.url if not preview else "#",
+                                target="_blank" if not preview else "",
+                                cls="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 bg-purple-100 rounded-full hover:bg-purple-200 transition-colors duration-200",
+                            )
+                            if task.url
+                            else "",
+                            cls="flex flex-wrap items-center gap-1",
+                        ),
+                        cls="flex-grow",
+                    ),
+                    Div(
+                        Button(
+                            Span("🗑️", cls="text-red-500"),
+                            cls="p-2 rounded-full hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-200 transition-colors duration-200 relative",
+                            hx_delete=f"todo_delete/{task.id}",
+                            hx_confirm="確定要刪除這個任務嗎？",
+                            hx_target="closest details",
+                            hx_swap="outerHTML",
+                            hx_indicator=f"#todo_{task.id}_delete_loading",
+                            disabled=preview,
+                        ),
+                        Div(
+                            Span("⏳", cls="animate-pulse"),  # 改為沙漏圖示
+                            id=f"todo_{task.id}_delete_loading",
+                            cls="htmx-indicator ml-2 inline-block",  # 改為在按鈕旁邊顯示
+                        ),
+                        cls="flex items-center",  # 使用flex來水平排列按鈕和指示器
+                    ) if not preview else "",
+                    cls="flex items-start w-full cursor-pointer hover:bg-gray-50 transition-colors duration-200 rounded-lg p-3",
+                ),
+                cls="list-none",
+            ),
+            # 刪除按鈕已移至摘要區域
+            Div(
+                task.description,
+                cls="mx-6 mb-3 marked prose prose-sm max-w-none text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-blue-300",
+            ),
+            cls="bg-white mb-3 border border-gray-200 shadow-sm rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200",
+            id=f"todo_{task.id}_task",
+            open=True if task.description else False,
+        )
+
+
+    def render_tasks(self, tasks: list[Task]) -> FT:
+        if not tasks:
+            return ComponentWrap(
+                "render_tasks",
+                Div(
+                    Div(
+                        Span("📝", cls="text-4xl mb-2"),
+                        H3("尚無待辦事項", cls="text-lg font-medium text-gray-600"),
+                        P("此批次目前沒有待辦事項", cls="text-sm text-gray-500"),
+                        cls="text-center py-8 p-4",
+                    ),
+                    cls="bg-gray-50 rounded-lg border border-gray-200",
+                ),
+                cls="bg-white p-4 rounded-lg shadow-sm",
+            )
+        render_todo_list = [
+            self.render_task(task)
+            for task in tasks
+        ]
+
+        return ComponentWrap(
+            "render_tasks",
+            Ul(
+                *render_todo_list,
+                cls="space-y-3",
+            ),
+            id=f"todo_{self.batch.safe_id}_todo_list",
+        )
+
 
 def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | None = None) -> FT:
     """呈現批次列表組件。
@@ -1224,7 +1587,8 @@ def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | Non
 
     # 如果沒有批次數據，顯示空狀態
     if not batch_list:
-        return Div(
+        return ComponentWrap(
+            "render_batch_list_empty",
             Div(
                 Div(
                     Div(
@@ -1257,6 +1621,7 @@ def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | Non
     alpine_dayage_fn = "${computeAge(breed_date).dayAgeStr}"
     # 返回批次列表
     return Div(
+        start_comment("render_batch_list"),
         *[
             Details(
                 # 批次標題和進度條
@@ -1335,6 +1700,7 @@ def render_batch_list(batch_list: dict[str, BatchAggregate], selected: str | Non
             )
             for batch in sorted(batch_list.values(), key=lambda x: x.breeds[0].breed_date)
         ],
+        end_comment("render_batch_list"),
         id="batch_list",
         hx_swap_oob="true",
     )
@@ -1641,16 +2007,18 @@ def batch_content_controller(batch_name: str, tab_type: str) -> Any:
     """Controller for dynamically loading specific batch content tabs.
 
     Args:
-        batch_name: Name of the batch to query
+        batch_name: URL-encoded name of the batch to query
         tab_type: Type of content tab to display (breed, sales, feed, production)
 
     Returns:
         Corresponding content tab FastHTML component or error message
     """
     try:
-        batch = cached_data.query_batch(batch_name)
+        # 解碼 URL 編碼的 batch_name
+        decoded_batch_name = unquote(batch_name)
+        batch = cached_data.query_batch(decoded_batch_name)
         if not batch:
-            return Div(P(f"錯誤：未找到批次 {batch_name}"), cls="text-red-500 p-4")
+            return Div(P(f"錯誤：未找到批次 {decoded_batch_name}"), cls="text-red-500 p-4")
 
         active_components = []
 
@@ -1682,15 +2050,106 @@ def batch_content_controller(batch_name: str, tab_type: str) -> Any:
                     render_production_table(batch),
                 ]
             )
+        elif tab_type == "todo" and batch.batch_name:
+            tasks = cached_data.query_todo(batch.batch_name)
+            tasks.sort(key=lambda x: x.created_at, reverse=True)
+            todo_page_render = TodoPageRender(batch)
+            active_components.extend(
+                [
+                    todo_page_render.render_page_layout(TodoFormState.ADD_BTN, tasks),
+                ]
+            )
         else:
             return Div(P(f"錯誤：無效的分頁類型 '{tab_type}'"), cls="text-red-500 p-4")
 
         return tuple(active_components) if len(active_components) > 1 else active_components[0]
 
     except Exception as e:
-        logger.error(f"Error loading content for batch {batch_name}, tab {tab_type}: {e}", exc_info=True)
+        logger.error(f"Error loading content for batch {decoded_batch_name}, tab {tab_type}: {e}", exc_info=True)
         return render_error_page(e)
 
+
+
+@app.get("/todo/{state}/{batch_name}")
+def todo_form(state: str, batch_name: str):
+    batch = cached_data.query_batch(batch_name)
+    if batch is None:
+        raise Exception(f"找不到批次: {batch_name}")
+    todo_page_render = TodoPageRender(batch)
+    return todo_page_render.render_todo_form(TodoFormState(state))
+
+@app.post("/todo/preview")
+def todo_preview(form: TodoForm):
+    preview = Task.from_dict({
+        "id": "",
+        "project_id": "",
+        "section_id": "",
+        "parent_id": "",
+        "labels": [],
+        "priority": 1,
+        "content": form.content,
+        "description": form.description,
+        "due": {
+            "date": datetime.strptime(form.due_date, "%Y-%m-%d").date().isoformat() if form.due_date else "",
+            "string": ""
+        },
+        "deadline": None,
+        "duration": None,
+        "collapsed": False,
+        "child_order": 1,
+        "responsible_uid": None,
+        "assigned_by_uid": None,
+        "completed_at": None,
+        "added_by_uid": "",
+        "added_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat()
+    })
+    batch = cached_data.query_batch(form.batch_name)
+    if batch is None:
+        raise Exception(f"找不到批次: {form.batch_name}")
+    todo_page_render = TodoPageRender(batch)
+    return todo_page_render.render_task(preview, True)
+
+@app.post("/todo/add_task")
+def add_task(form: TodoForm):
+    batch = cached_data.query_batch(form.batch_name)
+    if batch is None:
+        raise Exception(f"找不到批次: {form.batch_name}")
+    todo_page_render = TodoPageRender(batch)
+    task = cached_data.add_todo(form)
+    if task:
+        tasks = cached_data.query_todo(form.batch_name)
+        return todo_page_render.render_todo_form(TodoFormState.ADD_BTN),todo_page_render.render_tasks(tasks)
+    else:
+        raise Exception("Failed to add task")
+
+@app.patch('/todo_done')
+def todo_toggle_done(task_id:str, batch_name:str):
+    try:
+        print('patch!')
+        if not cached_data.task_done(task_id):
+            logger.error(f"Failed to mark task {task_id} as done for batch {batch_name}")
+            raise Exception(f"無法標記任務為完成狀態 (Task ID: {task_id})")
+
+        # 獲取批次資料和更新後的待辦事項
+        tasks = cached_data.query_todo(batch_name) if batch_name else []
+        batch = cached_data.query_batch(batch_name)
+        if not batch:
+            raise Exception(f"找不到批次: {batch_name}")
+        todo_page_render = TodoPageRender(batch)
+        return todo_page_render.render_tasks(tasks)
+    except Exception as e:
+        logger.error(e)
+
+@app.delete('/todo_delete/{task_id}')
+def todo_delete(task_id:str):
+    try:
+        if not cached_data.delete_task(task_id):
+            logger.error(f"Failed to delete task {task_id}")
+            raise Exception(f"無法刪除任務 (Task ID: {task_id})")
+        return ""
+    except Exception as e:
+        logger.error(e)
 
 def main():
     serve()

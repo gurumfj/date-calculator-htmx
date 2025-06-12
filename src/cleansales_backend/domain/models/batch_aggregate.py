@@ -115,6 +115,13 @@ class BatchAggregate:
         # 使用批次名稱的哈希值，確保唯一性
         return f"batch_{abs(hash(self.batch_name)) % 10000000:07d}"
 
+    @staticmethod
+    def get_safe_id(batch_name: str) -> str:
+        # 生成一個安全的 ID，適合用於 CSS 選擇器
+        # 使用簡單的字母前綴加數字格式，確保在 CSS 選擇器中完全安全
+        # 使用批次名稱的哈希值，確保唯一性
+        return f"batch_{abs(hash(batch_name)) % 10000000:07d}"
+
     @property
     def farm_name(self) -> str:
         return self.breeds[0].farm_name

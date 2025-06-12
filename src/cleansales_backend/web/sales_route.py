@@ -2,6 +2,7 @@ import json
 
 from fasthtml.common import *
 from fasthtml.components import H1, Div, Label, P, Script, Style
+from starlette.requests import Request
 from postgrest.exceptions import APIError
 from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -137,7 +138,10 @@ def query_sales(offset: int = 0, search: str | None = None):
 
 
 @app.get("/")
-def sales(offset: int = 0, search: str | None = None):
+def sales(req: Request, sess:dict, offset: int = 0, search: str | None = None):
+    req.scope['auth'] = sess.get('auth', None)
+    if not req.scope['auth']:
+        return RedirectResponse('/login')
     try:
         # 頁面佈局組件
         def _layout_component(children: list[FT]):
