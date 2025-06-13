@@ -34,7 +34,7 @@ custom_style = Style("""
 """)
 
 app, rt = fast_app(
-    live=True,
+    live=get_settings().WEB_LIVE,
     key_fname=".sesskey",
     session_cookie="cleansales",
     max_age=3600,
@@ -140,8 +140,8 @@ def query_sales(offset: int = 0, search: str | None = None):
 @app.get("/")
 def sales(req: Request, sess:dict, offset: int = 0, search: str | None = None):
     req.scope['auth'] = sess.get('auth', None)
-    if not req.scope['auth']:
-        return RedirectResponse('/login')
+    # if not req.scope['auth']:
+    #     return RedirectResponse('/login')
     try:
         # 頁面佈局組件
         def _layout_component(children: list[FT]):

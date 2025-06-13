@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str | None = Field(default=None)
     GOOGLE_CLIENT_SECRET: str | None = Field(default=None)
 
+    # fasthtml
+    WEB_LIVE: bool = Field(default=False)
+
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
         env_file_encoding="utf-8",

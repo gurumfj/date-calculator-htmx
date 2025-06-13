@@ -9,10 +9,11 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 
 from fasthtml.common import *
+from cleansales_backend.core.config import get_settings
 
 # tailwindcdn = Script(src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4")
 
-app, rt = fast_app(live=True, key_fname=".sesskey", session_cookie="cleansales", max_age=86400)
+app, rt = fast_app(live=get_settings().WEB_LIVE, key_fname=".sesskey", session_cookie="cleansales", max_age=86400)
 
 
 @dataclass

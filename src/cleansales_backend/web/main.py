@@ -94,7 +94,7 @@ def scope_check_before(req: Request, sess: dict):
 
     
 app, rt = fast_app(
-    live=True,
+    live=get_settings().WEB_LIVE,
     key_fname=".sesskey",
     session_cookie="cleansales",
     max_age=86400,
@@ -147,15 +147,15 @@ class TodoistService:
 
 todoist_service = TodoistService(todoist)
 
-@rt('/login')
-def login(request: Request):
-    return Titled(
-        "Login",
-        Container(
-            H1("Login"),
-            A("Login with Google", href=auth.login_link(request), state='/', cls="button")
-        )
-    )
+# @rt('/login')
+# def login(request: Request):
+#     return Titled(
+#         "Login",
+#         Container(
+#             H1("Login"),
+#             A("Login with Google", href=auth.login_link(request), state='/', cls="button")
+#         )
+#     )
 
 @app.get("/")
 def index() -> Any:
