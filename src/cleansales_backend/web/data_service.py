@@ -2,13 +2,11 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from re import Pattern
 from typing import Any, Generic, Protocol, TypeVar
 
-from dataclass_wizard import DatePattern
 from postgrest.exceptions import APIError
 from todoist_api_python.api import TodoistAPI
-from todoist_api_python.models import ApiDue, Task
+from todoist_api_python.models import Task
 
 from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
 from cleansales_backend.domain.models.breed_record import BreedRecord

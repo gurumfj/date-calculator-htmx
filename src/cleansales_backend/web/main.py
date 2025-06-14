@@ -1,19 +1,17 @@
-import email
 import logging
 from datetime import datetime, timedelta
 
 from fasthtml.common import *
 from fasthtml.oauth import GoogleAppClient, OAuth
-from gotrue import Session as GotrueSession
 from rich.logging import RichHandler
-from sqlmodel import select, insert, update, Session, SQLModel, create_engine, Field
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.routing import Mount
 from starlette.staticfiles import StaticFiles
 from todoist_api_python.api import TodoistAPI
 from todoist_api_python.models import Task
-from dataclasses import dataclass
+
 from cleansales_backend.core.config import get_settings
 
 from .batches_route import app as batches_app

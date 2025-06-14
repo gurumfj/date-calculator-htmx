@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-import pytest
-import pandas as pd
-from io import BytesIO
-from unittest.mock import Mock, AsyncMock
-import tempfile
 import os
+import tempfile
+from io import BytesIO
 from typing import Generator
+from unittest.mock import AsyncMock, Mock
 
-from cleansales_backend.handlers.upload_handler import (
-    FileTypeDetector,
-    EventLogger,
-    DataProcessor,
-    UploadCommandHandler
-)
+import pandas as pd
+import pytest
+
 from cleansales_backend.commands.upload_commands import UploadFileCommand
+from cleansales_backend.handlers.upload_handler import (
+    DataProcessor,
+    EventLogger,
+    FileTypeDetector,
+    UploadCommandHandler,
+)
 
 
 class TestFileTypeDetector:

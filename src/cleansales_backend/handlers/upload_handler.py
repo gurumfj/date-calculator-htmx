@@ -1,19 +1,20 @@
+import hashlib
 import json
 import logging
-import hashlib
 import sqlite3
-import pandas as pd
-from io import BytesIO
 import time
 import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from io import BytesIO
+from typing import Any, Dict, List, Tuple
+
+import pandas as pd
 
 from cleansales_backend.commands.upload_commands import UploadFileCommand
-from cleansales_backend.processors.breeds_schema import BreedRecordValidator
-from cleansales_backend.processors.sales_schema import SaleRecordValidator
-from cleansales_backend.processors.feeds_schema import FeedRecordValidator
 from cleansales_backend.domain.models.farm_production_validator import FarmProductionValidator
+from cleansales_backend.processors.breeds_schema import BreedRecordValidator
+from cleansales_backend.processors.feeds_schema import FeedRecordValidator
+from cleansales_backend.processors.sales_schema import SaleRecordValidator
 
 logger = logging.getLogger(__name__)
 

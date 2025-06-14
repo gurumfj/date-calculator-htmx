@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-import math
-from typing import Any
-import sqlite3
 import logging
+import math
+import sqlite3
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import pytest
-import tempfile
 import os
+import tempfile
 from typing import Generator
+
+import pytest
 
 from cleansales_backend.queries.data_queries import (
     DataQueryHandler,
     GetDataQuery,
+    GetEventDetailsQuery,
     GetUploadEventsQuery,
-    GetEventDetailsQuery
 )
 
 

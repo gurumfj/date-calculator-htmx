@@ -1,1 +1,2 @@
 主動檢查專案裡的pyproject.toml了解環境部署方式
+python運行環境是uv run

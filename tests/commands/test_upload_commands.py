@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from unittest.mock import Mock
+
 from cleansales_backend.commands.upload_commands import UploadFileCommand
 
 

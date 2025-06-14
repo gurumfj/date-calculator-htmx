@@ -1,18 +1,26 @@
 import json
 import logging
-import pandas as pd
 
-from cleansales_backend.core.config import get_settings
+import pandas as pd
 from fasthtml.common import *
-from cleansales_backend.web.resources import alpine_cdn
+
 from cleansales_backend.commands.upload_commands import UploadFileCommand
+from cleansales_backend.core.config import get_settings
 from cleansales_backend.handlers.upload_handler import UploadCommandHandler
-from cleansales_backend.queries.data_queries import DataQueryHandler, GetDataQuery, GetUploadEventsQuery, GetEventDetailsQuery, PaginationQuery
+from cleansales_backend.queries.data_queries import (
+    DataQueryHandler,
+    GetDataQuery,
+    GetEventDetailsQuery,
+    GetUploadEventsQuery,
+    PaginationQuery,
+)
+from cleansales_backend.web.resources import alpine_cdn
 
 logger = logging.getLogger(__name__)
 DB_PATH = "./data/sqlite.db"
 
 from cleansales_backend.database.init import init_db
+
 init_db()
 
 upload_handler = UploadCommandHandler(DB_PATH)
@@ -31,7 +39,7 @@ upload_breeds_form = Form(
     Label("Upload Files", Input(type="file", name="file", accept=".xlsx, .xls")),
     Button("Upload", type="submit"),
     enctype="multipart/form-data",
-    hx_post="/upload",
+    hx_post="upload",
     hx_target="#result",
     hx_push="true",
     hx_success="alert('Upload successful!')",
@@ -41,7 +49,7 @@ sql_query_form = Form(
     Label("SQL Query", 
           Textarea(name="sql", placeholder="輸入SQL查詢語句...", rows=3, cols=50, style="width: 100%;")),
     Button("Execute", type="submit"),
-    hx_post="/sql",
+    hx_post="sql",
     hx_target="#result",
     hx_trigger="keyup delay:500ms",
     hx_push="true",
@@ -64,7 +72,7 @@ def render_table(df: pd.DataFrame, table: str, sort_by_column: str | None = None
         
         return Th(
             header + indicator,
-            hx_get=f'/q/{table}',
+            hx_get=f'q/{table}',
             hx_vals=json.dumps({"sort_by_column": header, "sort_order": next_order}),
             hx_target="#nav_content",
             style="cursor: pointer;"
@@ -78,8 +86,8 @@ def render_table(df: pd.DataFrame, table: str, sort_by_column: str | None = None
             if enable_event_links and header == 'event_id' and cell:
                 # 為event_id創建連結
                 cells.append(Td(A(f"{str(cell)[:8]}...", 
-                                 href=f"/event/{cell}", 
-                                 hx_get=f"/event/{cell}",
+                                 href=f"event/{cell}", 
+                                 hx_get=f"event/{cell}",
                                  hx_target="#result",
                                  hx_push="true",
                                  style="color: #007bff; text-decoration: underline; cursor: pointer;")))
@@ -95,7 +103,7 @@ def render_table(df: pd.DataFrame, table: str, sort_by_column: str | None = None
                 "載入更多...",
                 colspan=len(headers),
                 style="text-align: center; padding: 20px; color: #666;",
-                hx_get=f'/q/{table}',
+                hx_get=f'q/{table}',
                 hx_vals=json.dumps({
                     "sort_by_column": sort_by_column or "",
                     "sort_order": sort_order,
@@ -188,7 +196,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'upload'",
                 ":class": "tab === 'upload' ? '' : 'outline'"},
                 role="button",
-                hx_get="/tab/upload",
+                hx_get="tab/upload",
                 hx_target="#nav_content",
                 hx_push="true"
             )
@@ -199,7 +207,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'events'",
                 ":class": "tab === 'events' ? '' : 'outline'"},
                 role="button",
-                hx_get="/tab/events",
+                hx_get="tab/events",
                 hx_target="#nav_content", 
                 hx_push="true"
             )
@@ -210,7 +218,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'breeds'",
                 ":class": "tab === 'breeds' ? '' : 'outline'"},
                 role="button", 
-                hx_get="/tab/breeds",
+                hx_get="tab/breeds",
                 hx_target="#nav_content",
                 hx_push="true"
             )
@@ -221,7 +229,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'sales'",
                 ":class": "tab === 'sales' ? '' : 'outline'"},
                 role="button", 
-                hx_get="/tab/sales",
+                hx_get="tab/sales",
                 hx_target="#nav_content",
                 hx_push="true"
             )
@@ -232,7 +240,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'feeds'",
                 ":class": "tab === 'feeds' ? '' : 'outline'"},
                 role="button", 
-                hx_get="/tab/feeds",
+                hx_get="tab/feeds",
                 hx_target="#nav_content",
                 hx_push="true"
             )
@@ -243,7 +251,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'farm_production'",
                 ":class": "tab === 'farm_production' ? '' : 'outline'"},
                 role="button", 
-                hx_get="/tab/farm_production",
+                hx_get="tab/farm_production",
                 hx_target="#nav_content",
                 hx_push="true"
             )
@@ -254,7 +262,7 @@ nav_tabs = Nav(
                 {"@click": "tab = 'sql'",
                 ":class": "tab === 'sql' ? '' : 'outline'"},
                 role="button", 
-                hx_get="/tab/sql",
+                hx_get="tab/sql",
                 hx_target="#nav_content",
                 hx_push="true"
             )
@@ -332,7 +340,7 @@ def view_event_records(event_id: str):
             return Div(
                 H2("事件記錄"),
                 P(f"找不到事件 ID: {event_id}", style="color: red;"),
-                A("返回事件列表", href="/events", style="color: #007bff;")
+                A("返回事件列表", href="events", style="color: #007bff;")
             )
         
         file_type = event_dict['file_type']
@@ -349,7 +357,7 @@ def view_event_records(event_id: str):
             return Div(
                 H2("事件記錄"),
                 P(f"不支持的文件類型: {file_type}", style="color: red;"),
-                A("返回事件列表", href="/events", style="color: #007bff;")
+                A("返回事件列表", href="events", style="color: #007bff;")
             )
         
         table_name = table_map[file_type]
@@ -413,6 +421,10 @@ def execute_sql(sql: str):
     if any(keyword in sql_lower for keyword in dangerous_keywords):
         return Div("不允許包含修改數據的SQL語句", style="color: red;")
     
+    # 強制添加LIMIT語句
+    if 'limit' not in sql_lower:
+        sql = sql.rstrip(';') + ' LIMIT 1000'
+    
     conn = data_query_handler.get_db_connection()
     try:
         cursor = conn.execute(sql)
@@ -427,7 +439,7 @@ def execute_sql(sql: str):
         
         return Div(
             P(f"查詢成功，共 {len(results)} 筆結果"),
-            render_table(df, table="sql")
+            render_table(df, table="sql", page=0, page_size=50, total_pages=1)
         )
         
     except Exception as e:

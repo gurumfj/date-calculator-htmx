@@ -2,10 +2,10 @@ import json
 
 from fasthtml.common import *
 from fasthtml.components import H1, Div, Label, P, Script, Style
-from starlette.requests import Request
 from postgrest.exceptions import APIError
 from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.requests import Request
 
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.web.batches_route import render_error_page

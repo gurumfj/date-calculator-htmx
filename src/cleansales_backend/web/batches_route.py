@@ -1,21 +1,18 @@
 import json
 import logging
-import time
 import uuid
 from datetime import datetime, timedelta
 from itertools import groupby
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 from urllib.parse import quote, unquote
 
-from dataclass_wizard.v1 import UTCDateTimePattern
 from fasthtml.common import *
-from gotrue import Literal
 from pydantic import BaseModel, StringConstraints, ValidationError, field_validator
-from starlette.middleware.gzip import GZipMiddleware
 from todoist_api_python.api import TodoistAPI
-from todoist_api_python.models import ApiDue, Task
+from todoist_api_python.models import Task
 
 from cleansales_backend.web.data_service import TodoForm
+
 
 def ComponentWrap(component_name: str, *children, **kwargs) -> FT:
     """Custom FastHTML tag that wraps content with HTML comments for component identification.
