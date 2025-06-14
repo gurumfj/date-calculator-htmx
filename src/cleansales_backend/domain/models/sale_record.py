@@ -1,9 +1,7 @@
 from datetime import datetime
 from typing import override
 
-from pydantic import BaseModel, ConfigDict, computed_field
-
-from .batch_state import BatchState
+from pydantic import BaseModel, ConfigDict
 
 
 class SaleRecord(BaseModel):
@@ -40,75 +38,17 @@ class SaleRecord(BaseModel):
     male_price: float | None
     female_price: float | None
     unpaid: bool
-    updated_at: datetime
+    updated_at: datetime | None
+    # Computed fields now provided by SQL
+    sale_state: str | None = None
+    avg_price: float | None = None
+    male_avg_weight: float | None = None
+    female_avg_weight: float | None = None
 
     model_config = ConfigDict(
         populate_by_name=True,
         from_attributes=True,
     )
-
-    @computed_field
-    @property
-    def sale_state(self) -> BatchState:
-        """取得銷售狀態
-
-        根據是否結案(is_completed)判斷狀態:
-        - 若已結案，回傳 COMPLETED
-        - 否則回傳 SALE
-        """
-        return BatchState.COMPLETED if self.is_completed else BatchState.SALE
-
-    def _base_weight(self) -> float | None:
-        """計算基礎重量
-
-        使用總重量減去公雞額外重量(每隻0.8)後平均
-        用於計算公母雞的平均重量
-
-        Returns:
-            float | None:
-                - 若總重量為空，返回 None
-                - 否則返回計算後的基礎重量
-        """
-        if self.total_weight is None:
-            return None
-        return (self.total_weight - self.male_count * 0.8) / (
-            self.male_count + self.female_count
-        )
-
-    @computed_field
-    @property
-    def male_avg_weight(self) -> float | None:
-        """計算公雞平均重量
-
-        基礎重量加上0.8kg(公雞額外重量)
-        若無公雞或總重量，回傳 None
-        """
-        if self.male_count == 0:
-            return None
-        if base := self._base_weight():
-            return base + 0.8
-        return None
-
-    @computed_field
-    @property
-    def female_avg_weight(self) -> float | None:
-        """計算母雞平均重量
-
-        直接使用基礎重量
-        若無母雞或總重量，回傳 None
-        """
-        if self.female_count == 0:
-            return None
-        if base := self._base_weight():
-            return base
-        return None
-
-    @computed_field
-    @property
-    def avg_price(self) -> float | None:
-        if self.total_price is None or (self.male_count + self.female_count) == 0:
-            return None
-        return self.total_price / (self.male_count + self.female_count)
 
     @override
     def __str__(self) -> str:

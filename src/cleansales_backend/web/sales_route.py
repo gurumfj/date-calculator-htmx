@@ -1,4 +1,8 @@
 import json
+import hashlib
+import logging
+from datetime import datetime, timedelta
+from typing import Literal
 
 from fasthtml.common import *
 from fasthtml.components import H1, Div, Label, P, Script, Style
@@ -6,19 +10,17 @@ from postgrest.exceptions import APIError
 from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from cleansales_backend.core.config import get_settings
 from cleansales_backend.web.batches_route import render_error_page
-from cleansales_backend.web.data_service import CachedDataService, DataServiceInterface
-from supabase import Client, create_client
+from cleansales_backend.web.data_service import SQLiteDataService, DataServiceInterface
+
+logger = logging.getLogger(__name__)
 
 
 def create_data_service() -> DataServiceInterface:
-    supabase: Client = create_client(
-        supabase_url=get_settings().SUPABASE_CLIENT_URL,
-        supabase_key=get_settings().SUPABASE_ANON_KEY,
-    )
-    return CachedDataService(supabase)
+    return SQLiteDataService(db_path="./data/sqlite.db")
 
 
 cached_data = create_data_service()
@@ -42,38 +44,6 @@ app, rt = fast_app(
     pico=False,
     middleware=(Middleware(GZipMiddleware),),
 )
-
-
-# @app.get("/todoist")
-# def todoist():
-#     try:
-#         api = get_todoist_api()
-#         projects = api.get_projects()
-
-#         return Div(
-#             H1("Todoist", cls="text-2xl font-bold text-gray-800 mb-4"),
-#             Label("專案", cls="text-lg font-bold text-gray-800 mb-2", _for="project_id"),
-#             Select(
-#                 *[Option(p.name, value=p.id) for p in projects],
-#                 cls="transition-all duration-300 ease-in-out",
-#                 id="project_id",
-#                 hx_get="/todoist/q",
-#                 hx_target="#task",
-#                 hx_trigger="change, load",
-#                 hx_indicator="#loading",
-#             ),
-#             Div(
-#                 P("載入中...", cls="text-gray-600"),
-#                 cls="flex justify-center items-center h-screen htmx-indicator",
-#                 id="loading",
-#             ),
-#             Div(
-#                 id="task",
-#             ),
-#             cls="container mx-auto px-4 py-3 flex flex-col justify-center items-center",
-#         )
-#     except Exception as e:
-#         return _render_exception_component(e)
 
 
 @app.get("/q")
@@ -140,8 +110,6 @@ def query_sales(offset: int = 0, search: str | None = None):
 @app.get("/")
 def sales(req: Request, sess:dict, offset: int = 0, search: str | None = None):
     req.scope['auth'] = sess.get('auth', None)
-    # if not req.scope['auth']:
-    #     return RedirectResponse('/login')
     try:
         # 頁面佈局組件
         def _layout_component(children: list[FT]):
@@ -163,24 +131,31 @@ def sales(req: Request, sess:dict, offset: int = 0, search: str | None = None):
         td_style = "px-6 py-4 whitespace-nowrap text-sm"
 
         def _form_component():
-            return Form(
-                Label(
-                    "Search",
-                    Input(
-                        placeholder="Search...",
-                        name="search",
-                        cls="px-2 py-1 border border-gray-300 rounded",
-                        hx_get="/sales/q",
-                        hx_target="#sales_table",
-                        hx_swap="innerHTML",
-                        hx_trigger="change, keyup delay:500ms",
-                        # hx_push_url="true",
+            return Div(
+                Form(
+                    Label(
+                        "Search",
+                        Input(
+                            placeholder="Search...",
+                            name="search",
+                            cls="px-2 py-1 border border-gray-300 rounded",
+                            hx_get="/sales/q",
+                            hx_target="#sales_table",
+                            hx_swap="innerHTML",
+                            hx_trigger="change, keyup delay:500ms",
+                        ),
+                        Span(id="search_error", cls="text-red-500", hx_swap_oob="true"),
+                        type="search",
+                        cls="flex items-center gap-4 p-2",
                     ),
-                    Span(id="search_error", cls="text-red-500", hx_swap_oob="true"),
-                    type="search",
-                    cls="flex items-center gap-4 p-2",
+                    cls="flex-1",
                 ),
-                cls="mb-4",
+                A(
+                    "API文檔",
+                    href="/sales/api/excel-sales",
+                    cls="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                ),
+                cls="mb-4 flex items-center gap-4",
             )
 
         # 銷售表格組件
@@ -238,38 +213,148 @@ def sales(req: Request, sess:dict, offset: int = 0, search: str | None = None):
         return render_error_page(e)
 
 
-# @app.get("/todoist/labels")
-# def labels():
-#     try:
-#         api = get_todoist_api()
-#         # projects = api.get_projects()
-#         # archives_items: list[CompletedItems] = []
-#         archives_items = api.get_completed_items(project_id="2352145073")
-#         # for project in projects:
-#         #     archives_items.append(api.get_completed_items(project_id=project.id))
-#         print(archives_items.items[0])
-#         labels = [item.labels for item in archives_items.items]
-#         return Div(*[Li(l) for l in labels])
-#     except Exception as e:
-#         return _render_exception_component(e)
-
-
-# @app.get("/todoist/q")
-# def todoist_query(project_id: str | None = None):
-#     try:
-#         api = get_todoist_api()
-#         tasks = api.get_tasks(project_id=project_id)
-#         result = []
-#         for task in tasks:
-#             result.append(
-#                 Details(
-#                     Summary(
-#                         H3(task.content),
-#                         Ul(*[Li(l) for l in task.labels]) if task.labels else None,
-#                     ),
-#                     *[Li(f"{k}: {v}") for k, v in task.to_dict().items()],
-#                 )
-#             )
-#         return Div(*result)
-#     except Exception as e:
-#         return _render_exception_component(e)
+@app.get("/api/excel-sales")
+def get_excel_sales_data(
+    request: Request,
+    page: int = 1,
+    page_size: int = 100,
+    batch_name: str | None = None,
+    breed_type: Literal["黑羽", "古早", "舍黑", "閹雞"] | None = None,
+    batch_status: str | None = None,  # Simplified as string for query params
+    start_date: str | None = None,  # Accept as string and parse
+    end_date: str | None = None,    # Accept as string and parse
+    sort_by: str | None = "sale_date",
+    sort_desc: bool = True,
+):
+    """獲取格式化的銷售數據，適合Excel或Google Apps Script使用
+    
+    此API提供分頁功能，並以扁平化格式返回銷售數據，
+    方便Excel或Google Apps Script進行處理和展示。
+    """
+    try:
+        # Parse dates if provided
+        start_date_parsed = None
+        end_date_parsed = None
+        
+        if start_date:
+            try:
+                start_date_parsed = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                start_date_parsed = datetime.strptime(start_date, "%Y-%m-%d")
+                
+        if end_date:
+            try:
+                end_date_parsed = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            except ValueError:
+                end_date_parsed = datetime.strptime(end_date, "%Y-%m-%d")
+        
+        # Calculate pagination offset
+        offset = (page - 1) * page_size
+        
+        # Get sales data with filters
+        search_term = batch_name if batch_name else None
+        result = cached_data.query_sales(
+            search_term=search_term,
+            offset=offset,
+            page_size=page_size
+        )
+        
+        # Convert to flattened format for Excel/GAS
+        sales_data = []
+        for sale in result.data:
+            # Filter by breed type if specified
+            # Note: This is a simplified filter since we don't have breed info in sale record
+            # In a full implementation, you'd need to join with breed data
+            
+            # Filter by date range
+            if start_date_parsed and sale.sale_date < start_date_parsed.date():
+                continue
+            if end_date_parsed and sale.sale_date > end_date_parsed.date():
+                continue
+                
+            sales_data.append({
+                "sale_date": sale.sale_date.strftime("%Y-%m-%d"),
+                "batch_name": sale.batch_name,
+                "customer": sale.customer,
+                "male_count": sale.male_count,
+                "female_count": sale.female_count,
+                "total_weight": sale.total_weight,
+                "total_price": sale.total_price,
+                "male_price": sale.male_price,
+                "female_price": sale.female_price,
+                "avg_price": sale.avg_price,
+                "male_avg_weight": sale.male_avg_weight,
+                "female_avg_weight": sale.female_avg_weight,
+                "unpaid": sale.unpaid,
+                "handler": sale.handler,
+                "sale_state": sale.sale_state,
+                "updated_at": sale.updated_at.isoformat() if sale.updated_at else None,
+            })
+        
+        # Sort data if requested
+        if sort_by and sales_data:
+            reverse = sort_desc
+            if sort_by in sales_data[0]:
+                sales_data.sort(key=lambda x: x.get(sort_by, ""), reverse=reverse)
+        
+        # Calculate pagination info
+        total_count = len(sales_data)  # Simplified - in reality would need total count from DB
+        total_pages = (total_count + page_size - 1) // page_size
+        
+        pagination = {
+            "page": page,
+            "page_size": page_size,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_previous": page > 1,
+            "has_next": page < total_pages,
+        }
+        
+        # Prepare metadata
+        meta = {
+            "generated_at": datetime.now().isoformat(),
+            "filters": {
+                "batch_name": batch_name,
+                "breed_type": breed_type,
+                "batch_status": batch_status,
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+            "sorting": {
+                "sort_by": sort_by,
+                "sort_desc": sort_desc,
+            },
+        }
+        
+        # Prepare response data
+        response_data = {
+            "data": sales_data,
+            "pagination": pagination,
+            "meta": meta,
+        }
+        
+        # Generate ETag
+        content_str = json.dumps(response_data)
+        content_bytes = content_str.encode("utf-8")
+        etag = hashlib.md5(content_bytes).hexdigest()
+        
+        # Check if content has changed
+        if request.headers.get("If-None-Match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+        
+        # Return data
+        return JSONResponse(
+            content=response_data,
+            status_code=200,
+            headers={"ETag": etag},
+        )
+        
+    except Exception as e:
+        logger.error(f"獲取Excel格式銷售數據時發生錯誤: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        return JSONResponse(
+            content={"error": str(e), "type": type(e).__name__},
+            status_code=500
+        )

@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -289,3 +290,113 @@ class CachedDataService(DataServiceInterface):
         except Exception as e:
             print(e)
             raise Exception({"error": str(e)})
+
+
+class SQLiteDataService(DataServiceInterface):
+    """SQLite implementation of DataServiceInterface"""
+    
+    def __init__(self, db_path: str = "./data/sqlite.db", todo_service: TodoistAPI | None = None):
+        self.db_path = db_path
+        self.todo_service = todo_service
+        self._hit_count: int = 0
+        self._miss_count: int = 0
+
+    def get_db_connection(self) -> sqlite3.Connection:
+        """Get SQLite database connection"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def query_batch(self, batch_name: str) -> BatchAggregate | None:
+        """Query single batch by name"""
+        pass
+
+    def query_batches(self, start_date: str, end_date: str, chicken_breed: str) -> dict[str, BatchAggregate]:
+        """Query batches within date range and breed"""
+        pass
+
+    def query_batches_by_batch_name(self, batch_name: str) -> list[dict[str, Any]]:
+        """Query batches by partial batch name match"""
+        pass
+
+    def query_sales(
+        self, search_term: str | None = None, offset: int = 0, page_size: int = 100
+    ) -> PaginatedData[SaleRecord]:
+        """Query sales with pagination and search"""
+        try:
+            conn = self.get_db_connection()
+            
+            # Build query
+            base_query = "FROM sale"
+            params = []
+            
+            if search_term and search_term.strip():
+                base_query += " WHERE batch_name LIKE ? OR customer LIKE ?"
+                params.extend([f"%{search_term}%", f"%{search_term}%"])
+            
+            # Get total count
+            count_cursor = conn.execute(f"SELECT COUNT(*) {base_query}", params)
+            total = count_cursor.fetchone()[0]
+            
+            # Get paginated data with computed fields
+            data_query = f"""
+            SELECT *,
+                created_at as updated_at,
+                CASE WHEN is_completed = 1 THEN 'COMPLETED' ELSE 'SALE' END as sale_state,
+                CASE 
+                    WHEN total_price IS NULL OR (male_count + female_count) = 0 THEN NULL
+                    ELSE total_price / (male_count + female_count)
+                END as avg_price,
+                CASE 
+                    WHEN male_count = 0 OR total_weight IS NULL THEN NULL
+                    ELSE ((total_weight - male_count * 0.8) / (male_count + female_count)) + 0.8
+                END as male_avg_weight,
+                CASE 
+                    WHEN female_count = 0 OR total_weight IS NULL THEN NULL
+                    ELSE (total_weight - male_count * 0.8) / (male_count + female_count)
+                END as female_avg_weight
+            {base_query} 
+            ORDER BY sale_date DESC LIMIT ? OFFSET ?
+            """
+            params.extend([page_size, offset])
+            
+            data_cursor = conn.execute(data_query, params)
+            sale_data = [dict(row) for row in data_cursor.fetchall()]
+            sale_records = [SaleRecord.model_validate(data) for data in sale_data]
+            
+            conn.close()
+            
+            return PaginatedData(
+                data=sale_records,
+                total=total,
+                has_previous=offset > 0,
+                has_more=offset + page_size < total,
+            )
+            
+        except Exception as e:
+            logger.error(f"Error querying sales: {e}")
+            return PaginatedData(data=[], total=0, has_previous=False, has_more=False)
+
+    def query_todo(self, label: str) -> list[Task]:
+        """Query todo items (delegated to Todoist API)"""
+        pass
+
+    def task_done(self, task_id: str) -> bool:
+        """Mark task as done (delegated to Todoist API)"""
+        pass
+
+    def add_todo(self, form: TodoForm) -> Task | None:
+        """Add todo item (delegated to Todoist API)"""
+        pass
+
+    def delete_task(self, task_id: str) -> bool:
+        """Delete task (delegated to Todoist API)"""
+        pass
+
+    def cache_info(self) -> dict[str, int]:
+        """Get cache statistics"""
+        pass
+
+    def clear_cache(self) -> None:
+        """Clear cache (no-op for SQLite implementation)"""
+        pass

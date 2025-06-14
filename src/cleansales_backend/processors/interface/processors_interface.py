@@ -10,7 +10,6 @@ from typing import Any, Generic, Literal, TypeVar
 
 import pandas as pd
 from pydantic import BaseModel
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import (
     Column,
     Field,
@@ -19,6 +18,7 @@ from sqlmodel import (
     col,
     desc,
     select,
+    Text,
 )
 
 from cleansales_backend.shared.models import SourceData
@@ -93,9 +93,9 @@ class BatchAggregateORM(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now)
     updated_by_table: str | None = Field(default=None, description="最後異動表格")
     updated_by_record: str | None = Field(default=None, description="最後異動記錄")
-    # 前端更新欄位 jsonb
+    # 前端更新欄位 json as text for SQLite compatibility
     data: dict[str, Any] | None = Field(
-        default=None, description="前端欄位", sa_column=Column(JSONB)
+        default=None, description="前端欄位", sa_column=Column(Text)
     )
 
 

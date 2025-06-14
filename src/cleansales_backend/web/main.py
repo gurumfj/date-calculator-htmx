@@ -16,6 +16,7 @@ from cleansales_backend.core.config import get_settings
 
 from .batches_route import app as batches_app
 from .date_calculator import app as date_calculator_app
+from .file_upload_handler import app as upload_app
 from .resources import common_headers
 from .sales_route import app as sales_app
 
@@ -103,6 +104,7 @@ app, rt = fast_app(
         Mount("/batches", batches_app),
         Mount("/sales", sales_app),
         Mount("/date_calculator", date_calculator_app),
+        Mount("/upload", upload_app),
         Mount("/static", StaticFiles(directory="src/cleansales_backend/web/static"), name="static"),
     ),
 )
@@ -161,6 +163,7 @@ def index() -> Any:
         "批次": "/batches",
         "銷售": "/sales",
         "日期計算": "/date_calculator",
+        "檔案上傳": "/upload",
         "待辦事項": "/todo",
     }
     return Title("Cleansales"), Body(
