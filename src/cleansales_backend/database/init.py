@@ -62,6 +62,35 @@ def init_db(db_path: str = "./data/sqlite.db"):
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             
+            CREATE TABLE IF NOT EXISTS farm_production (
+                unique_id TEXT PRIMARY KEY,
+                batch_name TEXT NOT NULL,
+                farm_location TEXT,
+                farmer TEXT,
+                chick_in_count INTEGER,
+                chicken_out_count INTEGER,
+                feed_weight REAL,
+                sale_weight_jin REAL,
+                fcr REAL,
+                meat_cost REAL,
+                avg_price REAL,
+                cost_price REAL,
+                revenue REAL,
+                expenses REAL,
+                feed_cost REAL,
+                vet_cost REAL,
+                feed_med_cost REAL,
+                farm_med_cost REAL,
+                leg_band_cost REAL,
+                chick_cost REAL,
+                grow_fee REAL,
+                catch_fee REAL,
+                weigh_fee REAL,
+                gas_cost REAL,
+                event_id TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            
             CREATE TABLE IF NOT EXISTS upload_events (
                 event_id TEXT PRIMARY KEY,
                 file_type TEXT NOT NULL,

@@ -239,6 +239,17 @@ nav_tabs = Nav(
         ),
         Li(
             Button(
+                "Farm Production",
+                {"@click": "tab = 'farm_production'",
+                ":class": "tab === 'farm_production' ? '' : 'outline'"},
+                role="button", 
+                hx_get="/tab/farm_production",
+                hx_target="#nav_content",
+                hx_push="true"
+            )
+        ),
+        Li(
+            Button(
                 "SQL",
                 {"@click": "tab = 'sql'",
                 ":class": "tab === 'sql' ? '' : 'outline'"},
@@ -271,6 +282,8 @@ def tab(tab: str):
             return query_data(table="sale", page=0)
         case "feeds":
             return query_data(table="feed", page=0)
+        case "farm_production":
+            return query_data(table="farm_production", page=0)
         case "sql":
             return sql_query_form
     return upload_breeds_form
@@ -328,7 +341,8 @@ def view_event_records(event_id: str):
         table_map = {
             'breed': 'breed',
             'sale': 'sale', 
-            'feed': 'feed'
+            'feed': 'feed',
+            'farm_production': 'farm_production'
         }
         
         if file_type not in table_map:

@@ -13,6 +13,7 @@ from cleansales_backend.commands.upload_commands import UploadFileCommand
 from cleansales_backend.processors.breeds_schema import BreedRecordValidator
 from cleansales_backend.processors.sales_schema import SaleRecordValidator
 from cleansales_backend.processors.feeds_schema import FeedRecordValidator
+from cleansales_backend.domain.models.farm_production_validator import FarmProductionValidator
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,11 @@ class FileTypeDetector:
         feed_indicators = {"飼料廠", "品項", "周齡"}
         if feed_indicators.intersection(columns):
             return "feed"
+        
+        # 養殖場生產記錄檢測
+        farm_production_indicators = {"BatchName", "換肉率", "飼料總重", "銷售重量_jin", "總收入", "總支出"}
+        if len(farm_production_indicators.intersection(columns)) >= 3:
+            return "farm_production"
         
         return "unknown"
 
@@ -106,6 +112,13 @@ class DataProcessor:
                 "unique_id", "batch_name", "feed_date", "feed_manufacturer", "feed_item",
                 "sub_location", "is_completed", "feed_week", "feed_additive",
                 "feed_remark", "event_id", "created_at"
+            ]),
+            "farm_production": (FarmProductionValidator, "farm_production", [
+                "unique_id", "batch_name", "farm_location", "farmer", "chick_in_count", "chicken_out_count",
+                "feed_weight", "sale_weight_jin", "fcr", "meat_cost", "avg_price", "cost_price",
+                "revenue", "expenses", "feed_cost", "vet_cost", "feed_med_cost", "farm_med_cost",
+                "leg_band_cost", "chick_cost", "grow_fee", "catch_fee", "weigh_fee", "gas_cost",
+                "event_id", "created_at"
             ])
         }
     
@@ -126,7 +139,11 @@ class DataProcessor:
         
         for _, row in df.iterrows():
             try:
-                validated_record = validator_class.model_validate(row)
+                # 轉換 pandas Series 為字典進行驗證
+                row_dict = row.to_dict()
+                validated_record = validator_class.model_validate(row_dict)
+                
+                # 生成 unique_id
                 validated_record.unique_id = hashlib.sha256(
                     validated_record.model_dump_json(exclude="unique_id").encode()
                 ).hexdigest()[:10]
@@ -135,7 +152,8 @@ class DataProcessor:
                 record_dict['created_at'] = datetime.now().isoformat()
                 record_dict['event_id'] = event_id
                 valid_records.append(record_dict)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Record validation failed for {file_type}: {e}")
                 invalid_count += 1
         
         return valid_records, invalid_count
