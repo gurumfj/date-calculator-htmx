@@ -22,9 +22,14 @@ breeds = [('黑羽', '黑羽', 'batches/黑羽'),
           ('舍黑', '舍黑', 'batches/舍黑'),
           ('閹雞', '閹雞', 'batches/閹雞')]
 breeds_nav= lambda title, value, herf: Li(
-    Button(title, hx_get=herf, hx_include="#start_date", hx_target="#load_batches", cls="text-lg font-semibold cursor-pointer bg-white text-gray-700 px-6 py-3 rounded-xl shadow-md hover:shadow-lg hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 border border-gray-200"))
-nav_tabs = Ul(*[breeds_nav(title, value, herf) for title, value, herf in breeds],
-            cls="flex flex-row justify-center gap-4 mb-8 p-6 bg-white rounded-2xl shadow-lg")
+    Button(title, 
+           hx_get=herf, 
+           hx_include="#start_date", 
+           hx_target="#load_batches", 
+           hx_swap="innerHTML transition:true",
+           **{"@click": f"activeBreed = '{value}'"},
+           **{":class": f"activeBreed === '{value}' ? 'text-lg font-semibold cursor-pointer bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg border border-blue-600' : 'text-lg font-semibold cursor-pointer bg-white text-gray-700 px-6 py-3 rounded-xl shadow-md hover:shadow-lg hover:bg-blue-50 hover:text-blue-600 border border-gray-200'"},
+           cls="transition-all duration-200"))
 @rt('/')
 def index():
     from datetime import datetime
@@ -36,26 +41,74 @@ def index():
         cls="mb-6"
     )
     
-    date_selector = Div(
-        Label("選擇起始日期：", cls="block text-sm font-medium text-gray-700 mb-2"),
-        Input(
-            type="date", 
-            id="start_date", 
-            value=today,
-            cls="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+    # 合併導航區域，包含品種選擇和日期選擇
+    nav_section = Nav(
+        # 品種選擇 - 總是可見
+        Header(
+            Div(
+                H4("選擇品種", cls="text-sm font-medium text-gray-700 mb-3 text-center"),
+                Ul(*[breeds_nav(title, value, herf) for title, value, herf in breeds],
+                   cls="flex flex-row justify-center gap-4"),
+                cls="mb-4"
+            ),
+            
+            # 展開/收合日期選擇的按鈕
+            Div(
+                Button(
+                    Span("進階篩選", cls="mr-2"),
+                    Span("▼", cls="transform transition-transform duration-200 inline-block",
+                         **{":class": "datePickerOpen ? 'rotate-180' : 'rotate-0'"}),
+                    **{"@click": "datePickerOpen = !datePickerOpen"},
+                    cls="text-sm text-gray-600 hover:text-gray-800 focus:outline-none transition-colors duration-200"
+                ),
+                cls="text-center"
+            ),
+            cls="cursor-pointer"
         ),
-        Button(
-            "更新", 
-            hx_get="batches/黑羽",
-            hx_include="#start_date",
-            hx_target="#load_batches",
-            cls="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        
+        # 日期選擇 - 可展開收合
+        Section(
+            Div(
+                H4("選擇起始日期", cls="text-sm font-medium text-gray-700 mb-3 text-center"),
+                Div(
+                    Input(
+                        type="date", 
+                        id="start_date", 
+                        value=today,
+                        cls="px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    ),
+                    Button(
+                        "更新", 
+                        **{
+                            "hx-get": "",
+                            ":hx-get": "`batches/${activeBreed}`",
+                            "hx-include": "#start_date",
+                            "hx-target": "#load_batches",
+                            "hx-swap": "innerHTML transition:true"
+                        },
+                        cls="ml-3 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+                    ),
+                    cls="flex items-center justify-center gap-2"
+                )
+            ),
+            cls="pt-4 border-t border-gray-100 transition-all duration-300 ease-out overflow-hidden",
+            **{
+                ":style": "datePickerOpen ? 'max-height: 200px; opacity: 1;' : 'max-height: 0px; opacity: 0; padding-top: 0;'"
+            }
         ),
-        cls="flex items-center justify-center mb-6 p-4 bg-white rounded-lg shadow-sm"
+        
+        cls="bg-white rounded-2xl shadow-lg p-6 mb-8"
     )
     
-    load_batches = Div(id="load_batches", hx_get="batches/黑羽", hx_target="#load_batches", hx_trigger='load', cls="container mx-auto")
-    return base_layout((header, date_selector, nav_tabs, load_batches))
+    load_batches = Div(id="load_batches", hx_get="batches/黑羽", hx_target="#load_batches", hx_trigger='load', hx_swap="innerHTML transition:true", cls="container mx-auto transition-opacity duration-300")
+    
+    # 將所有元件包在一個 Alpine.js 容器中
+    app_container = Div(
+        header, nav_section, load_batches,
+        **{"x-data": "{ activeBreed: '黑羽', datePickerOpen: false }"}
+    )
+    
+    return base_layout(app_container)
 
 
 @rt('/batches/{breed}')
@@ -130,61 +183,128 @@ def query_batches(breed:str, start_date: str|None = None):
         fcr = round(data['fcr'], 2) if data['fcr'] else 0
         fcr_color = "text-green-600" if fcr <= 2.6 else "text-yellow-600" if fcr <= 3.0 else "text-red-600"
         
-        return Card(
-            Div(
+        # 計算顯示的資料項目（預留最多5個grid空間）
+        data_items = [
+            {"label": "飼養日期", "value": data['breed_date'], "color": "text-gray-800"},
+            {"label": "到期日期", "value": data['expire_date'], "color": "text-gray-800"},
+            {"label": "總飼養數", "value": f"{data['total_breed']:,}", "color": "text-gray-800"},
+            {"label": "銷售率", "value": f"{percentage}%", "color": percentage_color},
+            {"label": "FCR", "value": f"{fcr}" if fcr > 0 else "N/A", "color": fcr_color},
+        ]
+        
+        return Article(
+            # 上半部 - 摘要資訊區域
+            Header(
                 Div(
-                    H3(data['batch_name'], cls="text-xl font-bold text-gray-800 mb-2"),
+                    H3(data['batch_name'], cls="text-xl font-bold text-gray-800"),
                     Span(data['chicken_breed'], cls="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"),
-                    cls="flex justify-between items-start mb-4"
+                    cls="flex justify-between items-center mb-4"
                 ),
                 
+                # 動態資料顯示區域（最多5個grid）
                 Div(
+                    *[
+                        Div(
+                            P(item["value"], cls=f"text-lg font-bold {item['color']}"),
+                            P(item["label"], cls="text-xs text-gray-500"),
+                            cls="text-center"
+                        ) for item in data_items
+                    ],
                     Div(
-                        P("飼養日期", cls="text-sm text-gray-500 mb-1"),
-                        P(data['breed_date'], cls="font-semibold text-gray-700"),
-                        cls="flex flex-col"
+                        # 展開/收合圖示
+                        Span("▼", cls="text-gray-400 transform transition-transform duration-200 inline-block", 
+                             **{":class": "open ? 'rotate-180' : 'rotate-0'"}),
+                        cls="flex items-center justify-center"
                     ),
-                    Div(
-                        P("到期日期", cls="text-sm text-gray-500 mb-1"),
-                        P(data['expire_date'], cls="font-semibold text-gray-700"),
-                        cls="flex flex-col"
-                    ),
-                    cls="grid grid-cols-2 gap-4 mb-4"
+                    cls="grid grid-cols-6 gap-2 items-center"
                 ),
-                
-                Div(
-                    Div(
-                        P("總飼養數", cls="text-sm text-gray-500 mb-1"),
-                        P(f"{data['total_breed']:,}", cls="text-lg font-bold text-gray-800"),
-                        cls="text-center"
-                    ),
-                    Div(
-                        P("已售出數", cls="text-sm text-gray-500 mb-1"),
-                        P(f"{data['total_count']:,}", cls="text-lg font-bold text-gray-800"),
-                        cls="text-center"
-                    ),
-                    Div(
-                        P("銷售率", cls="text-sm text-gray-500 mb-1"),
-                        P(f"{percentage}%", cls=f"text-2xl font-bold {percentage_color}"),
-                        cls="text-center"
-                    ),
-                    Div(
-                        P("FCR", cls="text-sm text-gray-500 mb-1"),
-                        P(f"{fcr}" if fcr > 0 else "N/A", cls=f"text-lg font-bold {fcr_color}"),
-                        cls="text-center"
-                    ),
-                    cls="grid grid-cols-4 gap-4 mb-4"
-                ),
-                
-                Div(
-                    Div(cls=f"h-2 bg-gray-200 rounded-full overflow-hidden"),
-                    Div(cls=f"h-2 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300", style=f"width: {min(percentage, 100)}%"),
-                    cls="relative"
-                ),
-                
-                cls="p-6"
+                cls="p-4 cursor-pointer",
+                **{"@click": "open = !open"}
             ),
-            cls="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 mb-4 border border-gray-100"
+            
+            # 下半部 - 詳細資訊區域（預留給其他查詢路由）
+            Section(
+                # Mock 資料 UI
+                Div(
+                    H4("詳細資訊", cls="text-lg font-semibold text-gray-800 mb-4"),
+                    
+                    # 飼養詳情
+                    Details(
+                        Summary("飼養詳情", cls="cursor-pointer font-medium text-gray-700 mb-2"),
+                        Div(
+                            Div(
+                                Span("雄雞數量", cls="text-sm text-gray-500"),
+                                Span("1,200", cls="font-semibold text-gray-800"),
+                                cls="flex justify-between py-1"
+                            ),
+                            Div(
+                                Span("雌雞數量", cls="text-sm text-gray-500"),
+                                Span("1,800", cls="font-semibold text-gray-800"),
+                                cls="flex justify-between py-1"
+                            ),
+                            Div(
+                                Span("平均重量", cls="text-sm text-gray-500"),
+                                Span("2.5kg", cls="font-semibold text-gray-800"),
+                                cls="flex justify-between py-1"
+                            ),
+                            cls="bg-gray-50 rounded-lg p-3 mb-4"
+                        )
+                    ),
+                    
+                    # 銷售記錄
+                    Details(
+                        Summary("銷售記錄", cls="cursor-pointer font-medium text-gray-700 mb-2"),
+                        Div(
+                            Table(
+                                Thead(
+                                    Tr(
+                                        Th("日期", cls="text-left py-2 px-3 text-sm font-medium text-gray-500"),
+                                        Th("數量", cls="text-left py-2 px-3 text-sm font-medium text-gray-500"),
+                                        Th("單價", cls="text-left py-2 px-3 text-sm font-medium text-gray-500"),
+                                        Th("金額", cls="text-left py-2 px-3 text-sm font-medium text-gray-500"),
+                                    )
+                                ),
+                                Tbody(
+                                    Tr(
+                                        Td("2024-12-01", cls="py-2 px-3 text-sm text-gray-800"),
+                                        Td("150", cls="py-2 px-3 text-sm text-gray-800"),
+                                        Td("85", cls="py-2 px-3 text-sm text-gray-800"),
+                                        Td("12,750", cls="py-2 px-3 text-sm text-gray-800"),
+                                    ),
+                                    Tr(
+                                        Td("2024-12-15", cls="py-2 px-3 text-sm text-gray-800"),
+                                        Td("200", cls="py-2 px-3 text-sm text-gray-800"),
+                                        Td("88", cls="py-2 px-3 text-sm text-gray-800"),
+                                        Td("17,600", cls="py-2 px-3 text-sm text-gray-800"),
+                                    ),
+                                    cls="divide-y divide-gray-200"
+                                ),
+                                cls="min-w-full bg-white rounded-lg"
+                            ),
+                            cls="bg-gray-50 rounded-lg p-3 overflow-x-auto"
+                        )
+                    ),
+                    
+                    # 生產分析
+                    Details(
+                        Summary("生產分析", cls="cursor-pointer font-medium text-gray-700 mb-2"),
+                        Div(
+                            Div(
+                                Canvas(id=f"chart-{data['batch_name']}", cls="w-full h-32"),
+                                P("生產效率趨勢圖", cls="text-center text-sm text-gray-500 mt-2"),
+                                cls="bg-gray-50 rounded-lg p-4"
+                            )
+                        )
+                    )
+                ),
+                cls="px-4 pb-4 border-t border-gray-100 transition-all duration-300 ease-out overflow-hidden",
+                **{
+                    ":style": "open ? 'max-height: 1000px; opacity: 1;' : 'max-height: 0px; opacity: 0; padding-top: 0; padding-bottom: 0;'"
+                }
+            ),
+            
+            cls="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 mb-4 border border-gray-100",
+            **{"x-data": "{ open: false }"}
         )
     # 查詢當前30天的資料
     params = (breed, end_date, start_date)
@@ -210,7 +330,7 @@ def query_batches(breed:str, start_date: str|None = None):
                hx_get=f'batches/{breed}',
                hx_vals=json.dumps({'start_date': next_start_date}),
                hx_target='#load_order', 
-               hx_swap='outerHTML',
+               hx_swap='outerHTML transition:true',
                cls="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 mb-6"
         ),
         cls="text-center"
