@@ -14,6 +14,7 @@ from cleansales_backend.queries.data_queries import (
     GetUploadEventsQuery,
     PaginationQuery,
 )
+from cleansales_backend.web.data_service import SQLiteDataService
 from cleansales_backend.web.resources import alpine_cdn
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,77 @@ def render_table(df: pd.DataFrame, table: str, sort_by_column: str | None = None
         # 後續頁面只返回新的行
         return table_rows
 
+@rt('/batches')
+def query_batches(offset: int = 0, limit: int = 10):
+    stmt = """
+        SELECT 
+        subquery.batch_name as batch_name,
+        subquery.chicken_breed as chicken_breed,
+        subquery.breed_date as breed_date,
+        subquery.expire_date as expire_date,
+        subquery.total_breed as total_breed,
+        COALESCE(sale.total_count, 0) AS total_count,
+        CASE 
+            WHEN subquery.total_breed > 0 THEN (COALESCE(sale.total_count, 0) * 100.0 / subquery.total_breed)  -- 計算百分比
+            ELSE 0  -- 如果 total_breed 為 0，則百分比設為 0
+        END as percentage
+    FROM
+        (
+            SELECT
+                batch_name,
+                chicken_breed,
+                MIN(breed_date) AS breed_date,
+                DATE(MIN(breed_date), "+119 days") AS expire_date,
+                SUM(breed_male + breed_female) AS total_breed
+            FROM
+                breed
+            GROUP BY
+                batch_name, chicken_breed
+        ) AS subquery
+    LEFT JOIN (
+        SELECT
+            batch_name,
+            SUM(male_count + female_count) AS total_count
+        FROM
+            sale
+        GROUP BY
+            batch_name
+    ) AS sale ON subquery.batch_name = sale.batch_name
+    ORDER BY
+        subquery.expire_date DESC
+    LIMIT ?
+    OFFSET ?
+    """
+    def _render_batches(data):
+        return Card(
+            H3(data['batch_name']),
+            P(data['chicken_breed']),
+            P(data['breed_date']),
+            P(data['expire_date']),
+            P(data['total_breed']),
+            P(data['total_count']),
+            P(data['percentage']),
+        )
+    params = [(limit, offset), (limit, offset + limit)]
+
+    sql_service = SQLiteDataService(DB_PATH)
+    conn = sql_service.get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(stmt, params[0])
+    data = cursor.fetchall()
+    cursor.execute(stmt, params[1])
+    has_more = True if cursor.fetchone() else False
+    # df = pd.DataFrame([dict(row) for row in data][::-1])
+    # df = df.iloc[::-1]
+    # print(df.head())
+    return (Button("載入更多", id='load_order', hx_get='batches',
+     hx_vals=json.dumps({'offset': offset + limit, 'limit': limit}),
+     hx_target='#load_order', hx_swap='outerHTML') if has_more else '',
+     *[_render_batches(dict(row)) for row in data][::-1],
+    )
+    
+    
+
 
 @app.post("/upload")
 async def upload_breeds(file: UploadFile):
@@ -188,87 +260,39 @@ async def api_upload(file: UploadFile):
     command = UploadFileCommand(file=file)
     return await upload_handler.handle(command)
 
+nav_tab= lambda tab_name, tab_value, href: Li(
+            A(tab_name,
+                {"@click": f"tab = '{tab_value}'",
+                ":class": f"tab === '{tab_value}' ? '' : 'outline'"},
+                hx_get=href,
+                hx_target="#nav_content",
+                hx_push="true",
+                x_show=f"tab !== '{tab_value}'"),
+            Button(
+                tab_name,
+                {"@click": f"tab = '{tab_value}'",
+                ":class": f"tab === '{tab_value}' ? '' : 'outline'"},
+                role="button",
+                hx_get=f"tab/{tab_value}",
+                hx_target="#nav_content",
+                hx_push="true",
+                x_show=f"tab === '{tab_value}'",
+            )
+        )
 nav_tabs = Nav(
     Ul(
         Li(
-            Button(
-                "Upload",
-                {"@click": "tab = 'upload'",
-                ":class": "tab === 'upload' ? '' : 'outline'"},
-                role="button",
-                hx_get="tab/upload",
-                hx_target="#nav_content",
-                hx_push="true"
-            )
+            nav_tab("Upload", "upload", "tab/upload"),
+            nav_tab("Events", "events", "tab/events"),
+            nav_tab("Breeds", "breeds", "tab/breeds"),
+            nav_tab("Sales", "sales", "tab/sales"),
+            nav_tab("Feeds", "feeds", "tab/feeds"),
+            nav_tab("Farm Production", "farm_production", "tab/farm_production"),
+            nav_tab("SQL", "sql", "tab/sql"),
+            nav_tab("Batches", "batches", "tab/batches"),
         ),
-        Li(
-            Button(
-                "Events", 
-                {"@click": "tab = 'events'",
-                ":class": "tab === 'events' ? '' : 'outline'"},
-                role="button",
-                hx_get="tab/events",
-                hx_target="#nav_content", 
-                hx_push="true"
-            )
-        ),
-        Li(
-            Button(
-                "Breeds",
-                {"@click": "tab = 'breeds'",
-                ":class": "tab === 'breeds' ? '' : 'outline'"},
-                role="button", 
-                hx_get="tab/breeds",
-                hx_target="#nav_content",
-                hx_push="true"
-            )
-        ),
-        Li(
-            Button(
-                "Sales",
-                {"@click": "tab = 'sales'",
-                ":class": "tab === 'sales' ? '' : 'outline'"},
-                role="button", 
-                hx_get="tab/sales",
-                hx_target="#nav_content",
-                hx_push="true"
-            )
-        ),
-        Li(
-            Button(
-                "Feeds",
-                {"@click": "tab = 'feeds'",
-                ":class": "tab === 'feeds' ? '' : 'outline'"},
-                role="button", 
-                hx_get="tab/feeds",
-                hx_target="#nav_content",
-                hx_push="true"
-            )
-        ),
-        Li(
-            Button(
-                "Farm Production",
-                {"@click": "tab = 'farm_production'",
-                ":class": "tab === 'farm_production' ? '' : 'outline'"},
-                role="button", 
-                hx_get="tab/farm_production",
-                hx_target="#nav_content",
-                hx_push="true"
-            )
-        ),
-        Li(
-            Button(
-                "SQL",
-                {"@click": "tab = 'sql'",
-                ":class": "tab === 'sql' ? '' : 'outline'"},
-                role="button", 
-                hx_get="tab/sql",
-                hx_target="#nav_content",
-                hx_push="true"
-            )
-        )
     ),
-    x_data=json.dumps({'tab': 'upload'}),
+    x_data=json.dumps({'tab': 'upload'})
 )
 
 @rt('/')
@@ -294,6 +318,8 @@ def tab(tab: str):
             return query_data(table="farm_production", page=0)
         case "sql":
             return sql_query_form
+        case "batches":
+            return query_batches()
     return upload_breeds_form
 
 @rt('/q/{table}')
