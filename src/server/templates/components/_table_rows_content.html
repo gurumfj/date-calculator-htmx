@@ -33,7 +33,8 @@ Required Variables:
 <!-- DEBUG: Rendering load more button from _table_rows_content.html, next_page={{ next_page }} -->
 <tr>
     <td colspan="{{ df.columns|length }}" style="text-align: center; padding: 20px; color: #666;"
-        hx-get="/q/{{ table }}/{{ sort_by_column }}/{{ 'ASC' if sort_order == 'DESC' else 'DESC' }}/{{ this_page + 1 }}"
+        hx-get="/q/{{ table }}/{{ 'ASC' if sort_order == 'DESC' else 'DESC' }}/{{ this_page + 1 }}"
+        hx-vals='{"event_id": "{{ event_id }}", "column": "{{ sort_by_column }}"}'
         hx-target="closest tr" hx-swap="outerHTML" hx-trigger="revealed delay:500ms">
         載入更多... (page {{ this_page + 1 }})
     </td>

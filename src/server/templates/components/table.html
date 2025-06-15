@@ -18,7 +18,8 @@ Required Variables:
     <thead>
         <tr>
             {% for header in df.columns %}
-            <th style="cursor: pointer;" hx-get="/q/{{ table }}/{{ header }}/{{ sort_order }}/1"
+            <th style="cursor: pointer;" hx-get="/q/{{ table }}/{{ sort_order }}/1"
+                hx-vals='{"event_id": "{{ event_id }}", "column": "{{ header }}"}'
                 hx-target="closest table">
                 {{ header }}
                 {% if sort_by_column == header %}

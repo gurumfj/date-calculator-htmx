@@ -1,12 +1,13 @@
 import logging
 
 import pandas as pd
-from fastapi import FastAPI, Request, UploadFile, File, Form
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from cleansales_backend.commands.upload_commands import UploadFileCommand
+from cleansales_backend.database.init import init_db
 from cleansales_backend.handlers.upload_handler import UploadCommandHandler
 from cleansales_backend.queries.data_queries import (
     DataQueryHandler,
@@ -15,7 +16,6 @@ from cleansales_backend.queries.data_queries import (
     GetUploadEventsQuery,
     PaginationQuery,
 )
-from cleansales_backend.database.init import init_db
 
 logger = logging.getLogger(__name__)
 DB_PATH = "./data/sqlite.db"
@@ -45,7 +45,7 @@ async def get_tab_content(request: Request, tab: str):
     elif tab in ["breeds", "sales", "feeds", "farm_production"]:
         # 直接調用數據查詢
         table_name = "breed" if tab == "breeds" else ("sale" if tab == "sales" else ("feed" if tab == "feeds" else "farm_production"))
-        return await query_data_html(request, table_name)
+        return await query_table(request, table_name)
     elif tab == "sql":
         return templates.TemplateResponse("components/sql_form.html", {"request": request})
     
@@ -57,10 +57,7 @@ async def get_tab_content(request: Request, tab: str):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, tab: str = "upload"):
     """主頁面"""
-    return templates.TemplateResponse("index.html", {
-        "request": request, 
-        "tab": tab
-    })
+    return templates.TemplateResponse("index.html", {"request": request, "tab": tab})
 
 
 @app.get("/tab/{tab}", response_class=HTMLResponse)
@@ -86,19 +83,18 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         data_list, _ = data_query_handler.handle_get_data_query(query)
         df = pd.DataFrame(data_list)
         
-        # 渲染表格為字符串
-        table_template = templates.get_template("components/table.html")
-        table_html = table_template.render(
-            df=df,
-            table=result["file_type"],
-            sort_by_column=None,
-            sort_order="DESC",
-            page=0,
-            page_size=50,
-            has_more=False,
-            enable_event_links=False,
-            request=request
-        )
+        # 渲染表格為字符串 - Controller 決定渲染邏輯
+        context = {
+            "request": request,
+            "df": df,
+            "table": result["file_type"],
+            "sort_by_column": None,
+            "sort_order": "DESC",
+            "enable_event_links": False,
+            "render_type": "empty" if df.empty else "full"
+        }
+        
+        table_html = templates.get_template("components/table.html").render(**context)
         
         context = {
             "request": request,
@@ -135,58 +131,93 @@ async def view_upload_events(request: Request):
     if 'processing_time_ms' in df.columns:
         df['processing_time_ms'] = df['processing_time_ms'].apply(lambda x: f"{x} ms" if x else "0 ms")
     
+    # Controller 決定渲染邏輯
     context = {
         "request": request,
         "df": df,
         "table": "events",
         "sort_by_column": "upload_timestamp",
         "sort_order": "DESC",
-        "page": 0,
-        "page_size": 100,
-        "has_more": False,
-        "enable_event_links": True
+        "enable_event_links": True,
+        "render_type": "empty" if df.empty else "full"
     }
     
     return templates.TemplateResponse("components/table.html", context)
 
 
-@app.get("/q/{table}", response_class=HTMLResponse)
-async def query_data_html(request: Request, table: str, sort_by_column: str | None = None, 
-                         sort_order: str | None = None, page: int = 0, page_size: int = 50, 
+
+
+# Helper function to render table responses
+def _render_table_response(
+    request: Request,
+    df: pd.DataFrame,
+    table_name: str,
+    column: str | None,
+    current_sort_order: str | None,
+    page: int,
+    has_more: bool,
+    templates: Jinja2Templates,
+    html_output: bool = False
+) -> HTMLResponse | str:
+    """根據查詢結果和分頁信息渲染表格模板。"""
+    # Determine the sort order for template links (toggling sort)
+    # If current_sort_order is DESC, link should offer ASC. If ASC, link offers DESC.
+    template_link_sort_order = "ASC" if current_sort_order == "DESC" else "DESC"
+
+    base_context = {
+        "request": request,
+        "df": df,
+        "table": table_name,
+        "enable_event_links": table_name == "events",
+        "sort_by_column": column,
+        "sort_order": template_link_sort_order, # For template links
+        "this_page": page,
+        "has_more": has_more,
+    }
+    table_template = templates.get_template("components/table.html").render(**base_context)
+
+    if df.empty:
+        # For empty df, still render the table structure (headers)
+        return templates.TemplateResponse("components/table.html", context=base_context) if not html_output else table_template
+
+    if page == 1:
+        # First page: render the full table structure
+        return templates.TemplateResponse("components/table.html", context=base_context) if not html_output else table_template
+    else:
+        # Subsequent pages: render only the row content for HTMX
+        return templates.TemplateResponse("components/_table_rows_content.html", context=base_context) if not html_output else table_template
+
+
+@app.get("/q/{table}/{order}/{page}", response_class=HTMLResponse)
+async def query_table(request: Request, table: str, column: str | None = None, 
+                         order: str | None = None, page: int = 1, page_size: int = 50, 
                          event_id: str | None = None):
     """查詢數據並返回HTML"""
     query = GetDataQuery(
         table_name=table, 
-        sort_by_column=sort_by_column, 
-        sort_order=sort_order,
-        pagination=PaginationQuery(page=page+1, page_size=page_size), 
+        sort_by_column=None if column == "None" else column,
+        sort_order=order,
+        pagination=PaginationQuery(page=page, page_size=page_size),
         event_id=event_id
     )
     data, total_pages = data_query_handler.handle_get_data_query(query)
     
     df = pd.DataFrame(data)
     has_more = (page + 1) < total_pages
+    next_page: int = page + 1 if has_more else 0
+    print(f"page={page}, total_pages={total_pages}, has_more={has_more}, next_page={next_page}")
     
-    # 準備模板上下文
-    context = {
-        "request": request,
-        "df": df,
-        "table": table,
-        "sort_by_column": sort_by_column,
-        "sort_order": sort_order or "DESC",
-        "page": page,
-        "page_size": page_size,
-        "has_more": has_more,
-        "enable_event_links": table == "events"
-    }
-    
-    if page == 0:
-        # 第一頁返回完整表格
-        return templates.TemplateResponse("components/table.html", context)
-    else:
-        # 後續頁面只返回行
-        return templates.TemplateResponse("components/table_rows.html", context)
-
+    return _render_table_response(
+        request=request,
+        df=df,
+        table_name=table,
+        column=column,
+        current_sort_order=order,
+        page=page,
+        has_more=has_more,
+        templates=templates,
+        html_output=False
+    )
 
 
 
@@ -232,32 +263,28 @@ async def view_event_records(request: Request, event_id: str):
             event_id=event_id, 
             pagination=PaginationQuery(page=1, page_size=100)
         )
-        data_records, _ = data_query_handler.handle_get_data_query(data_query)
+        data_records, total_pages = data_query_handler.handle_get_data_query(data_query)
+
+        if not data_records:
+            df = pd.DataFrame()
+        else:
+            df = pd.DataFrame(data_records).drop(columns=['event_id'])
         
-        table_html = ""
-        if data_records:
-            df = pd.DataFrame(data_records)
-            
-            # 移除event_id欄位以避免重複顯示
-            if 'event_id' in df.columns:
-                df = df.drop('event_id', axis=1)
-            
-            # 渲染表格
-            table_template = templates.get_template("components/table.html")
-            table_html = table_template.render(
-                df=df,
-                table=file_type,
-                sort_by_column=None,
-                sort_order="DESC",
-                page=0,
-                page_size=100,
-                has_more=False,
-                enable_event_links=False,
-                request=request
-            )
+        table_html = _render_table_response(
+            request=request,
+            df=df,
+            table_name=table_name,
+            column=None,
+            current_sort_order="DESC",
+            page=1,
+            has_more=False if total_pages == 1 else True,
+            templates=templates,
+            html_output=True
+        )        
         
         context = {
             "request": request,
+            "table": table_name,
             "event": event_dict,
             "event_id": event_id,
             "table_html": table_html,
@@ -314,9 +341,8 @@ async def execute_sql(request: Request, sql: str = Form(...)):
             table="sql",
             sort_by_column=None,
             sort_order="DESC",
-            page=0,
-            page_size=50,
-            has_more=False,
+            render_head=True,
+            render_load_more=False,
             enable_event_links=False,
             request=request
         )

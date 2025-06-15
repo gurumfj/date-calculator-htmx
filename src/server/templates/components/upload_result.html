@@ -1,3 +1,22 @@
+{#
+Template: upload_result.html
+Description: Displays upload results with success/error messages and data table
+
+Required Variables:
+- request: Request - FastAPI request object
+- success: bool - Whether upload was successful
+- result: dict - Upload result containing:
+  * message: str - Success/error message
+  * file_type: str - Type of uploaded file
+  * valid_count: int - Number of valid records
+  * invalid_count: int - Number of invalid records
+  * duplicates_removed: int - Number of duplicates removed
+  * inserted_count: int - Number of records inserted
+  * deleted_count: int - Number of records deleted
+  * duplicate_count: int - Number of duplicate records
+- table_html: str - Pre-rendered table HTML (if success)
+#}
+
 {% if success %}
 <div class="alert alert-success" role="alert">
     <h5 class="alert-heading">✅ {{ result.message }}</h5>

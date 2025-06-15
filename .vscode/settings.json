@@ -91,5 +91,8 @@
     },
     "windsurfPyright.analysis.ignore": [
         "**/web"
-    ]
+    ],
+    "[jinja-html]": {
+        "editor.defaultFormatter": "vscode.html-language-features"
+    }
 }

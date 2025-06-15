@@ -22,12 +22,13 @@
                 </div>
             </div>
         </div>
-        
+        {{ table_html|safe }}
+{#         
         {% if data_count > 0 %}
         <h6 class="fw-bold">數據記錄 ({{ data_count }} 條)</h6>
         {{ table_html|safe }}
         {% else %}
         <p class="text-muted fst-italic">此事件沒有關聯的數據記錄</p>
-        {% endif %}
+        {% endif %} #}
     </div>
 </div>

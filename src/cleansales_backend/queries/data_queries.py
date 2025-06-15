@@ -58,6 +58,8 @@ class DataQueryHandler:
         - breed: breed_date DESC
         - sale: sale_date DESC
         - feed: feed_date DESC
+        - farm_production: created_at DESC
+        - events: upload_timestamp DESC
         
         If GetDataQuery's event_id attribute is not None, the results are filtered by event_id = ?.
         
@@ -89,7 +91,12 @@ class DataQueryHandler:
                     base_sql += " ORDER BY sale_date DESC"
                 elif query.table_name == "feed":
                     base_sql += " ORDER BY feed_date DESC"
-
+                elif query.table_name == "farm_production":
+                    base_sql += " ORDER BY created_at DESC"
+                elif query.table_name == "events":
+                    base_sql += " ORDER BY upload_timestamp DESC"
+            
+            total_pages = -1
             if query.pagination:
                 # Get count first with condition params only
                 count_params = [p for p in params]  # Copy condition params
