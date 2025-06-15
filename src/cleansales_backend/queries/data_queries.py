@@ -6,6 +6,8 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import Field
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,8 +21,8 @@ class GetDataQuery:
 
 @dataclass
 class PaginationQuery:
-    page: int
-    page_size: int
+    page: int = Field(le=1)
+    page_size: int = Field(ge=1, le=100)
 
 
 @dataclass
@@ -88,7 +90,6 @@ class DataQueryHandler:
                 elif query.table_name == "feed":
                     base_sql += " ORDER BY feed_date DESC"
 
-            total_pages = -1
             if query.pagination:
                 # Get count first with condition params only
                 count_params = [p for p in params]  # Copy condition params
@@ -100,10 +101,8 @@ class DataQueryHandler:
                 offset = (query.pagination.page - 1) * query.pagination.page_size
                 base_sql += " LIMIT ? OFFSET ?"
                 params.extend([query.pagination.page_size, offset])
-            print(base_sql, params)
             cursor = conn.execute(base_sql, params)
             results = cursor.fetchall()
-            print(len(results))
             return [dict(row) for row in results], total_pages
         finally:
             conn.close()
