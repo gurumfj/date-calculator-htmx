@@ -15,10 +15,10 @@ from sqlmodel import (
     Field,
     Session,
     SQLModel,
+    Text,
     col,
     desc,
     select,
-    Text,
 )
 
 from cleansales_backend.shared.models import SourceData

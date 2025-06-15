@@ -14,8 +14,8 @@ from todoist_api_python.models import Task
 
 from cleansales_backend.core.config import get_settings
 
-from .batches_route import app as batches_app
 from .batch_route_v2 import app as batch_route_v2_app
+from .batches_route import app as batches_app
 from .date_calculator import app as date_calculator_app
 from .file_upload_handler import app as upload_app
 from .resources import common_headers

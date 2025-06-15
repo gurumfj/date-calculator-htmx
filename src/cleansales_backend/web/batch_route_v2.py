@@ -1,5 +1,5 @@
 import json
-from turtle import title
+
 from fasthtml.common import *
 
 from cleansales_backend.core.config import get_settings
