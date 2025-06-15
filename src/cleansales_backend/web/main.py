@@ -15,6 +15,7 @@ from todoist_api_python.models import Task
 from cleansales_backend.core.config import get_settings
 
 from .batches_route import app as batches_app
+from .batch_route_v2 import app as batch_route_v2_app
 from .date_calculator import app as date_calculator_app
 from .file_upload_handler import app as upload_app
 from .resources import common_headers
@@ -102,6 +103,7 @@ app, rt = fast_app(
     middleware=(Middleware(GZipMiddleware),),
     routes=(
         Mount("/batches", batches_app),
+        Mount("/new_batch_route", batch_route_v2_app),
         Mount("/sales", sales_app),
         Mount("/date_calculator", date_calculator_app),
         Mount("/upload", upload_app),
@@ -161,6 +163,7 @@ todoist_service = TodoistService(todoist)
 def index() -> Any:
     nav_link = {
         "批次": "/batches",
+        "批次 v2": "/new_batch_route",
         "銷售": "/sales",
         "日期計算": "/date_calculator",
         "檔案上傳": "/upload",
