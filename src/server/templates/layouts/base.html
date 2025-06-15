@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cleansales Upload Helper{% endblock %}</title>
+    
+    <!-- Pico CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        /* Navigation tabs styling for Pico CSS */
+        nav ul {
+            display: flex;
+            border-bottom: 1px solid var(--pico-border-color);
+            margin-bottom: 1rem;
+        }
+        nav li {
+            list-style: none;
+            margin: 0;
+        }
+        nav button {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: none;
+            background: none;
+            border-bottom: 2px solid transparent;
+            color: var(--pico-color);
+        }
+        nav button:hover {
+            background-color: var(--pico-background-color);
+            border-bottom-color: var(--pico-primary);
+        }
+        nav button.active {
+            border-bottom-color: var(--pico-primary);
+            color: var(--pico-primary);
+        }
+        
+        /* Table styling */
+        table th {
+            cursor: pointer;
+            user-select: none;
+        }
+        table th:hover {
+            background-color: var(--pico-background-color);
+        }
+        
+        /* Loading indicator */
+        #loading {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+        }
+        .htmx-request #loading {
+            display: block;
+        }
+        
+        /* Card-like containers */
+        .card {
+            border: 1px solid var(--pico-border-color);
+            border-radius: var(--pico-border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .card-header {
+            border-bottom: 1px solid var(--pico-border-color);
+            margin: -1rem -1rem 1rem -1rem;
+            padding: 1rem;
+            background-color: var(--pico-background-color);
+        }
+        .card-title {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <main class="container" style="max-width: 90%;">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Loading indicator -->
+    <div id="loading" aria-label="Loading">
+        <div aria-busy="true"></div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">SQL Query</h5>
+    </div>
+    <div class="card-body">
+        <form hx-post="/sql" 
+              hx-target="#result" 
+              hx-trigger="keyup delay:500ms"
+              hx-push-url="true">
+            <div class="mb-3">
+                <label for="sql" class="form-label">SQL查詢語句</label>
+                <textarea class="form-control" 
+                          id="sql" 
+                          name="sql" 
+                          rows="5" 
+                          placeholder="輸入SQL查詢語句..."
+                          style="font-family: monospace;"></textarea>
+                <div class="form-text">
+                    只允許SELECT和WITH查詢語句，自動限制1000筆結果
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <span class="htmx-indicator spinner-border spinner-border-sm me-2" role="status"></span>
+                Execute
+            </button>
+        </form>
+    </div>
+</div>

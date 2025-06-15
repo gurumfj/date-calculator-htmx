@@ -1,0 +1,57 @@
+{% if df.empty %}
+    <p>沒有數據</p>
+{% else %}
+<table id="data-table">
+    <thead>
+        <tr>
+            {% for header in df.columns %}
+            <th style="cursor: pointer;" 
+                hx-get="/q/{{ table }}" 
+                hx-vals='{"sort_by_column": "{{ header }}", "sort_order": "{{ "ASC" if sort_by_column == header and sort_order == "DESC" else "DESC" }}"}'
+                hx-target="#nav_content">
+                {{ header }}
+                {% if sort_by_column == header %}
+                    {{ " ↓" if sort_order == "DESC" else " ↑" }}
+                {% endif %}
+            </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody id="table-body">
+        {% for row in df.values %}
+        <tr id="row-{{ page * page_size + loop.index0 }}">
+            {% for cell in row %}
+            {% set header = df.columns[loop.index0] %}
+            <td>
+                {% if enable_event_links and header == 'event_id' and cell %}
+                    <a href="/event/{{ cell }}" 
+                       hx-get="/event/{{ cell }}" 
+                       hx-target="#result" 
+                       hx-push-url="true"
+                       style="color: #007bff; text-decoration: underline; cursor: pointer;">
+                        {{ (cell|string)[:8] }}...
+                    </a>
+                {% else %}
+                    {{ cell if cell is not none else "" }}
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        
+        {% if has_more %}
+        <tr>
+            <td colspan="{{ df.columns|length }}" 
+                style="text-align: center; padding: 20px; color: #666;"
+                hx-get="/q/{{ table }}"
+                hx-vals='{"sort_by_column": "{{ sort_by_column or "" }}", "sort_order": "{{ sort_order }}", "page": {{ page + 1 }}, "page_size": {{ page_size }}}'
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+                hx-trigger="revealed delay:500ms">
+                載入更多...
+            </td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endif %}

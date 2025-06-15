@@ -22,6 +22,9 @@ dependencies = [
     "todoist-api-python>=3.0.0",
     "python-fasthtml>=0.12.18",
     "pytz>=2025.2",
+    "python-multipart>=0.0.6",
+    "uvicorn>=0.24.0",
+    "jinja2>=3.1.6",
 ]
 
 
@@ -40,6 +43,7 @@ cleansales = "cleansales_backend.cli:main"
 api = "cleansales_backend.api.dev:main"
 web = "cleansales_backend.web.main:main"
 upload-handler = "cleansales_backend.web.file_upload_handler:main"
+server = "server.main:app"
 
 [project.entry-points."uv.run"]
 cleansales = "cleansales_backend.cli:main"

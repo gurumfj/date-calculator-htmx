@@ -1,0 +1,94 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div x-data="{ tab: '{{ tab }}' }">
+    <!-- Navigation Tabs -->
+    <nav>
+        <ul hx-indicator="#tab-loading">
+            <li>
+                <button :class="tab === 'upload' ? 'active' : ''" 
+                        @click="tab = 'upload'"
+                        hx-get="/tab/upload"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    Upload
+                </button>
+            </li>
+            <li>
+                <button :class="tab === 'events' ? 'active' : ''" 
+                        @click="tab = 'events'"
+                        hx-get="/tab/events"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    Events
+                </button>
+            </li>
+            <li>
+                <button :class="tab === 'breeds' ? 'active' : ''" 
+                        @click="tab = 'breeds'"
+                        hx-get="/tab/breeds"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    Breeds
+                </button>
+            </li>
+            <li>
+                <button :class="tab === 'sales' ? 'active' : ''" 
+                        @click="tab = 'sales'"
+                        hx-get="/tab/sales"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    Sales
+                </button>
+            </li>
+            <li>
+                <button :class="tab === 'feeds' ? 'active' : ''" 
+                        @click="tab = 'feeds'"
+                        hx-get="/tab/feeds"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    Feeds
+                </button>
+            </li>
+            <li>
+                <button :class="tab === 'farm_production' ? 'active' : ''" 
+                        @click="tab = 'farm_production'"
+                        hx-get="/tab/farm_production"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    Farm Production
+                </button>
+            </li>
+            <li>
+                <button :class="tab === 'sql' ? 'active' : ''" 
+                        @click="tab = 'sql'"
+                        hx-get="/tab/sql"
+                        hx-target="#nav_content"
+                        hx-push-url="true">
+                    SQL
+                </button>
+            </li>
+        </ul>
+    </nav>
+    
+    <!-- Tab Loading Indicator -->
+    <div id="tab-loading" aria-label="Loading" class="htmx-indicator">
+        <div aria-busy="true"></div>
+    </div>
+    
+    <!-- Tab Content -->
+    <div id="nav_content" 
+         hx-get="/tab/{{ tab }}"
+         hx-trigger="load"
+         hx-indicator="#tab-loading">
+    </div>
+
+    <!-- Results Loading Indicator -->
+    <div id="result-loading" aria-label="Loading" class="htmx-indicator">
+        <div aria-busy="true"></div>
+    </div>
+    
+    <!-- Results -->
+    <div id="result" class="mt-4" hx-indicator="#result-loading"></div>
+</div>
+{% endblock %}
