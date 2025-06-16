@@ -11,7 +11,16 @@ from pydantic import BaseModel, StringConstraints, ValidationError, field_valida
 from todoist_api_python.api import TodoistAPI
 from todoist_api_python.models import Task
 
+from cleansales_backend.core.config import get_settings
+from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
+from cleansales_backend.domain.models.feed_record import FeedRecord
+from cleansales_backend.domain.models.sale_record import SaleRecord
+from cleansales_backend.domain.utils import day_age, week_age
+from cleansales_backend.web import CachedDataService, DataServiceInterface
 from cleansales_backend.web.data_service import TodoForm
+from supabase import Client, create_client
+
+from .resources import common_headers
 
 
 def ComponentWrap(component_name: str, *children, **kwargs) -> FT:
@@ -37,16 +46,6 @@ def end_comment(component_name: str) -> Safe:
     """Generate end comment for manual component wrapping."""
     return Safe(f"<!-- END: {component_name} -->")
 
-
-from cleansales_backend.core.config import get_settings
-from cleansales_backend.domain.models.batch_aggregate import BatchAggregate
-from cleansales_backend.domain.models.feed_record import FeedRecord
-from cleansales_backend.domain.models.sale_record import SaleRecord
-from cleansales_backend.domain.utils import day_age, week_age
-from cleansales_backend.web import CachedDataService, DataServiceInterface
-from supabase import Client, create_client
-
-from .resources import common_headers
 
 logger = logging.getLogger(__name__)
 
@@ -1291,13 +1290,15 @@ class TodoPageRender:
                 H2("📋 待辦事項", cls="text-xl font-semibold text-gray-800 mb-4 flex items-center"),
                 self.render_todo_form(),
                 Div(
-                    Img(src="/static/spinner-solid.svg",
-                        cls="w-12 h-12 animate-spin transition-all duration-300 ease-in-out"),
+                    Img(
+                        src="/static/spinner-solid.svg",
+                        cls="w-12 h-12 animate-spin transition-all duration-300 ease-in-out",
+                    ),
                     cls="flex justify-center items-center htmx-indicator",
                     id=f"todo_loading_{self.batch.safe_id}",
                 ),
-
-                Div(id=f"todo_{self.batch.safe_id}_todo_list",
+                Div(
+                    id=f"todo_{self.batch.safe_id}_todo_list",
                     hx_get=f"todo/{self.batch.batch_name}",
                     hx_swap="outerHTML",
                     hx_trigger="load",
@@ -1307,9 +1308,8 @@ class TodoPageRender:
             ),
             cls="mb-4",
         )
-    
-    def render_todo_form(self) -> FT:
 
+    def render_todo_form(self) -> FT:
         x_data = """
         {
             "open": false,
@@ -1350,148 +1350,142 @@ class TodoPageRender:
         }
         """
 
-        form_comp=Form(
-            # 隱藏欄位 - 批次名稱
-            Hidden(
-                name="batch_name",
-                value=self.batch.batch_name,
-            ),
-            
-            # 任務輸入欄位 - 使用卡片式設計
-            Div(
-                Div(
-                    Label(
-                        "✏️ 任務標題",
-                        Input(
-                            type="text",
-                            placeholder="輸入待辦事項標題...",
-                            name="content",
-                            cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
-                            required=True,
-                            hx_post="todo/preview",
-                            hx_trigger="keyup delay:500ms",
-                            hx_target=f"#todo_preview_{self.batch.safe_id}",
-                            hx_swap="innerHTML",
-                            x_model="formData.content",
-                        ),
-                        cls="block text-sm font-medium text-gray-700 mb-1"
-                    ),
-                    cls="mb-4"
+        form_comp = (
+            Form(
+                # 隱藏欄位 - 批次名稱
+                Hidden(
+                    name="batch_name",
+                    value=self.batch.batch_name,
                 ),
-                
-                # 描述輸入欄位
-                Div(
-                    Label(
-                        "📝 詳細描述",
-                        Textarea(
-                            name="description",
-                            cls="w-full border border-gray-300 rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
-                            required=False,
-                            placeholder="輸入詳細描述...",
-                            hx_post="todo/preview",
-                            hx_target=f"#todo_preview_{self.batch.safe_id}",
-                            hx_swap="innerHTML",
-                            hx_trigger="keyup delay:500ms",
-                            x_model="formData.description",
-                        ),
-                        cls="block text-sm font-medium text-gray-700 mb-1"
-                    ),
-                    cls="mb-4"
-                ),
-                
-                # 優先度和到期日欄位 - 使用網格布局
+                # 任務輸入欄位 - 使用卡片式設計
                 Div(
                     Div(
                         Label(
-                            "🔔 優先度",
-                            Select(
-                                Option("高", value=1),
-                                Option("中", value=2),
-                                Option("低", value=3),
-                                Option("無", value=4, selected=True),
-                                name="priority",
-                                cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
-                                required=False,
-                                hx_post="todo/preview",
-                                hx_target=f"#todo_preview_{self.batch.safe_id}",
-                                hx_swap="innerHTML",
-                                hx_trigger="change",
-                            ),
-                            cls="block text-sm font-medium text-gray-700 mb-1"
-                        ),
-                        cls="mb-4"
-                    ),
-                    Div(
-                        Label(
-                            "📅 到期日",
+                            "✏️ 任務標題",
                             Input(
-                                type="date",
-                                name="due_date",
-                                value=datetime.now().strftime("%Y-%m-%d"),
+                                type="text",
+                                placeholder="輸入待辦事項標題...",
+                                name="content",
                                 cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                required=True,
+                                hx_post="todo/preview",
+                                hx_trigger="keyup delay:500ms",
+                                hx_target=f"#todo_preview_{self.batch.safe_id}",
+                                hx_swap="innerHTML",
+                                x_model="formData.content",
+                            ),
+                            cls="block text-sm font-medium text-gray-700 mb-1",
+                        ),
+                        cls="mb-4",
+                    ),
+                    # 描述輸入欄位
+                    Div(
+                        Label(
+                            "📝 詳細描述",
+                            Textarea(
+                                name="description",
+                                cls="w-full border border-gray-300 rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
                                 required=False,
-                                placeholder="到期日",
+                                placeholder="輸入詳細描述...",
                                 hx_post="todo/preview",
                                 hx_target=f"#todo_preview_{self.batch.safe_id}",
                                 hx_swap="innerHTML",
-                                hx_trigger="change",
+                                hx_trigger="keyup delay:500ms",
+                                x_model="formData.description",
                             ),
-                            cls="block text-sm font-medium text-gray-700 mb-1"
+                            cls="block text-sm font-medium text-gray-700 mb-1",
                         ),
-                        cls="mb-4"
+                        cls="mb-4",
                     ),
-                    cls="grid grid-cols-2 gap-4 mb-4"
-                ),
-                
-                # 預覽區域
-                Div(
+                    # 優先度和到期日欄位 - 使用網格布局
                     Div(
-                        "預覽",
-                        cls="text-sm font-medium text-gray-700 mb-2"
+                        Div(
+                            Label(
+                                "🔔 優先度",
+                                Select(
+                                    Option("高", value=1),
+                                    Option("中", value=2),
+                                    Option("低", value=3),
+                                    Option("無", value=4, selected=True),
+                                    name="priority",
+                                    cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                    required=False,
+                                    hx_post="todo/preview",
+                                    hx_target=f"#todo_preview_{self.batch.safe_id}",
+                                    hx_swap="innerHTML",
+                                    hx_trigger="change",
+                                ),
+                                cls="block text-sm font-medium text-gray-700 mb-1",
+                            ),
+                            cls="mb-4",
+                        ),
+                        Div(
+                            Label(
+                                "📅 到期日",
+                                Input(
+                                    type="date",
+                                    name="due_date",
+                                    value=datetime.now().strftime("%Y-%m-%d"),
+                                    cls="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200",
+                                    required=False,
+                                    placeholder="到期日",
+                                    hx_post="todo/preview",
+                                    hx_target=f"#todo_preview_{self.batch.safe_id}",
+                                    hx_swap="innerHTML",
+                                    hx_trigger="change",
+                                ),
+                                cls="block text-sm font-medium text-gray-700 mb-1",
+                            ),
+                            cls="mb-4",
+                        ),
+                        cls="grid grid-cols-2 gap-4 mb-4",
                     ),
+                    # 預覽區域
                     Div(
-                        id=f"todo_preview_{self.batch.safe_id}",
-                        x_ref="previewBlock",
-                        cls="border border-gray-200 rounded-md p-3 bg-gray-50 min-h-[100px] mb-4"
+                        Div("預覽", cls="text-sm font-medium text-gray-700 mb-2"),
+                        Div(
+                            id=f"todo_preview_{self.batch.safe_id}",
+                            x_ref="previewBlock",
+                            cls="border border-gray-200 rounded-md p-3 bg-gray-50 min-h-[100px] mb-4",
+                        ),
+                        cls="mb-4",
+                        hx_disable="true",
                     ),
-                    cls="mb-4",
-                    hx_disable='true'
+                    # 表單按鈕 - 美化按鈕
+                    Div(
+                        Button(
+                            Span("清空", cls="flex items-center"),
+                            {"@click": "clearForm()"},
+                            type="reset",
+                            cls="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-md transition duration-200 flex items-center justify-center",
+                            # hx_get=f"todo/{TodoFormState.ADD_BTN.value}/{self.batch.batch_name}",
+                            # hx_target=f"#todo_form_{self.batch.safe_id}",
+                            # hx_swap="outerHTML",
+                        ),
+                        Button(
+                            Span("✓ 新增任務", cls="flex items-center", x_show="!isSubmitting"),
+                            Span("✓ 發送中...", cls="flex items-center animate", x_show="isSubmitting"),
+                            type="submit",
+                            cls="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-md transition duration-200 flex items-center justify-center submit",
+                            data_operation="add_task",
+                            # disabled="isSubmitting",
+                        ),
+                        cls="flex justify-end gap-3 mt-2",
+                    ),
+                    cls="bg-white p-5 rounded-lg shadow-sm border border-gray-200",
                 ),
-
-                # 表單按鈕 - 美化按鈕
-                Div(
-                    Button(
-                        Span("清空", cls="flex items-center"),
-                        {'@click': 'clearForm()'},
-                        type="reset",
-                        cls="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-md transition duration-200 flex items-center justify-center",
-                        # hx_get=f"todo/{TodoFormState.ADD_BTN.value}/{self.batch.batch_name}",
-                        # hx_target=f"#todo_form_{self.batch.safe_id}",
-                        # hx_swap="outerHTML",
-                    ),
-                    Button(
-                        Span("✓ 新增任務", cls="flex items-center", x_show="!isSubmitting"),
-                        Span("✓ 發送中...", cls="flex items-center animate", x_show="isSubmitting"),
-                        type="submit",
-                        cls="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-md transition duration-200 flex items-center justify-center submit",
-                        data_operation="add_task",
-                        # disabled="isSubmitting",
-                    ),
-                    cls="flex justify-end gap-3 mt-2",
-                ),
-                cls="bg-white p-5 rounded-lg shadow-sm border border-gray-200",
+                {"@htmx:before-request": "handleBeforeRequest($event)"},
+                {"@htmx:after-request": "handleAfterRequest($event)"},
+                x_ref="todo_form",
+                action="#",
+                hx_post="todo/add_task",
+                hx_target=f"#todo_list_{self.batch.safe_id}",
+                hx_disabled_elt="this",
+                hx_indicator=f"#todo_loading_{self.batch.safe_id}",
+                cls="w-full",
+                x_show="open",
             ),
-            {'@htmx:before-request': 'handleBeforeRequest($event)'},
-            {'@htmx:after-request': 'handleAfterRequest($event)'},
-            x_ref="todo_form",
-            action="#",
-            hx_post="todo/add_task",
-            hx_target=f"#todo_list_{self.batch.safe_id}",
-            hx_disabled_elt='this',
-            hx_indicator=f"#todo_loading_{self.batch.safe_id}",
-            cls="w-full",
-            x_show="open",
-        ),
+        )
         return Div(
             Button(
                 Span("Add Todo", cls="flex items-center", x_show="!open"),
@@ -1506,10 +1500,9 @@ class TodoPageRender:
             form_comp,
             # x_data=json.dumps({"open": False, "content": "", "description": "", "priority": 4, "due_date": datetime.now().strftime("%Y-%m-%d")}),
             x_data=x_data,
-            cls='mb-4',
+            cls="mb-4",
         )
 
-    
     def render_task(self, task: Task, preview: bool = False) -> FT:
         return Details(
             Summary(
@@ -1521,8 +1514,8 @@ class TodoPageRender:
                             type="checkbox",
                             checked=task.is_completed,
                             cls="h-7 w-7 text-blue-600 rounded-full border-2 border-gray-300 focus:ring-blue-500 focus:ring-2 cursor-pointer",
-                            hx_patch='todo_done',
-                            hx_vals=json.dumps({'batch_name':self.batch.batch_name,'task_id':task.id}),
+                            hx_patch="todo_done",
+                            hx_vals=json.dumps({"batch_name": self.batch.batch_name, "task_id": task.id}),
                             hx_target=f"#todo_list_{self.batch.safe_id}",
                             hx_trigger="change",  # 只在勾選時觸發
                             hx_disabled_elt="this",  # 請求期間禁用自己
@@ -1540,17 +1533,13 @@ class TodoPageRender:
                         H2(task.content, cls="text-xl font-semibold text-gray-800 mb-2 leading-tight"),
                         Div(
                             Span(
-                                "📅 " + task.due.date.strftime("%Y-%m-%d")
-                                if task.due
-                                else "",
+                                "📅 " + task.due.date.strftime("%Y-%m-%d") if task.due else "",
                                 cls="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full mr-2",
                             )
                             if task.due
                             else "",
                             Span(
-                                f"🐣 {day_age(self.batch.breeds[0].breed_date, task.due.date)}日齡"
-                                if task.due
-                                else "",
+                                f"🐣 {day_age(self.batch.breeds[0].breed_date, task.due.date)}日齡" if task.due else "",
                                 cls="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full mr-2",
                             )
                             if task.due
@@ -1584,7 +1573,9 @@ class TodoPageRender:
                             cls="htmx-indicator ml-2 inline-block",  # 改為在按鈕旁邊顯示
                         ),
                         cls="flex items-center",  # 使用flex來水平排列按鈕和指示器
-                    ) if not preview else "",
+                    )
+                    if not preview
+                    else "",
                     cls="flex items-start w-full cursor-pointer hover:bg-gray-50 transition-colors duration-200 rounded-lg p-3",
                 ),
                 cls="list-none",
@@ -1598,7 +1589,6 @@ class TodoPageRender:
             id=f"todo_{task.id}",
             open=True if task.description else False,
         )
-
 
     def render_tasks(self, tasks: list[Task]) -> FT:
         if not tasks:
@@ -1616,10 +1606,7 @@ class TodoPageRender:
                 cls="bg-white p-4 rounded-lg shadow-sm",
                 id=f"todo_list_{self.batch.safe_id}",
             )
-        render_todo_list = [
-            self.render_task(task)
-            for task in tasks
-        ]
+        render_todo_list = [self.render_task(task) for task in tasks]
 
         return ComponentWrap(
             "render_tasks",
@@ -2145,35 +2132,38 @@ def route_get_todo_by(batch_name: str):
 @app.post("/todo/preview")
 def route_todo_preview(form: TodoForm):
     # time.sleep(1)
-    preview = Task.from_dict({
-        "id": "",
-        "project_id": "",
-        "section_id": "",
-        "parent_id": "",
-        "labels": [],
-        "priority": 1,
-        "content": form.content,
-        "description": form.description,
-        "due": {
-            "date": datetime.strptime(form.due_date, "%Y-%m-%d").date().isoformat() if form.due_date else "",
-            "string": ""
-        },
-        "deadline": None,
-        "duration": None,
-        "collapsed": False,
-        "child_order": 1,
-        "responsible_uid": None,
-        "assigned_by_uid": None,
-        "completed_at": None,
-        "added_by_uid": "",
-        "added_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
-    })
+    preview = Task.from_dict(
+        {
+            "id": "",
+            "project_id": "",
+            "section_id": "",
+            "parent_id": "",
+            "labels": [],
+            "priority": 1,
+            "content": form.content,
+            "description": form.description,
+            "due": {
+                "date": datetime.strptime(form.due_date, "%Y-%m-%d").date().isoformat() if form.due_date else "",
+                "string": "",
+            },
+            "deadline": None,
+            "duration": None,
+            "collapsed": False,
+            "child_order": 1,
+            "responsible_uid": None,
+            "assigned_by_uid": None,
+            "completed_at": None,
+            "added_by_uid": "",
+            "added_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        }
+    )
     batch = cached_data.query_batch(form.batch_name)
     if batch is None:
         raise Exception(f"找不到批次: {form.batch_name}")
     todo_page_render = TodoPageRender(batch)
     return todo_page_render.render_task(preview, True)
+
 
 @app.post("/todo/add_task")
 def route_add_task(form: TodoForm):
@@ -2188,10 +2178,11 @@ def route_add_task(form: TodoForm):
     else:
         raise Exception("Failed to add task")
 
-@app.patch('/todo_done')
-def route_todo_toggle_done(task_id:str, batch_name:str):
+
+@app.patch("/todo_done")
+def route_todo_toggle_done(task_id: str, batch_name: str):
     try:
-        print('patch!')
+        print("patch!")
         if not cached_data.task_done(task_id):
             logger.error(f"Failed to mark task {task_id} as done for batch {batch_name}")
             raise Exception(f"無法標記任務為完成狀態 (Task ID: {task_id})")
@@ -2206,8 +2197,9 @@ def route_todo_toggle_done(task_id:str, batch_name:str):
     except Exception as e:
         logger.error(e)
 
-@app.delete('/todo_delete/{task_id}')
-def route_todo_delete(task_id:str):
+
+@app.delete("/todo_delete/{task_id}")
+def route_todo_delete(task_id: str):
     try:
         if not cached_data.delete_task(task_id):
             logger.error(f"Failed to delete task {task_id}")
@@ -2215,6 +2207,7 @@ def route_todo_delete(task_id:str):
         return ""
     except Exception as e:
         logger.error(e)
+
 
 def main():
     serve()

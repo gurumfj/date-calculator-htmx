@@ -112,7 +112,7 @@ select = [
 ]
 fixable = ["ALL"]
 # extend-select = ["E501"]
-ignore = ["E501", "F405", "F403"]
+ignore = ["E501", "F405", "F403", "E731"]
 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # [tool.ruff.format]
