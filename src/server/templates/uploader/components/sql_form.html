@@ -3,16 +3,15 @@
         <h5 class="card-title mb-0">SQL Query</h5>
     </div>
     <div class="card-body">
-        <form hx-post="/sql" 
-              hx-target="main" 
-              hx-trigger="keyup delay:500ms"
-              hx-push-url="true">
+        <form hx-post="sql" 
+              hx-target="#result_table" 
+              hx-trigger="keyup delay:500ms">
             <div class="mb-3">
                 <label for="sql" class="form-label">SQL查詢語句</label>
                 <textarea class="form-control" 
                           id="sql" 
                           name="sql" 
-                          rows="5" 
+                          rows="10" 
                           placeholder="輸入SQL查詢語句..."
                           style="font-family: monospace;"></textarea>
                 <div class="form-text">
@@ -25,4 +24,5 @@
             </button>
         </form>
     </div>
+    <div id="result_table"></div>
 </div>

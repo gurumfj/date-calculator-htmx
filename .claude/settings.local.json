@@ -5,7 +5,10 @@
       "Bash(uv run pytest:*)",
       "Bash(mkdir:*)",
       "Bash(mv:*)",
-      "WebFetch(domain:picocss.com)"
+      "WebFetch(domain:picocss.com)",
+      "Bash(rm:*)",
+      "Bash(uv run:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }
