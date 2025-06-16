@@ -1,6 +1,5 @@
 import json
 import logging
-from datetime import date, datetime
 
 import pandas as pd
 from fastapi import APIRouter, File, Form, Request, UploadFile
@@ -118,17 +117,15 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     command = UploadFileCommand(file=file)
     result = await upload_handler.handle(command)
 
-    if result["success"]:
-        # 獲取上傳結果數據
-        query = GetDataQuery(table_name=result["file_type"])
-        data_list, _ = data_query_handler.handle_get_data_query(query)
-        df = pd.DataFrame(data_list)
+    if result.success:
+        # 直接使用 UploadResult.data 中的資料庫資料
+        df = pd.DataFrame(result.data)
 
         # 渲染表格為字符串 - Controller 決定渲染邏輯
         context = {
             "request": request,
             "df": df,
-            "table": result["file_type"],
+            "table": result.file_type,
             "sort_by_column": None,
             "sort_order": "DESC",
             "enable_event_links": False,
@@ -137,9 +134,9 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 
         table_html = templates.get_template("components/table.html").render(**context)
 
-        context = {"request": request, "success": True, "result": result, "table_html": table_html}
+        context = {"request": request, "success": True, "result": result.to_dict(), "table_html": table_html}
     else:
-        context = {"request": request, "success": False, "result": result}
+        context = {"request": request, "success": False, "result": result.to_dict()}
 
     return templates.TemplateResponse("uploader/components/upload_result.html", context)
 
@@ -384,13 +381,6 @@ async def execute_sql(request: Request, sql: str = Form(...)):
         conn.close()
 
 
-def serialize_datetime(obj):
-    """JSON序列化日期時間物件"""
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
-
-
 # API endpoints (for compatibility)
 @router.post("/api/upload")
 async def api_upload(file: UploadFile = File(...)):
@@ -398,9 +388,8 @@ async def api_upload(file: UploadFile = File(...)):
     command = UploadFileCommand(file=file)
     result = await upload_handler.handle(command)
 
-    # 使用自定義序列化器處理日期時間
-    json_str = json.dumps(result, default=serialize_datetime, ensure_ascii=False)
-    return JSONResponse(content=json.loads(json_str))
+    # 使用 UploadResult 的 to_json 方法
+    return JSONResponse(content=json.loads(result.to_json(ensure_ascii=False)))
 
 
 # This router will be included in main.py

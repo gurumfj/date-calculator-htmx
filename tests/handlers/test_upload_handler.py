@@ -209,12 +209,17 @@ class TestUploadCommandHandler:
         
         result = await handler.handle(command)
         
-        assert result["success"] is True
-        assert result["file_type"] == "breed"
-        assert result["valid_count"] == 1
-        assert result["invalid_count"] == 0
-        assert result["inserted_count"] == 1
-        assert "event_id" in result
+        assert result.success is True
+        assert result.file_type == "breed"
+        assert result.valid_count == 1
+        assert result.invalid_count == 0
+        assert result.inserted_count == 1
+        assert result.event_id is not None
+        
+        # 驗證返回的資料來自資料庫且包含 event_id
+        assert len(result.data) == 1
+        assert result.data[0]['event_id'] == result.event_id
+        assert result.data[0]['farm_name'] == "測試農場"
     
     @pytest.mark.asyncio
     async def test_handle_unknown_file_type(self, temp_db_path: str) -> None:
@@ -237,9 +242,9 @@ class TestUploadCommandHandler:
         command = UploadFileCommand(file=mock_file)
         result = await handler.handle(command)
         
-        assert result["success"] is False
-        assert result["file_type"] == "unknown"
-        assert "無法識別檔案類型" in result["message"]
+        assert result.success is False
+        assert result.file_type == "unknown"
+        assert "無法識別檔案類型" in result.message
     
     @pytest.mark.asyncio
     async def test_handle_with_exception(self, temp_db_path: str) -> None:
@@ -252,5 +257,5 @@ class TestUploadCommandHandler:
         command = UploadFileCommand(file=mock_file)
         result = await handler.handle(command)
         
-        assert result["success"] is False
-        assert "上傳處理失敗" in result["message"]
+        assert result.success is False
+        assert "上傳處理失敗" in result.message
