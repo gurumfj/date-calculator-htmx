@@ -1,0 +1,51 @@
+<form id="date-picker" class="form-group" method="post" 
+      hx-post="/date_calculator/calculate" 
+      hx-target="#result-table-body" 
+      hx-swap="afterend">
+    
+    <input type="hidden" name="id" value="{% if data %}{{ data.id }}{% else %}new_calc{% endif %}">
+    
+    <fieldset>
+        <label>
+            選擇日期
+            <input type="date" name="base_date" 
+                   value="{% if data %}{{ data.base_date.strftime('%Y-%m-%d') }}{% else %}{{ current_date }}{% endif %}" 
+                   required>
+        </label>
+        
+        <div class="group">
+            <label>
+                間隔
+                <input type="number" name="amount" min="1" 
+                       value="{% if data %}{{ data.amount }}{% else %}1{% endif %}" 
+                       required>
+            </label>
+            
+            <label>
+                單位
+                <select name="unit">
+                    <option value="days" {% if data and data.unit == "days" %}selected{% elif not data %}selected{% endif %}>天</option>
+                    <option value="weeks" {% if data and data.unit == "weeks" %}selected{% endif %}>週</option>
+                    <option value="months" {% if data and data.unit == "months" %}selected{% endif %}>月</option>
+                </select>
+            </label>
+        </div>
+    </fieldset>
+    
+    <div class="button-group">
+        <button type="submit" name="operation" value="before" class="form-button">
+            向前計算
+        </button>
+        
+        <button type="button" class="form-button" 
+                hx-post="/date_calculator/delete/all" 
+                hx-target="#result-table" 
+                hx-swap="outerHTML">
+            清除記錄
+        </button>
+        
+        <button type="submit" name="operation" value="after" class="form-button">
+            向後計算
+        </button>
+    </div>
+</form>

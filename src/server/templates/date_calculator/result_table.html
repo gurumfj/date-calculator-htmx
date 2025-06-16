@@ -1,0 +1,19 @@
+<div class="overflow-auto" id="result-table">
+    <table>
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>操作</th>
+                <th>數量</th>
+                <th>單位</th>
+                <th>結果</th>
+                <th>刪除</th>
+            </tr>
+        </thead>
+        <tbody id="result-table-body">
+            {% for date_data in store %}
+                {% include 'date_calculator/result_row.html' %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

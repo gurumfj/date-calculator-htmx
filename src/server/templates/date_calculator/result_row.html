@@ -1,0 +1,32 @@
+<tr id="id_{{ date_data.id }}">
+    <td>
+        {{ date_data.base_date.strftime('%Y-%m-%d') }}
+        <span class="pickup-btn" 
+              hx-post="/date_calculator/pickup" 
+              hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
+              hx-target=".form-group" 
+              hx-swap="outerHTML">
+            ↩️
+        </span>
+    </td>
+    <td>{{ date_data.operation }}</td>
+    <td>{{ date_data.amount }}</td>
+    <td>{{ date_data.unit }}</td>
+    <td>
+        {{ date_data.result.strftime('%Y-%m-%d') }}
+        <span class="pickup-btn" 
+              hx-post="/date_calculator/pickup" 
+              hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
+              hx-target=".form-group" 
+              hx-swap="outerHTML">
+            ↩️
+        </span>
+    </td>
+    <td>
+        <span class="delete-btn" 
+              hx-delete="/date_calculator/delete/{{ date_data.id }}" 
+              hx-target="closest tr">
+            ⌫
+        </span>
+    </td>
+</tr>
