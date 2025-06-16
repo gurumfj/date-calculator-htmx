@@ -43,7 +43,7 @@ cleansales = "cleansales_backend.cli:main"
 api = "cleansales_backend.api.dev:main"
 web = "cleansales_backend.web.main:main"
 upload-handler = "cleansales_backend.web.file_upload_handler:main"
-server = "server.main:app"
+server = "server.main:main"
 
 [project.entry-points."uv.run"]
 cleansales = "cleansales_backend.cli:main"

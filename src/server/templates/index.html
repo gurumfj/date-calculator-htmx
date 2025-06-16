@@ -1,94 +1,127 @@
-{% extends "layouts/base.html" %}
-
-{% block content %}
-<div x-data="{ tab: '{{ tab }}' }">
-    <!-- Navigation Tabs -->
-    <nav>
-        <ul hx-indicator="#tab-loading">
-            <li>
-                <button :class="tab === 'upload' ? 'active' : ''" 
-                        @click="tab = 'upload'"
-                        hx-get="/tab/upload"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    Upload
-                </button>
-            </li>
-            <li>
-                <button :class="tab === 'events' ? 'active' : ''" 
-                        @click="tab = 'events'"
-                        hx-get="/tab/events"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    Events
-                </button>
-            </li>
-            <li>
-                <button :class="tab === 'breeds' ? 'active' : ''" 
-                        @click="tab = 'breeds'"
-                        hx-get="/tab/breeds"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    Breeds
-                </button>
-            </li>
-            <li>
-                <button :class="tab === 'sales' ? 'active' : ''" 
-                        @click="tab = 'sales'"
-                        hx-get="/tab/sales"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    Sales
-                </button>
-            </li>
-            <li>
-                <button :class="tab === 'feeds' ? 'active' : ''" 
-                        @click="tab = 'feeds'"
-                        hx-get="/tab/feeds"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    Feeds
-                </button>
-            </li>
-            <li>
-                <button :class="tab === 'farm_production' ? 'active' : ''" 
-                        @click="tab = 'farm_production'"
-                        hx-get="/tab/farm_production"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    Farm Production
-                </button>
-            </li>
-            <li>
-                <button :class="tab === 'sql' ? 'active' : ''" 
-                        @click="tab = 'sql'"
-                        hx-get="/tab/sql"
-                        hx-target="#nav_content"
-                        hx-push-url="true">
-                    SQL
-                </button>
-            </li>
-        </ul>
-    </nav>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/vite.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CleanSales - 雞農管理系統">
+    <title>CleanSales</title>
     
-    <!-- Tab Loading Indicator -->
-    <div id="tab-loading" aria-label="Loading" class="htmx-indicator">
+    <!-- Pico CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+    
+    <!-- HTMX Global Config -->
+    <script>
+        htmx.config.defaultSwapStyle = "innerHTML";
+        htmx.config.defaultSwapDelay = 0;
+        htmx.config.defaultSettleDelay = 20;
+        htmx.config.scrollBehavior = "auto";
+        htmx.config.historyCacheSize = 10;
+        htmx.config.globalViewTransitions = true;
+    </script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        /* Compact Pico CSS overrides */
+        :root {
+            --pico-font-size: 100%;
+            {# --pico-line-height: 1.25;
+            --pico-spacing: 0.75rem;
+            --pico-typography-spacing-vertical: 0.75rem;
+            --pico-block-spacing-vertical: 0.75rem;
+            --pico-form-element-spacing-vertical: 0.5rem;
+            --pico-form-element-spacing-horizontal: 0.75rem;
+            --pico-border-radius: 0.375rem; #}
+        }
+
+        body {
+            margin: auto;
+            width: 90%;
+        }
+        
+        /* Navigation tabs styling for Pico CSS */
+        nav ul {
+            display: flex;
+            border-bottom: 1px solid var(--pico-border-color);
+            margin-bottom: 1rem;
+        }
+        nav li {
+            list-style: none;
+            margin: 0;
+        }
+        nav button {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: none;
+            background: none;
+            border-bottom: 2px solid transparent;
+            color: var(--pico-color);
+        }
+        nav button:hover {
+            background-color: var(--pico-background-color);
+            border-bottom-color: var(--pico-primary);
+        }
+        nav button.active {
+            border-bottom-color: var(--pico-primary);
+            color: var(--pico-primary);
+        }
+        
+        /* Table styling */
+        table th {
+            cursor: pointer;
+            user-select: none;
+        }
+        table th:hover {
+            background-color: var(--pico-background-color);
+        }
+        
+        /* Loading indicator */
+        #loading {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+        }
+        .htmx-request #loading {
+            display: block;
+        }
+        
+        /* Card-like containers */
+        .card {
+            border: 1px solid var(--pico-border-color);
+            border-radius: var(--pico-border-radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .card-header {
+            border-bottom: 1px solid var(--pico-border-color);
+            margin: -1rem -1rem 1rem -1rem;
+            padding: 1rem;
+            background-color: var(--pico-background-color);
+        }
+        .card-title {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        {% include "components/navbar.html" %}
+        
+        <main>
+        </main>
+    </div>
+    
+    
+    <!-- Loading indicator -->
+    <div id="loading" aria-label="Loading">
         <div aria-busy="true"></div>
     </div>
-    
-    <!-- Tab Content -->
-    <div id="nav_content" 
-         hx-get="/tab/{{ tab }}"
-         hx-trigger="load"
-         hx-indicator="#tab-loading">
-    </div>
-
-    <!-- Results Loading Indicator -->
-    <div id="result-loading" aria-label="Loading" class="htmx-indicator">
-        <div aria-busy="true"></div>
-    </div>
-    
-    <!-- Results -->
-    <div id="result" class="mt-4" hx-indicator="#result-loading"></div>
-</div>
-{% endblock %}
+</body>
+</html>
