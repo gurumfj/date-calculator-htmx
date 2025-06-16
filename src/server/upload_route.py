@@ -5,10 +5,10 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from cleansales_backend.commands.upload_commands import UploadFileCommand
-from cleansales_backend.database.init import init_db
-from cleansales_backend.handlers.upload_handler import UploadCommandHandler
-from cleansales_backend.queries.data_queries import (
+from core_models import UploadFileCommand
+from db_init import init_db
+from upload_handlers import UploadCommandHandler
+from data_queries import (
     DataQueryHandler,
     GetDataQuery,
     GetEventDetailsQuery,

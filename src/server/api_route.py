@@ -5,9 +5,9 @@ from sqlite3 import Connection, Row
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 
-from cleansales_backend.commands.upload_commands import UploadFileCommand
-from cleansales_backend.database.init import init_db
-from cleansales_backend.handlers.upload_handler import UploadCommandHandler
+from core_models import UploadFileCommand
+from db_init import init_db
+from upload_handlers import UploadCommandHandler
 
 logger = logging.getLogger(__name__)
 DB_PATH = "./data/sqlite.db"

@@ -11,6 +11,7 @@ from cleansales_backend.queries.data_queries import (
     GetDataQuery,
     GetEventDetailsQuery,
     GetUploadEventsQuery,
+    PaginationQuery,
 )
 
 
@@ -83,7 +84,7 @@ class TestDataQueryHandler:
         handler = sample_data
         query = GetDataQuery(table_name="breed")
         
-        results = handler.handle_get_data_query(query)
+        results, total_pages = handler.handle_get_data_query(query)
         
         assert len(results) == 2
         assert results[0]['farm_name'] == '測試農場B'  # 按breed_date DESC排序
@@ -91,9 +92,9 @@ class TestDataQueryHandler:
     
     def test_handle_get_data_query_with_column_order(self, sample_data: DataQueryHandler) -> None:
         handler = sample_data
-        query = GetDataQuery(table_name="breed", column="farm_name", order="ASC")
+        query = GetDataQuery(table_name="breed", sort_by_column="farm_name", sort_order="ASC")
         
-        results = handler.handle_get_data_query(query)
+        results, total_pages = handler.handle_get_data_query(query)
         
         assert len(results) == 2
         assert results[0]['farm_name'] == '測試農場A'  # 按farm_name ASC排序
@@ -103,7 +104,7 @@ class TestDataQueryHandler:
         handler = sample_data
         query = GetDataQuery(table_name="breed", event_id="event-001")
         
-        results = handler.handle_get_data_query(query)
+        results, total_pages = handler.handle_get_data_query(query)
         
         assert len(results) == 1
         assert results[0]['farm_name'] == '測試農場A'
@@ -111,9 +112,9 @@ class TestDataQueryHandler:
     
     def test_handle_get_data_query_with_limit(self, sample_data: DataQueryHandler) -> None:
         handler = sample_data
-        query = GetDataQuery(table_name="breed", limit=1)
+        query = GetDataQuery(table_name="breed", pagination=PaginationQuery(page=1, page_size=1))
         
-        results = handler.handle_get_data_query(query)
+        results, total_pages = handler.handle_get_data_query(query)
         
         assert len(results) == 1
         assert results[0]['farm_name'] == '測試農場B'  # 最新的記錄

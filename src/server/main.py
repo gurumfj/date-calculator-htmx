@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from cleansales_backend.database.init import init_db
+from db_init import init_db
 from server.api_route import router as api_router
 from server.date_calculator_route import router as date_calculator_router
 from server.sales_route import router as sales_router
@@ -30,7 +30,7 @@ app.add_middleware(
 templates = Jinja2Templates(directory="src/server/templates")
 
 # Setup static files
-app.mount("/static", StaticFiles(directory="src/cleansales_backend/web/static"), name="static")
+app.mount("/static", StaticFiles(directory="src/server/static"), name="static")
 
 # Main system navigation
 MAIN_NAV_ITEMS = [
