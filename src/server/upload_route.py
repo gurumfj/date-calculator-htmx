@@ -1,9 +1,8 @@
-import json
 import logging
 
 import pandas as pd
 from fastapi import APIRouter, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from cleansales_backend.commands.upload_commands import UploadFileCommand
@@ -379,17 +378,6 @@ async def execute_sql(request: Request, sql: str = Form(...)):
         return HTMLResponse(content=f'<div style="color: red;">SQL執行錯誤: {str(e)}</div>')
     finally:
         conn.close()
-
-
-# API endpoints (for compatibility)
-@router.post("/api/upload")
-async def api_upload(file: UploadFile = File(...)):
-    """API上傳路由，返回JSON格式"""
-    command = UploadFileCommand(file=file)
-    result = await upload_handler.handle(command)
-
-    # 使用 UploadResult 的 to_json 方法
-    return JSONResponse(content=json.loads(result.to_json(ensure_ascii=False)))
 
 
 # This router will be included in main.py
