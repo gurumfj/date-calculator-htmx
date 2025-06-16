@@ -87,7 +87,7 @@ async def get_tab(request: Request, tab: str):
     # 如果不是 HTMX 請求，返回完整頁面
     if not request.headers.get("HX-Request") == "true":
         return templates.TemplateResponse(
-            "uploader.html", {"request": request, "tab": tab, "nav_items": NAV_ITEMS, "active_tab": tab}
+            "uploader/index.html", {"request": request, "tab": tab, "nav_items": NAV_ITEMS, "active_tab": tab}
         )
 
     # HTMX 請求，直接返回內容
