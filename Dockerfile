@@ -1,33 +1,3 @@
-# ---- Frontend Stage ----
-FROM oven/bun:1 AS deps
-
-WORKDIR /app/frontend
-
-# 只複製 package.json 和 lockfile
-COPY frontend/package.json frontend/bun.lock ./
-
-# 安裝依賴
-RUN bun install --no-optional && \
-    bun add -d @rollup/rollup-linux-arm64-gnu
-
-# 構建階段
-FROM oven/bun:1 AS frontend_builder
-
-WORKDIR /app/frontend
-
-# 從依賴項階段複製 node_modules
-COPY --from=deps /app/frontend/node_modules ./node_modules
-
-# 複製前端源代碼
-COPY frontend/ ./
-
-# 設置生產環境變量
-# ENV NODE_ENV=production
-# ENV VITE_API_URL=/api
-
-# 構建 frontend dist
-RUN bun run build
-
 ## ---- Backend Stage ----
 # 1. Base 階段：最小化的 Python 環境，僅安裝 production 依賴
 FROM ghcr.io/astral-sh/uv:python3.13-alpine AS base
@@ -52,11 +22,8 @@ COPY src /app/src
 COPY migrations /app/migrations
 COPY alembic.ini /app/alembic.ini
 
-# 創建前端靜態文件目錄
-RUN mkdir -p /app/frontend/dist
-
-# 複製 frontend dist 的內容到 frontend/dist 目錄
-COPY --from=frontend_builder /app/frontend/dist/ /app/frontend/dist/
+# 創建必要的目錄
+RUN mkdir -p /app/data
 
 # 設置 CMD
-# CMD ["python", "-m", "src.cleansales_backend.main"]
+# CMD ["uv", "run", "dev"]
