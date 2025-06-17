@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from db_init import init_db
 from server.api_route import router as api_router
+from server.batches_route import router as batches_router
 from server.date_calculator_route import router as date_calculator_router
 from server.sales_route import router as sales_router
 from server.upload_route import router as upload_router
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Initialize database
 init_db()
 
-# Create main application  
+# Create main application
 app = FastAPI(title="CleanSales Management System")
 
 # Add session middleware for date calculator
@@ -37,6 +38,7 @@ MAIN_NAV_ITEMS = [
     {"title": "Data Uploader", "value": "uploader", "href": "/uploader"},
     {"title": "Date Calculator", "value": "date_calculator", "href": "/date_calculator"},
     {"title": "Sales Records", "value": "sales", "href": "/sales"},
+    {"title": "Batches", "value": "batches", "href": "/batches"},
     # Future: Add other systems here
     # {"title": "Analytics", "value": "analytics", "href": "/analytics"},
     # {"title": "Reports", "value": "reports", "href": "/reports"},
@@ -54,6 +56,7 @@ app.include_router(upload_router, prefix="/uploader", tags=["uploader"])
 app.include_router(api_router, prefix="/api", tags=["api"])
 app.include_router(date_calculator_router, prefix="/date_calculator", tags=["date_calculator"])
 app.include_router(sales_router, prefix="/sales", tags=["sales"])
+app.include_router(batches_router, prefix="/batches", tags=["batches"])
 
 
 # Legacy compatibility routes - redirect to uploader
