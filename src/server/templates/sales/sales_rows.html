@@ -54,7 +54,7 @@
 </tr>
 {% endfor %}
     <tr 
-        hx-get="q?offset={{ offset + 10 }}&search={{ search }}"
+        hx-get="q?page={{ page + 1 }}&search={{ search }}"
         hx-target="closest tr"
         hx-swap="outerHTML"
         hx-trigger="revealed"
