@@ -18,7 +18,7 @@ Required Variables:
     {% set header = df.columns[loop.index0] %}
     <td>
         {% if enable_event_links and header == 'event_id' and cell %}
-        <a href="event/{{ cell }}" hx-get="event/{{ cell }}" hx-target="main" hx-push-url="true"
+        <a href="#" hx-get="event/{{ cell }}" hx-target="main" hx-push-url="false"
             style="color: #007bff; text-decoration: underline; cursor: pointer;">
             {{ (cell|string)[:8] }}...
         </a>

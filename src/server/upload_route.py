@@ -1,4 +1,6 @@
 import logging
+import math
+import sqlite3
 
 import pandas as pd
 from fastapi import APIRouter, File, Form, Request, UploadFile
@@ -8,13 +10,6 @@ from fastapi.templating import Jinja2Templates
 from core_models import UploadFileCommand
 from db_init import init_db
 from upload_handlers import UploadCommandHandler
-from data_queries import (
-    DataQueryHandler,
-    GetDataQuery,
-    GetEventDetailsQuery,
-    GetUploadEventsQuery,
-    PaginationQuery,
-)
 
 logger = logging.getLogger(__name__)
 DB_PATH = "./data/sqlite.db"
@@ -26,11 +21,18 @@ router = APIRouter()
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory="src/server/templates")
+sql_templates = Jinja2Templates(directory="src/server/templates/sql")
 
 # Note: Static files will be mounted in main.py
 
 upload_handler = UploadCommandHandler(DB_PATH)
-data_query_handler = DataQueryHandler(DB_PATH)
+
+
+def get_db_connection():
+    """取得資料庫連線"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 async def get_tab_content(request: Request, tab: str):
@@ -143,8 +145,14 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 @router.get("/events", response_class=HTMLResponse)
 async def view_upload_events(request: Request):
     """查看上傳事件歷史"""
-    query = GetUploadEventsQuery(limit=100)
-    data = data_query_handler.handle_get_upload_events_query(query)
+    conn = get_db_connection()
+    try:
+        sql = sql_templates.get_template("get_upload_events.sql").render()
+        cursor = conn.execute(sql, {'limit': 100})
+        results = cursor.fetchall()
+        data = [dict(row) for row in results]
+    finally:
+        conn.close()
 
     if not data:
         return HTMLResponse(content="<p>目前沒有上傳記錄</p>")
@@ -237,19 +245,49 @@ async def query_table(
     event_id: str | None = None,
 ):
     """查詢數據並返回HTML"""
-    query = GetDataQuery(
-        table_name=table,
-        sort_by_column=None if column == "None" else column,
-        sort_order=order,
-        pagination=PaginationQuery(page=page, page_size=page_size),
-        event_id=event_id,
-    )
-    data, total_pages = data_query_handler.handle_get_data_query(query)
+    # 參數驗證
+    page_size = min(max(page_size, 1), 100)
+    page = max(page, 1)
+    
+    conn = get_db_connection()
+    try:
+        # 準備模板參數
+        template_params = {
+            'table_name': table,
+            'event_id': event_id,
+            'sort_by_column': None if column == "None" else column,
+            'sort_order': order,
+            'pagination': True
+        }
+        
+        # 準備SQL參數
+        sql_params = {}
+        if event_id:
+            sql_params['event_id'] = event_id
+        
+        # 先取得總數
+        count_sql = sql_templates.get_template("count_data_query.sql").render(**template_params)
+        count = conn.execute(count_sql, sql_params).fetchone()[0]
+        total_pages = math.ceil(count / page_size)
+        
+        # 加入分頁參數
+        offset = (page - 1) * page_size
+        sql_params.update({
+            'page_size': page_size,
+            'offset': offset
+        })
+        
+        # 執行主查詢
+        base_sql = sql_templates.get_template("get_data_query.sql").render(**template_params)
+        cursor = conn.execute(base_sql, sql_params)
+        results = cursor.fetchall()
+        data = [dict(row) for row in results]
+    finally:
+        conn.close()
 
     df = pd.DataFrame(data)
-    has_more = (page + 1) < total_pages
-    next_page: int = page + 1 if has_more else 0
-    print(f"page={page}, total_pages={total_pages}, has_more={has_more}, next_page={next_page}")
+    has_more = (page + 1) <= total_pages
+    print(f"page={page}, total_pages={total_pages}, has_more={has_more}")
 
     return _render_table_response(
         request=request,
@@ -268,30 +306,56 @@ async def query_table(
 async def view_event_records(request: Request, event_id: str):
     """查看特定事件的數據記錄"""
     try:
-        # 獲取事件信息
-        event_query = GetEventDetailsQuery(event_id=event_id)
-        event_dict = data_query_handler.handle_get_event_details_query(event_query)
+        conn = get_db_connection()
+        try:
+            # 獲取事件信息
+            event_sql = sql_templates.get_template("get_event_details.sql").render()
+            cursor = conn.execute(event_sql, {'event_id': event_id})
+            result = cursor.fetchone()
+            event_dict = dict(result) if result else None
 
-        if not event_dict:
-            context = {"request": request, "error": f"找不到事件 ID: {event_id}", "event_id": event_id}
-            return templates.TemplateResponse("uploader/components/event_error.html", context)
+            if not event_dict:
+                context = {"request": request, "error": f"找不到事件 ID: {event_id}", "event_id": event_id}
+                return templates.TemplateResponse("uploader/components/event_error.html", context)
 
-        file_type = event_dict["file_type"]
+            file_type = event_dict["file_type"]
 
-        # 根據文件類型查詢對應的數據表
-        table_map = {"breed": "breed", "sale": "sale", "feed": "feed", "farm_production": "farm_production"}
+            # 根據文件類型查詢對應的數據表
+            table_map = {"breed": "breed", "sale": "sale", "feed": "feed", "farm_production": "farm_production"}
 
-        if file_type not in table_map:
-            context = {"request": request, "error": f"不支持的文件類型: {file_type}", "event_id": event_id}
-            return templates.TemplateResponse("uploader/components/event_error.html", context)
+            if file_type not in table_map:
+                context = {"request": request, "error": f"不支持的文件類型: {file_type}", "event_id": event_id}
+                return templates.TemplateResponse("uploader/components/event_error.html", context)
 
-        table_name = table_map[file_type]
+            table_name = table_map[file_type]
 
-        # 查詢該事件的所有記錄
-        data_query = GetDataQuery(
-            table_name=table_name, event_id=event_id, pagination=PaginationQuery(page=1, page_size=100)
-        )
-        data_records, total_pages = data_query_handler.handle_get_data_query(data_query)
+            # 查詢該事件的所有記錄
+            template_params = {
+                'table_name': table_name,
+                'event_id': event_id,
+                'sort_by_column': None,
+                'sort_order': None,
+                'pagination': True
+            }
+            
+            sql_params = {
+                'event_id': event_id,
+                'page_size': 100,
+                'offset': 0
+            }
+            
+            # 先取得總數
+            count_sql = sql_templates.get_template("count_data_query.sql").render(**template_params)
+            count = conn.execute(count_sql, {'event_id': event_id}).fetchone()[0]
+            total_pages = math.ceil(count / 100)
+            
+            # 執行主查詢
+            data_sql = sql_templates.get_template("get_data_query.sql").render(**template_params)
+            cursor = conn.execute(data_sql, sql_params)
+            results = cursor.fetchall()
+            data_records = [dict(row) for row in results]
+        finally:
+            conn.close()
 
         if not data_records:
             df = pd.DataFrame()
@@ -346,7 +410,7 @@ async def execute_sql(request: Request, sql: str = Form(...)):
     if "limit" not in sql_lower:
         sql = sql.rstrip(";") + " LIMIT 1000"
 
-    conn = data_query_handler.get_db_connection()
+    conn = get_db_connection()
     try:
         cursor = conn.execute(sql)
         results = cursor.fetchall()
