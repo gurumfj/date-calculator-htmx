@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Initialize database
 init_db()
 
-# Create main application
+# Create main application  
 app = FastAPI(title="CleanSales Management System")
 
 # Add session middleware for date calculator
@@ -76,7 +76,7 @@ async def legacy_redirect(request: Request):
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("server.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server.main:app", host="0.0.0.0", port=8000, reload=True, forwarded_allow_ips="*")
 
 
 if __name__ == "__main__":

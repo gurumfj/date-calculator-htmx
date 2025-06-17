@@ -39,3 +39,4 @@ frontend/node_modules
 # fasthtml
 .sesskey
 .claude/settings.local.json
+nginx/ssl
