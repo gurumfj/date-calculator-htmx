@@ -135,9 +135,9 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 
         table_html = templates.get_template("components/table.html").render(**context)
 
-        context = {"request": request, "success": True, "result": result.to_dict(), "table_html": table_html}
+        context = {"request": request, "success": True, "result": result.model_dump(), "table_html": table_html}
     else:
-        context = {"request": request, "success": False, "result": result.to_dict()}
+        context = {"request": request, "success": False, "result": result.model_dump()}
 
     return templates.TemplateResponse("uploader/components/upload_result.html", context)
 
@@ -148,7 +148,7 @@ async def view_upload_events(request: Request):
     conn = get_db_connection()
     try:
         sql = sql_templates.get_template("get_upload_events.sql").render()
-        cursor = conn.execute(sql, {'limit': 100})
+        cursor = conn.execute(sql, {"limit": 100})
         results = cursor.fetchall()
         data = [dict(row) for row in results]
     finally:
@@ -248,35 +248,32 @@ async def query_table(
     # 參數驗證
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
-    
+
     conn = get_db_connection()
     try:
         # 準備模板參數
         template_params = {
-            'table_name': table,
-            'event_id': event_id,
-            'sort_by_column': None if column == "None" else column,
-            'sort_order': order,
-            'pagination': True
+            "table_name": table,
+            "event_id": event_id,
+            "sort_by_column": None if column == "None" else column,
+            "sort_order": order,
+            "pagination": True,
         }
-        
+
         # 準備SQL參數
         sql_params = {}
         if event_id:
-            sql_params['event_id'] = event_id
-        
+            sql_params["event_id"] = event_id
+
         # 先取得總數
         count_sql = sql_templates.get_template("count_data_query.sql").render(**template_params)
         count = conn.execute(count_sql, sql_params).fetchone()[0]
         total_pages = math.ceil(count / page_size)
-        
+
         # 加入分頁參數
         offset = (page - 1) * page_size
-        sql_params.update({
-            'page_size': page_size,
-            'offset': offset
-        })
-        
+        sql_params.update({"page_size": page_size, "offset": offset})
+
         # 執行主查詢
         base_sql = sql_templates.get_template("get_data_query.sql").render(**template_params)
         cursor = conn.execute(base_sql, sql_params)
@@ -310,7 +307,7 @@ async def view_event_records(request: Request, event_id: str):
         try:
             # 獲取事件信息
             event_sql = sql_templates.get_template("get_event_details.sql").render()
-            cursor = conn.execute(event_sql, {'event_id': event_id})
+            cursor = conn.execute(event_sql, {"event_id": event_id})
             result = cursor.fetchone()
             event_dict = dict(result) if result else None
 
@@ -331,24 +328,20 @@ async def view_event_records(request: Request, event_id: str):
 
             # 查詢該事件的所有記錄
             template_params = {
-                'table_name': table_name,
-                'event_id': event_id,
-                'sort_by_column': None,
-                'sort_order': None,
-                'pagination': True
+                "table_name": table_name,
+                "event_id": event_id,
+                "sort_by_column": None,
+                "sort_order": None,
+                "pagination": True,
             }
-            
-            sql_params = {
-                'event_id': event_id,
-                'page_size': 100,
-                'offset': 0
-            }
-            
+
+            sql_params = {"event_id": event_id, "page_size": 100, "offset": 0}
+
             # 先取得總數
             count_sql = sql_templates.get_template("count_data_query.sql").render(**template_params)
-            count = conn.execute(count_sql, {'event_id': event_id}).fetchone()[0]
+            count = conn.execute(count_sql, {"event_id": event_id}).fetchone()[0]
             total_pages = math.ceil(count / 100)
-            
+
             # 執行主查詢
             data_sql = sql_templates.get_template("get_data_query.sql").render(**template_params)
             cursor = conn.execute(data_sql, sql_params)
