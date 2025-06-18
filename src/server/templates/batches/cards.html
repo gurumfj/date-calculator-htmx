@@ -1,3 +1,4 @@
+{% macro card_list(batches) %}
 {% for batch in batches %}
 <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6 border border-gray-200">
     <div class="flex justify-between items-start mb-4">
@@ -77,13 +78,27 @@
     {% endif %}
 </div>
 {% endfor %}
+{% endmacro %}
 
+{%macro has_more(has_more, next_offset, chicken_breed, batch_name) %}
 {% if has_more %}
 <div 
-    hx-get="/batches/data?chicken_breed={{ chicken_breed or '古早' }}{% if batch_name %}&batch_name={{ batch_name }}{% endif %}&view=cards&limit=20&offset={{ next_offset }}"
+    hx-get="/batches/data?chicken_breed={{ chicken_breed or '古早' }}{% if batch_name %}&batch_name={{ batch_name }}{% endif %}&view=card-list&limit=20&offset={{ next_offset }}"
     hx-trigger="revealed"
     hx-swap="outerHTML"
     class="w-full h-20 flex items-center justify-center">
     <div class="text-gray-500">載入更多...</div>
 </div>
 {% endif %}
+{% endmacro %}
+
+{%if view == "cards" %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {{ card_list(batches) }}
+    {{ has_more(has_more, next_offset, chicken_breed, batch_name) }}
+</div>
+{% elif view == "card-list" %}
+    {{ card_list(batches) }}
+    {{ has_more(has_more, next_offset, chicken_breed, batch_name) }}
+{% endif %}
+

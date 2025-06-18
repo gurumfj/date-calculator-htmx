@@ -1,28 +1,108 @@
+<style>
+.batch-table td {
+    padding: 1rem;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    color: #111827;
+    border-bottom: 1px solid #e5e7eb;
+}
+.batch-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
+}
+.batch-table tbody tr:nth-child(even) {
+    background-color: #f9fafb;
+}
+.batch-table tbody tr:hover {
+    background-color: #f3f4f6;
+}
+.batch-name {
+    font-weight: 500;
+    color: #2563eb;
+}
+/* 重要欄位突出顯示 */
+.batch-table td:nth-child(2) {
+    font-weight: 500;
+    color: #2563eb;
+}
+.batch-table td:nth-child(12) {
+    font-weight: 500;
+    color: #059669;
+}
+</style>
+
+{% macro batch_rows(batches, has_more, next_offset, chicken_breed, batch_name) %}
+{% for batch in batches %}
+<tr>
+    <td>{{ batch.idx }}</td>
+    <td>{{ batch.batch_name }}</td>
+    <td>{{ batch.chicken_breed }}</td>
+    <td>{{ batch.breed_date }}</td>
+    <td class="text-right">{{ batch.dayage }}</td>
+    <td class="text-right">{{ batch.week_age }}</td>
+    <td>{{ batch.expire_date }}</td>
+    <td class="text-right">{{ batch.total_b_male }}</td>
+    <td class="text-right">{{ batch.total_b_female }}</td>
+    <td class="text-right">{{ batch.sales_remain_male }}</td>
+    <td class="text-right">{{ batch.total_count }}</td>
+    <td class="text-right">{{ "%.1f"|format(batch.percentage) }}%</td>
+    <td class="text-right">{{ "%.2f"|format(batch.fcr) if batch.fcr else "-" }}</td>
+    <td>{{ batch.feed or "-" }}</td>
+    <td>{{ batch.sales_open_date or "-" }}</td>
+    <td>{{ batch.sales_last_date or "-" }}</td>
+</tr>
+{% endfor %}
+
+{% if has_more %}
+<tr class="load-more-row">
+    <td colspan="16" class="px-4 py-4 text-center border-t border-gray-200">
+        <div 
+            hx-get="/batches/data?chicken_breed={{ chicken_breed or '古早' }}{% if batch_name %}&batch_name={{ batch_name }}{% endif %}&view=table-rows&limit=20&offset={{ next_offset }}"
+            hx-trigger="revealed"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            class="w-full h-12 flex items-center justify-center cursor-pointer hover:bg-gray-50 text-gray-500">
+            載入更多...
+        </div>
+    </td>
+</tr>
+{% endif %}
+{% endmacro %}
+
+{% if view == "table-rows" %}
+{{ batch_rows(batches, has_more, next_offset, chicken_breed, batch_name) }}
+{% else %}
 {% if batches %}
 <div class="overflow-x-auto">
-    <table class="min-w-full bg-white border border-gray-200">
+    <table class="min-w-full bg-white border border-gray-200 batch-table">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">序號</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">批次名稱</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">雞種</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">繁殖日期</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">日齡</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">週齡</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">到期日</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">公雞</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">母雞</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">剩餘公雞</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">銷售數量</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">銷售率</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">FCR</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">飼料</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">銷售開始</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">最後銷售</th>
+                <th>序號</th>
+                <th>批次名稱</th>
+                <th>雞種</th>
+                <th>繁殖日期</th>
+                <th class="text-right">日齡</th>
+                <th class="text-right">週齡</th>
+                <th>到期日</th>
+                <th class="text-right">公雞</th>
+                <th class="text-right">母雞</th>
+                <th class="text-right">剩餘公雞</th>
+                <th class="text-right">銷售數量</th>
+                <th class="text-right">銷售率</th>
+                <th class="text-right">FCR</th>
+                <th>飼料</th>
+                <th>銷售開始</th>
+                <th>最後銷售</th>
             </tr>
         </thead>
         <tbody id="table-rows" class="bg-white divide-y divide-gray-200">
-            {% include "batches/table-rows.html" %}
+            {{ batch_rows(batches, has_more, next_offset, chicken_breed, batch_name) }}
         </tbody>
     </table>
 </div>
@@ -30,4 +110,5 @@
 <div class="text-center py-12">
     <div class="text-gray-500 text-lg">沒有找到批次資料</div>
 </div>
+{% endif %}
 {% endif %}
