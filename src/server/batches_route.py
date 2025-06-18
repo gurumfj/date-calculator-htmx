@@ -1,3 +1,4 @@
+import json
 import logging
 import sqlite3
 from enum import Enum
@@ -40,7 +41,7 @@ def get_batch_data(chicken_breed: str, limit: int = 50, offset: int = 0, batch_n
     cursor = conn.cursor()
 
     # 渲染SQL模板
-    sql_query = sql_templates.get_template("batch_summary_v2.sql").render(limit=True, batch_name=batch_name)
+    sql_query = sql_templates.get_template("batch_summary.sql").render(batch_name=batch_name)
 
     # 準備查詢參數
     params = {"chicken_breed": chicken_breed, "limit": limit, "offset": offset}
@@ -52,7 +53,17 @@ def get_batch_data(chicken_breed: str, limit: int = 50, offset: int = 0, batch_n
     # 執行查詢
     cursor.execute(sql_query, params)
 
-    batches = [dict(row) for row in cursor.fetchall()]
+    batches = []
+    for row in cursor.fetchall():
+        batch = dict(row)
+        # 解析breed_details JSON
+        if batch.get("breed_details"):
+            try:
+                batch["breed_details"] = json.loads(batch["breed_details"])
+            except (json.JSONDecodeError, TypeError):
+                batch["breed_details"] = []
+        batches.append(batch)
+    
     conn.close()
 
     return batches

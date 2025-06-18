@@ -1,82 +1,157 @@
 {% macro card_list(batches) %}
 {% for batch in batches %}
-<div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6 border border-gray-200">
-    <div class="flex justify-between items-start mb-4">
-        <h3 class="text-lg font-semibold text-blue-600">{{ batch.batch_name }}</h3>
-        <span class="text-sm bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ batch.chicken_breed }}</span>
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4 mb-4">
-        <div>
-            <div class="text-xs text-gray-500 mb-1">繁殖日期</div>
-            <div class="text-sm font-medium">{{ batch.breed_date }}</div>
-        </div>
-        <div>
-            <div class="text-xs text-gray-500 mb-1">到期日</div>
-            <div class="text-sm font-medium">{{ batch.expire_date }}</div>
-        </div>
-        <div>
-            <div class="text-xs text-gray-500 mb-1">日齡 / 週齡</div>
-            <div class="text-sm font-medium">{{ batch.dayage }} / {{ batch.week_age }}</div>
-        </div>
-        <div>
-            <div class="text-xs text-gray-500 mb-1">銷售率</div>
-            <div class="text-sm font-medium">{{ "%.1f"|format(batch.percentage) }}%</div>
-        </div>
-    </div>
-    
-    <div class="grid grid-cols-3 gap-2 mb-4 text-center">
-        <div class="bg-blue-50 rounded p-2">
-            <div class="text-xs text-gray-500">公雞</div>
-            <div class="text-sm font-semibold text-blue-600">{{ batch.total_b_male }}</div>
-        </div>
-        <div class="bg-pink-50 rounded p-2">
-            <div class="text-xs text-gray-500">母雞</div>
-            <div class="text-sm font-semibold text-pink-600">{{ batch.total_b_female }}</div>
-        </div>
-        <div class="bg-green-50 rounded p-2">
-            <div class="text-xs text-gray-500">已售</div>
-            <div class="text-sm font-semibold text-green-600">{{ batch.total_count }}</div>
-        </div>
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4 text-sm">
-        <div>
-            <span class="text-gray-500">剩餘:</span>
-            <span class="font-medium">{{ batch.sales_remain_male }}</span>
-        </div>
-        <div>
-            <span class="text-gray-500">FCR:</span>
-            <span class="font-medium">{{ "%.2f"|format(batch.fcr) if batch.fcr else "-" }}</span>
-        </div>
-    </div>
-    
-    {% if batch.feed %}
-    <div class="mt-3 pt-3 border-t border-gray-100">
-        <div class="text-xs text-gray-500 mb-1">飼料</div>
-        <div class="text-sm">{{ batch.feed }}</div>
-    </div>
-    {% endif %}
-    
-    {% if batch.sales_open_date or batch.sales_last_date %}
-    <div class="mt-3 pt-3 border-t border-gray-100">
-        <div class="grid grid-cols-2 gap-2 text-xs">
-            {% if batch.sales_open_date %}
-            <div>
-                <span class="text-gray-500">開始銷售:</span>
-                <div class="font-medium">{{ batch.sales_open_date }}</div>
+<details class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200 group">
+    <summary class="cursor-pointer p-6 hover:bg-gray-50 transition-colors duration-200 list-none relative">
+        <!-- 標題列 -->
+        <div class="flex justify-between items-start mb-4">
+            <h3 class="text-lg font-semibold text-blue-600">{{ batch.batch_name }}</h3>
+            <div class="flex items-center gap-2">
+                <span class="text-sm bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ batch.chicken_breed }}</span>
+                <div class="text-gray-400 transition-transform duration-200 group-open:rotate-180">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
             </div>
-            {% endif %}
-            {% if batch.sales_last_date %}
-            <div>
-                <span class="text-gray-500">最後銷售:</span>
-                <div class="font-medium">{{ batch.sales_last_date }}</div>
-            </div>
-            {% endif %}
         </div>
+        
+        <!-- 關鍵指標 -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <div class="text-xs text-gray-500 mb-1">日齡 / 週齡</div>
+                <div class="text-sm font-medium">{{ batch.dayage }} / {{ batch.weekage }}</div>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500 mb-1">銷售率</div>
+                <div class="text-sm font-medium">{{ "%.1f"|format(batch.percentage) }}%</div>
+            </div>
+        </div>
+        
+        <!-- 數量摘要 -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-blue-50 rounded p-2">
+                <div class="text-xs text-gray-500">公雞</div>
+                <div class="text-sm font-semibold text-blue-600">{{ batch.total_b_male }}</div>
+            </div>
+            <div class="bg-pink-50 rounded p-2">
+                <div class="text-xs text-gray-500">母雞</div>
+                <div class="text-sm font-semibold text-pink-600">{{ batch.total_b_female }}</div>
+            </div>
+            <div class="bg-green-50 rounded p-2">
+                <div class="text-xs text-gray-500">已售</div>
+                <div class="text-sm font-semibold text-green-600">{{ batch.total_count }}</div>
+            </div>
+        </div>
+    </summary>
+    
+    <!-- 詳細資訊區域 -->
+    <div class="px-6 pb-6 border-t border-gray-100 bg-gray-50">
+        <!-- 繁殖詳細記錄 -->
+        {% if batch.breed_details and batch.breed_details|length > 0 %}
+        <section class="mb-6">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                繁殖記錄詳細
+            </h4>
+            <div class="space-y-3">
+                {% for detail in batch.breed_details %}
+                <div class="bg-white rounded-lg p-3 border border-gray-200">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="text-gray-500">繁殖日期:</span>
+                            <span class="font-medium">{{ detail.breed_date }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">供應商:</span>
+                            <span class="font-medium">{{ detail.supplier or "-" }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">日齡:</span>
+                            <span class="font-medium">{{ detail.day_age }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">週齡:</span>
+                            <span class="font-medium">{{ detail.week_age }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+        
+        <!-- 銷售詳細 -->
+        <section class="mb-6">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                銷售詳細
+            </h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="bg-white rounded p-3 border border-gray-200">
+                    <span class="text-gray-500">剩餘公雞:</span>
+                    <span class="font-medium text-blue-600">{{ batch.sales_remain_male or 0 }}</span>
+                </div>
+                <div class="bg-white rounded p-3 border border-gray-200">
+                    <span class="text-gray-500">剩餘母雞:</span>
+                    <span class="font-medium text-pink-600">{{ batch.sales_remain_female or 0 }}</span>
+                </div>
+                <div class="bg-white rounded p-3 border border-gray-200">
+                    <span class="text-gray-500">FCR:</span>
+                    <span class="font-medium">{{ "%.2f"|format(batch.fcr) if batch.fcr else "-" }}</span>
+                </div>
+                <div class="bg-white rounded p-3 border border-gray-200">
+                    <span class="text-gray-500">批次數:</span>
+                    <span class="font-medium">{{ batch.batch_count or 1 }}</span>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 飼料資訊 -->
+        {% if batch.feed %}
+        <section class="mb-6">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                飼料資訊
+            </h4>
+            <div class="bg-white rounded p-3 border border-gray-200">
+                <div class="text-sm">{{ batch.feed }}</div>
+            </div>
+        </section>
+        {% endif %}
+        
+        <!-- 銷售時間 -->
+        {% if batch.sales_open_date or batch.sales_last_date %}
+        <section>
+            <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                銷售時間
+            </h4>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                {% if batch.sales_open_date %}
+                <div class="bg-white rounded p-3 border border-gray-200">
+                    <span class="text-gray-500">開始銷售:</span>
+                    <div class="font-medium">{{ batch.sales_open_date }}</div>
+                </div>
+                {% endif %}
+                {% if batch.sales_last_date %}
+                <div class="bg-white rounded p-3 border border-gray-200">
+                    <span class="text-gray-500">最後銷售:</span>
+                    <div class="font-medium">{{ batch.sales_last_date }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
     </div>
-    {% endif %}
-</div>
+</details>
 {% endfor %}
 {% endmacro %}
 

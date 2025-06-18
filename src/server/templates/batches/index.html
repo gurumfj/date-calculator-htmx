@@ -7,71 +7,110 @@
     <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">批次摘要</h1>
-            
+
             <!-- 統一表單 -->
-            <form data-batch-form 
-                  hx-get="/batches/data"
-                  hx-trigger="change, input changed delay:500ms, searchClear from:body"
-                  hx-target="#content-container"
-                  class="space-y-4">
-                
-                <!-- 視圖切換 -->
-                <div class="flex justify-between items-center">
-                    <div class="flex bg-gray-100 rounded-lg p-1">
-                        <input type="radio" name="view" value="cards" id="cards-view" 
-                               x-model="viewMode" class="sr-only">
-                        <label for="cards-view" 
-                               class="px-3 py-2 rounded text-sm font-medium transition-all cursor-pointer"
-                               :class="viewMode === 'cards' ? 'bg-white shadow' : ''">
+            <form data-batch-form hx-get="/batches/data"
+                hx-trigger="change, input changed delay:500ms, searchClear from:body" hx-target="#content-container"
+                class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+
+                <!-- 表單標題與視圖切換 -->
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z">
+                            </path>
+                        </svg>
+                        篩選與檢視設定
+                    </h2>
+
+                    <!-- 視圖切換 -->
+                    <div class="flex bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
+                        <input type="radio" name="view" value="cards" id="cards-view" x-model="viewMode"
+                            class="sr-only">
+                        <label for="cards-view"
+                            class="px-4 py-2 rounded-md text-sm font-medium transition-all cursor-pointer flex items-center"
+                            :class="viewMode === 'cards' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                </path>
+                            </svg>
                             卡片視圖
                         </label>
-                        <input type="radio" name="view" value="table" id="table-view" 
-                               x-model="viewMode" class="sr-only">
-                        <label for="table-view" 
-                               class="px-3 py-2 rounded text-sm font-medium transition-all cursor-pointer"
-                               :class="viewMode === 'table' ? 'bg-white shadow' : ''">
+                        <input type="radio" name="view" value="table" id="table-view" x-model="viewMode"
+                            class="sr-only">
+                        <label for="table-view"
+                            class="px-4 py-2 rounded-md text-sm font-medium transition-all cursor-pointer flex items-center"
+                            :class="viewMode === 'table' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                </path>
+                            </svg>
                             表格視圖
                         </label>
                     </div>
                 </div>
-                
+
                 <!-- 篩選欄位 -->
-                <div class="flex gap-4 items-end">
-                <div>
-                    <label for="chicken_breed" class="block text-sm font-medium text-gray-700 mb-1">雞種</label>
-                    <select 
-                        id="chicken_breed" 
-                        name="chicken_breed"
-                        class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        {% for breed in chicken_breeds %}
-                        >
-                        <option value="{{ breed }}" {% if chicken_breed == breed %}selected{% endif %}>{{ breed }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <!-- 搜尋欄位 -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">批次名稱搜尋</label>
-                    <div class="relative">
-                        <input 
-                            x-ref="searchInput"
-                            placeholder="搜尋批次名稱..."
-                            name="batch_name"
-                            x-model="search"
-                            class="px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-                        >
-                        <button 
-                            type="button"
-                            x-show="search.length > 0"
-                            @click="search = ''; $nextTick(() => $dispatch('searchClear')); $refs.searchInput.focus()"
-                            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                            title="清除搜尋">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 雞種選擇 -->
+                    <div class="space-y-2">
+                        <label for="chicken_breed" class="block text-sm font-medium text-gray-700 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z">
+                                </path>
                             </svg>
-                        </button>
+                            雞種選擇
+                        </label>
+                        <select id="chicken_breed" name="chicken_breed"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors shadow-sm">
+                            {% for breed in chicken_breeds %}
+                            <option value="{{ breed }}" {% if chicken_breed==breed %}selected{% endif %}>{{ breed }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 批次名稱搜尋 -->
+                    <div class="space-y-2">
+                        <label for="batch_name" class="block text-sm font-medium text-gray-700 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            批次名稱搜尋
+                        </label>
+                        <div class="relative">
+                            <input id="batch_name" x-ref="searchInput" placeholder="請輸入批次名稱進行搜尋..." name="batch_name"
+                                x-model="search"
+                                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors shadow-sm">
+                            <button type="button" x-show="search.length > 0"
+                                @click="search = ''; $nextTick(() => $dispatch('searchClear')); $refs.searchInput.focus()"
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1 rounded-full hover:bg-gray-100"
+                                title="清除搜尋">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 搜尋狀態指示 -->
+                <div x-show="search.length > 0" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-center text-sm text-blue-800">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        搜尋條件：<span class="font-medium" x-text="search"></span>
+                    </div>
                 </div>
             </form>
         </div>

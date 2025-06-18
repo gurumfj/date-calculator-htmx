@@ -27,3 +27,15 @@ HTML模板統一放在src/server/templates/
 - 表單整合使用unified form結構
 - 數據庫查詢使用Jinja2模板渲染SQL
 - 分頁查詢統一使用LIMIT/OFFSET模式
+
+## 模板架構原則
+- 使用Jinja2 macro實現模板組件化,避免重複代碼
+- 模板自主渲染: 條件判斷邏輯集中在模板內部而非控制器
+- 統一表單處理: 視圖切換和搜尋整合在同一form中
+
+
+## FastAPI控制器規範
+- 使用Enum定義視圖類型常數
+- 使用match case進行視圖路由(Python 3.10+)
+- 定義DEFAULT_*常數統一管理預設參數
+- 避免在控制器內定義TEMPLATE_*常數
