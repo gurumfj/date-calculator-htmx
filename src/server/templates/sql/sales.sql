@@ -83,6 +83,8 @@ SELECT
 			'male_count', s.male_count,
 			'female_count', s.female_count,
 			'total_weight', s.total_weight,
+			'male_avg_weight', s.male_avg_weight,
+			'female_avg_weight', s.female_avg_weight,
 			'total_price', s.total_price,
 			'avg_price', s.avg_price,
 			'male_price', s.male_price,

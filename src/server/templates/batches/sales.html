@@ -53,6 +53,8 @@
                                     <th class="border border-black p-1 text-left font-bold">客戶</th>
                                     <th class="border border-black p-1 text-left font-bold">公雞</th>
                                     <th class="border border-black p-1 text-left font-bold">母雞</th>
+                                    <th class="border border-black p-1 text-left font-bold">公重</th>
+                                    <th class="border border-black p-1 text-left font-bold">母重</th>
                                     <th class="border border-black p-1 text-left font-bold">重量</th>
                                     <th class="border border-black p-1 text-left font-bold">金額</th>
                                     <th class="border border-black p-1 text-left font-bold">均價</th>
@@ -64,6 +66,8 @@
                                     <td class="border-r border-black p-1" data-label="客戶">{{ detail.customer }}</td>
                                     <td class="border-r border-black p-1" data-label="公雞">{{ detail.male_count or 0 }}</td>
                                     <td class="border-r border-black p-1" data-label="母雞">{{ detail.female_count or 0 }}</td>
+                                    <td class="border-r border-black p-1" data-label="公重">{{ "%.2f"|format(detail.male_avg_weight or 0) }}</td>
+                                    <td class="border-r border-black p-1" data-label="母重">{{ "%.2f"|format(detail.female_avg_weight or 0) }}</td>
                                     <td class="border-r border-black p-1" data-label="重量">
                                         {% if detail.total_weight %}{{ "%.1f"|format(detail.total_weight) }}{% else %}-{% endif %}
                                     </td>
