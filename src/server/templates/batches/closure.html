@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}結場資料{% if batch_name %} - {{ batch_name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header with back link -->
+    <div class="mb-4 p-4 border border-black bg-white">
+        <div class="flex justify-between items-center">
+            <h1 class="text-black">結場資料{% if batch_name %} - {{ batch_name }}{% endif %}</h1>
+            <a href="/batches" class="px-4 py-2 bg-white border border-black hover:bg-gray-100 font-bold">
+                ← 返回批次摘要
+            </a>
+        </div>
+    </div>
+
+    <!-- Production Data -->
+    <div class="space-y-6">
+        {% if production_data %}
+            {% for production in production_data %}
+            <div class="border border-black bg-white">
+                <!-- 基本資訊標題 -->
+                <div class="bg-gray-100 p-3 border-b border-black">
+                    <h3 class="font-bold text-lg">{{ production.batch_name }}</h3>
+                    <div class="flex gap-4 text-sm text-gray-600 mt-1">
+                        <span>場地: {{ production.farm_location or '-' }}</span>
+                        <span>農戶: {{ production.farmer or '-' }}</span>
+                        <span>結場日期: {{ production.created_at or '-' }}</span>
+                    </div>
+                </div>
+
+                <!-- 關鍵指標卡片 -->
+                <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-black">
+                    <div class="text-center p-3 bg-blue-50 border border-blue-200 rounded">
+                        <div class="text-2xl font-bold text-blue-600">{{ "%.2f"|format(production.fcr or 0) }}</div>
+                        <div class="text-sm text-gray-600">飼料換肉率</div>
+                    </div>
+                    <div class="text-center p-3 bg-green-50 border border-green-200 rounded">
+                        <div class="text-2xl font-bold text-green-600">{{ "%.1f"|format(production.survival_rate or 0) }}%</div>
+                        <div class="text-sm text-gray-600">成活率</div>
+                    </div>
+                    <div class="text-center p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <div class="text-2xl font-bold text-yellow-600">{{ "%.1f"|format(production.profit_margin or 0) }}%</div>
+                        <div class="text-sm text-gray-600">利潤率</div>
+                    </div>
+                    <div class="text-center p-3 bg-purple-50 border border-purple-200 rounded">
+                        <div class="text-2xl font-bold text-purple-600">{{ "%.2f"|format(production.avg_weight_per_chicken or 0) }}</div>
+                        <div class="text-sm text-gray-600">平均重量(斤/隻)</div>
+                    </div>
+                </div>
+
+                <!-- 生產數據表格 -->
+                <div class="p-4">
+                    <h4 class="font-bold text-lg mb-3">生產數據</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <table class="responsive-table w-full border-collapse border border-black">
+                            <tbody>
+                                <tr>
+                                    <td class="border border-black p-2 bg-gray-50 font-bold" data-label="項目">進雛數</td>
+                                    <td class="border border-black p-2" data-label="數值">{{ production.chick_in_count or 0 }} 隻</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-black p-2 bg-gray-50 font-bold" data-label="項目">出雞數</td>
+                                    <td class="border border-black p-2" data-label="數值">{{ production.chicken_out_count or 0 }} 隻</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-black p-2 bg-gray-50 font-bold" data-label="項目">飼料重量</td>
+                                    <td class="border border-black p-2" data-label="數值">{{ "%.1f"|format(production.feed_weight or 0) }} 斤</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table class="responsive-table w-full border-collapse border border-black">
+                            <tbody>
+                                <tr>
+                                    <td class="border border-black p-2 bg-gray-50 font-bold" data-label="項目">銷售重量</td>
+                                    <td class="border border-black p-2" data-label="數值">{{ "%.1f"|format(production.sale_weight_jin or 0) }} 斤</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-black p-2 bg-gray-50 font-bold" data-label="項目">平均價格</td>
+                                    <td class="border border-black p-2" data-label="數值">{{ "%.2f"|format(production.avg_price or 0) }} 元</td>
+                                </tr>
+                                <tr>
+                                    <td class="border border-black p-2 bg-gray-50 font-bold" data-label="項目">成本價格</td>
+                                    <td class="border border-black p-2" data-label="數值">{{ "%.2f"|format(production.cost_price or 0) }} 元</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 財務分析 -->
+                    <h4 class="font-bold text-lg mb-3">財務分析</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- 收支概況 -->
+                        <div>
+                            <h5 class="font-bold mb-2">收支概況</h5>
+                            <table class="responsive-table w-full border-collapse border border-black">
+                                <tbody>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-green-50 font-bold" data-label="項目">營收</td>
+                                        <td class="border border-black p-2 text-green-600 font-bold" data-label="金額">{{ (production.revenue or 0)|format_number }} 元</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-red-50 font-bold" data-label="項目">支出</td>
+                                        <td class="border border-black p-2 text-red-600 font-bold" data-label="金額">{{ ((production.expenses or 0) * -1)|format_number }} 元</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-blue-50 font-bold" data-label="項目">利潤</td>
+                                        <td class="border border-black p-2 {% if production.profit >= 0 %}text-blue-600{% else %}text-red-600{% endif %} font-bold" data-label="金額">{{ (production.profit or 0)|format_number }} 元</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 成本明細 -->
+                        <div>
+                            <h5 class="font-bold mb-2">成本明細</h5>
+                            {% set total_cost = (production.feed_cost or 0) + (production.chick_cost or 0) + (production.vet_cost or 0) + (production.grow_fee or 0) + (production.catch_fee or 0) + (production.leg_band_cost or 0) + (production.weigh_fee or 0) + (production.gas_cost or 0) + (production.feed_med_cost or 0) + (production.farm_med_cost or 0) %}
+                            <table class="responsive-table w-full border-collapse border border-black">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="border border-black p-2 text-left font-bold">項目</th>
+                                        <th class="border border-black p-2 text-left font-bold">金額</th>
+                                        <th class="border border-black p-2 text-left font-bold">佔比</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">飼料成本</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.feed_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.feed_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">雛雞成本</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.chick_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.chick_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">獸醫成本</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.vet_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.vet_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">飼料用藥</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.feed_med_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.feed_med_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">農場用藥</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.farm_med_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.farm_med_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">代養費</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.grow_fee or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.grow_fee or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">抓工費</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.catch_fee or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.catch_fee or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">腳環費</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.leg_band_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.leg_band_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">過磅費</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.weigh_fee or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.weigh_fee or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-black p-2 bg-gray-50" data-label="項目">瓦斯費</td>
+                                        <td class="border border-black p-2" data-label="金額">{{ (production.gas_cost or 0)|format_number }} 元</td>
+                                        <td class="border border-black p-2" data-label="佔比">{% if total_cost > 0 %}{{ "%.1f"|format((production.gas_cost or 0) * 100 / total_cost) }}%{% else %}-{% endif %}</td>
+                                    </tr>
+                                    <tr class="bg-yellow-50">
+                                        <td class="border border-black p-2 font-bold" data-label="項目">總計</td>
+                                        <td class="border border-black p-2 font-bold" data-label="金額">{{ total_cost|format_number }} 元</td>
+                                        <td class="border border-black p-2 font-bold" data-label="佔比">100.0%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="p-4 border border-black bg-white">
+                <p class="p-4 text-center text-gray-600">無結場記錄</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

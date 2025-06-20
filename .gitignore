@@ -40,3 +40,6 @@ frontend/node_modules
 .sesskey
 .claude/settings.local.json
 nginx/ssl
+
+# 
+node_modules

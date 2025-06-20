@@ -45,12 +45,12 @@ web = "cleansales_backend.web.main:main"
 upload-handler = "cleansales_backend.web.file_upload_handler:main"
 dev = "server.main:main"
 
-[project.entry-points."uv.run"]
-cleansales = "cleansales_backend.cli:main"
-api = "cleansales_backend.api.dev:main"
-web = "cleansales_backend.web.main:main"
-upload-handler = "cleansales_backend.web.file_upload_handler:main"
-dev = "server.main:main"
+# [project.entry-points."uv.run"]
+# cleansales = "cleansales_backend.cli:main"
+# api = "cleansales_backend.api.dev:main"
+# web = "cleansales_backend.web.main:main"
+# upload-handler = "cleansales_backend.web.file_upload_handler:main"
+# dev = "server.main:main"
 
 [tool.mypy]
 python_version = "3.13"

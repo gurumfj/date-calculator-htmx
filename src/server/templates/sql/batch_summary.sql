@@ -30,8 +30,11 @@ WITH
 		FROM
 			breed_details
 		WHERE
+			{% if batch_name %}
+			batch_name LIKE :batch_name
+			{% else %}
 			chicken_breed = :chicken_breed
-			{% if batch_name %}AND batch_name LIKE :batch_name{% endif %}
+			{% endif %}
 		GROUP BY
 			batch_name,
 			chicken_breed

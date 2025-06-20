@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}批次管理系統{% endblock %}</title>
+    
+    {% block extra_head %}{% endblock %}
+    
+    {# htmx #}
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    {# tailwind #}
+    <link rel="stylesheet" href="{{ url_for('static', path='/output.css') }}">
+    
+    <style>
+        h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        h4 {
+            font-size: 1.125rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        h5 {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        h6 {
+            font-size: 0.875rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        /* 小螢幕：轉置表格為垂直卡片 */
+        @media (max-width: 767px) {
+            .responsive-table {
+                border: 0;
+            }
+
+            .responsive-table thead {
+                display: none;
+                /* 隱藏原始標題 */
+            }
+
+            .responsive-table tbody tr {
+                display: block;
+                border: 2px solid black;
+                margin-bottom: 0.75rem;
+                background: white;
+            }
+
+            .responsive-table tbody td {
+                display: block;
+                border: none !important;
+                border-bottom: 1px solid #ccc !important;
+                padding: 0.5rem;
+                position: relative;
+                padding-left: 6rem;
+                /* 為偽元素留空間 */
+            }
+
+            .responsive-table tbody td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0.5rem;
+                width: 5rem;
+                font-weight: bold;
+                white-space: nowrap;
+            }
+
+            .responsive-table tbody td:last-child {
+                border-bottom: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-2">
+    {% block content %}{% endblock %}
+</body>
+</html>
