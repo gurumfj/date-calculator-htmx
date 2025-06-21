@@ -1,29 +1,21 @@
-## ---- Backend Stage ----
-# 1. Base 階段：最小化的 Python 環境，僅安裝 production 依賴
-FROM ghcr.io/astral-sh/uv:python3.13-alpine AS base
-WORKDIR /app
+FROM ghcr.io/astral-sh/uv:python3.13-alpine
 
+WORKDIR /app
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
+# 複製依賴文件並安裝
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
-# 2. Production 階段：基於 base，複製最終的應用代碼
-FROM base AS production
-
-# 複製 backend 源代碼
+# 複製源代碼
 COPY src /app/src
 
-# 複製靜態資源或配置文件
-COPY migrations /app/migrations
-COPY alembic.ini /app/alembic.ini
-
 # 創建必要的目錄
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data /app/logs
 
-# 設置 CMD
-# CMD ["uv", "run", "dev"]
+# 使用 pyproject.toml 中定義的 dev 命令
+CMD ["uv", "run", "dev"]

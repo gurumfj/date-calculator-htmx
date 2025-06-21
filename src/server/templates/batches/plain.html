@@ -19,9 +19,12 @@
         </summary>
         <nav class="flex gap-2 flex-row bg-gray-100 p-2">
             <ul class="flex gap-2 flex-row">
-                <li><a href="/batches/feed?batch_name={{ batch['batch_name'] }}" class="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">飼料</a></li>
-                <li><a href="/batches/sales?batch_name={{ batch['batch_name'] }}" class="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">銷售</a></li>
-                <li><a href="/batches/closure?batch_name={{ batch['batch_name'] }}" class="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">結場</a></li>
+                <li><a href="/batches/feed?batch_name={{ batch['batch_name'] }}"
+                        class="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">飼料</a></li>
+                <li><a href="/batches/sales?batch_name={{ batch['batch_name'] }}"
+                        class="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">銷售</a></li>
+                <li><a href="/batches/closure?batch_name={{ batch['batch_name'] }}"
+                        class="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">結場</a></li>
                 <li>記事</li>
             </ul>
         </nav>
@@ -92,38 +95,47 @@
 {% block title %}批次摘要{% endblock %}
 
 {% block content %}
-    <div>
-        <h1 class="p-2 text-black">批次摘要</h1>
+<div>
+    <h1 class="p-2 text-black">批次摘要</h1>
+
+    <!-- Tabs and Form Container -->
+    <div class="m-4 md:w-2/3">
+        <!-- Chicken Breed Tabs -->
+        <div class="flex flex-wrap gap-1 relative" x-data="{ selectedBreed: '{{ chicken_breed or '' }}' }">
+            {% for breed in chicken_breeds %}
+            <button type="button" @click="selectedBreed = '{{ breed }}'"
+                hx-get="?chicken_breed={{ breed }}&view=plain-content" hx-target="#content-container"
+                hx-swap="innerHTML" class="px-4 py-2 border-gray-400 border-l border-r border-t border-b-0 relative"
+                :class="selectedBreed === '{{ breed }}' ? 'bg-white text-black font-bold -mb-px z-10 border-black' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                {{ breed }}
+            </button>
+            {% endfor %}
+        </div>
 
         <!-- Search Form -->
-        <form class="m-4 p-4 border border-black bg-white" hx-get="" hx-target="#content-container" hx-swap="innerHTML">
+        <form id="search-form" x-ref="searchForm" class="p-4 border border-gray-400 bg-white" hx-get="" hx-target="#content-container"
+            hx-swap="innerHTML">
+            <input type="hidden" name="chicken_breed" x-ref="breedInput" value="{{ chicken_breed or '' }}">
+            <input type="hidden" name="view" value="plain-content">
+
             <div class="mb-3">
                 <label class="block font-bold mb-1" for="batch_name">批次名稱搜尋:</label>
                 <input type="text" id="batch_name" name="batch_name" value="{{ batch_name or '' }}"
-                    class="w-full p-2 border border-black" placeholder="輸入批次名稱...">
-                <input type="hidden" name="view" value="plain-content">
+                    class="w-full p-2 border border-gray-300 focus:border-gray-400 focus:outline-none"
+                    placeholder="輸入批次名稱...">
             </div>
             <div class="flex gap-2">
                 <button type="submit"
-                    class="px-4 py-2 bg-white border border-black hover:bg-gray-100 font-bold">搜尋</button>
+                    class="px-4 py-2 bg-gray-100 border border-gray-300 hover:bg-gray-200 font-bold">搜尋</button>
                 <button type="button" onclick="this.form.reset(); this.form.requestSubmit();"
-                    class="px-4 py-2 bg-white border border-black hover:bg-gray-100">清除</button>
+                    class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100">清除</button>
             </div>
         </form>
-
-        <nav class="m-4">
-            <span class="font-bold mr-2">雞種:</span>
-            {%for chicken_breed in chicken_breeds %}
-            <a hx-get="?chicken_breed={{ chicken_breed }}&view=plain-content" hx-target="#content-container"
-                hx-swap="innerHTML"
-                class="p-2 font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded">{{
-                chicken_breed }}</a>
-            {% endfor %}
-        </nav>
-        <div id="content-container">
-            {{ plain_content(batches) }}
-        </div>
     </div>
+    <div id="content-container" class="m-4">
+        {{ plain_content(batches) }}
+    </div>
+</div>
 {% endblock %}
 {% elif view == "plain-content" %}
 {{ plain_content(batches) }}
