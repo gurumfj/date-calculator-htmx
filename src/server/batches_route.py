@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from todoist_api_python.api import TodoistAPI
 from todoist_api_python.models import Task
 
-from cleansales_backend.core.config import get_settings
+from server.config import get_settings
 
 logger = logging.getLogger(__name__)
 

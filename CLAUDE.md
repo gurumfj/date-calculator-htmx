@@ -33,9 +33,11 @@ HTML模板統一放在src/server/templates/
 - 模板自主渲染: 條件判斷邏輯集中在模板內部而非控制器
 - 統一表單處理: 視圖切換和搜尋整合在同一form中
 
-
 ## FastAPI控制器規範
 - 使用Enum定義視圖類型常數
 - 使用match case進行視圖路由(Python 3.10+)
 - 定義DEFAULT_*常數統一管理預設參數
 - 避免在控制器內定義TEMPLATE_*常數
+
+## 資料來源
+- data/sqlite.db 是專案的資料來源, 可以用sqlite tool讀取
