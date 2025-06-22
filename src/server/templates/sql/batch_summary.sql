@@ -26,7 +26,7 @@ WITH
 			MAX(week_age) AS weekage,
 			count(batch_name) AS batch_count,
 			sum(breed_male + breed_female) AS total_breed,
-			json_group_array(json_object('chicken_breed', chicken_breed, 'breed_date', breed_date, 'day_age', dayage, 'week_age', week_age, 'supplier', supplier)) AS breed_details
+			json_group_array(json_object('chicken_breed', chicken_breed, 'breed_date', breed_date, 'day_age', dayage, 'week_age', week_age, 'supplier', supplier, 'breed_male', breed_male, 'breed_female', breed_female)) AS breed_details
 		FROM
 			breed_details
 		WHERE

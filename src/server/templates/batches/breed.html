@@ -1,0 +1,56 @@
+<section>
+    <!-- Breed Details -->
+    {% set breed_details = batch["breed_details"] %}
+    <h4 class="font-bold text-black mb-2 pb-1">入雛資訊</h4>
+    <table class="table w-full ml-4">
+        <thead class="hidden sm:table-header-group">
+            <tr class="bg-gray-100">
+                <th class="p-2 text-left font-bold">品種</th>
+                <th class="p-2 text-left font-bold">入雛日期</th>
+                <th class="p-2 text-left font-bold">週齡</th>
+                <th class="p-2 text-left font-bold">公數</th>
+                <th class="p-2 text-left font-bold">母數</th>
+                <th class="p-2 text-left font-bold">供應商</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for detail in breed_details %}
+            <tr class="hidden sm:table-row">
+                <td class="p-2">{{ detail.get("chicken_breed", "") }}</td>
+                <td class="p-2">{{ detail.get("breed_date", "") }}</td>
+                <td class="p-2">{{ detail.get("week_age", "") }}</td>
+                <td class="p-2">{{ detail.get("breed_male", 0)|format_number }}</td>
+                <td class="p-2">{{ detail.get("breed_female", 0)|format_number }}</td>
+                <td class="p-2">{{ detail.get("supplier", "") }}</td>
+            </tr>
+            <tr class="border-b border-black sm:hidden">
+                <td class="px-8 py-2 flex items-center justify-center border-b border-gray-200"><span class="font-bold">{{
+                        detail.get("breed_date", "") }}</span></td>
+                <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200"><span
+                        class="font-bold">品種</span><span>{{ detail.get("chicken_breed", "") }}</span></td>
+                <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200"><span
+                        class="font-bold">週齡</span><span>{{ detail.get("week_age", "") }}</span></td>
+                <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200"><span
+                        class="font-bold">公數</span><span>{{ detail.get("breed_male", 0)|format_number }}</span></td>
+                <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200"><span
+                        class="font-bold">母數</span><span>{{ detail.get("breed_female", 0)|format_number }}</span></td>
+                <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200"><span
+                        class="font-bold">供應商</span><span>{{ detail.get("supplier", "") }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="hidden sm:table-row">
+                <td colspan="3" class="p-2 font-bold">總數</td>
+                <td class="p-2 italic">{{ batch["total_b_male"]|format_number }}</td>
+                <td class="p-2 italic">{{ batch["total_b_female"]|format_number }}</td>
+                <td class="p-2 italic">{{ (batch["total_b_male"] + batch["total_b_female"])|format_number }}</td>
+            </tr>
+            <tr class="border-b border-black sm:hidden">
+                <td colspan="6" class="px-8 py-2 flex items-center justify-between border-b border-gray-200"><span
+                        class="font-bold">總數</span><span class="italic">{{ (batch["total_b_male"] +
+                        batch["total_b_female"])|format_number }}</span></td>
+            </tr>
+        </tfoot>
+    </table>
+</section>

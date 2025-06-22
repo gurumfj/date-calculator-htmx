@@ -8,8 +8,16 @@ SELECT
     sale_weight_jin,
     fcr,
     meat_cost,
-    avg_price,
-    cost_price,
+    CASE
+    	WHEN revenue >0 and sale_weight_jin >0 THEN
+    		ROUND(revenue/sale_weight_jin,2)
+		else 0
+	END as avg_price,
+    CASE
+    	WHEN ABS(expenses) >0 and sale_weight_jin >0 THEN
+    		ROUND(ABS(expenses)/sale_weight_jin,2)
+		else 0
+	END as cost_price,
     revenue,
     expenses,
     feed_cost,

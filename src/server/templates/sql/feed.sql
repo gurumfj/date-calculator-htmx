@@ -1,6 +1,7 @@
 SELECT
 	batch_name,
 	sub_location,
+	feed_date,
 	json_group_array (json_object(
 	'feed_date', feed_date,
 	 'feed_manufacturer',feed_manufacturer,
@@ -23,6 +24,7 @@ WHERE
 {% endif %}
 GROUP BY
 	batch_name,
-	sub_location
+	sub_location,
+	feed_date
 ORDER BY
 	feed_date DESC

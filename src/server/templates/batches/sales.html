@@ -1,92 +1,101 @@
-{% extends "base.html" %}
-
-{% block title %}銷售資料 - {{ batch_name }}{% endblock %}
-
-{% block content %}
-    <div class="max-w-6xl mx-auto">
-        <!-- Header with back link -->
-        <div class="mb-4 p-4 border border-black bg-white">
-            <div class="flex justify-between items-center">
-                <h1 class="text-black">銷售資料 - {{ batch_name }}</h1>
-                <a href="/batches/plain" 
-                   class="px-4 py-2 bg-white border border-black hover:bg-gray-100 font-bold">
-                    ← 返回批次摘要
-                </a>
-            </div>
-        </div>
-
-        <!-- Sales Data -->
-        <div class="p-4 border border-black bg-white">
-            {% if sales_data %}
-                {% for sale in sales_data %}
-                <div class="mb-4 border border-black">
-                    <!-- 銷售日期標題 -->
-                    <div class="bg-gray-100 p-2 border-b border-black">
-                        <h5 class="font-bold">{{ sale.sale_date }}</h5>
-                        <div class="flex gap-4 text-sm">
-                            <span>總數: {{ sale.daily_total_count }}</span>
-                            <span>公雞: {{ sale.daily_male_count }}</span>
-                            <span>母雞: {{ sale.daily_female_count }}</span>
-                            {% if sale.daily_avg_price %}
-                            <span>均價: {{ "%.1f"|format(sale.daily_avg_price) }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- 日齡資訊 -->
-                    {% if sale.dayage_details %}
-                    <div class="p-2 bg-blue-50 border-b border-black">
-                        <h6 class="font-bold mb-1">日齡資訊:</h6>
-                        {% for dayage in sale.dayage_details %}
-                        <div class="text-sm">
-                            {{ dayage.chicken_breed }} - {{ dayage.breed_date }} ({{ dayage.dayage }}日齡) - {{ dayage.supplier }}
-                        </div>
-                        {% endfor %}
-                    </div>
+<section>
+    <h4 class="font-bold text-black mb-2 pb-1">銷售資料</h4>
+    {% if sales_data %}
+        {% for sale in sales_data %}
+        <div class="mb-4">
+            <!-- 銷售日期標題 -->
+            <div class="bg-gray-100 p-2 mb-1">
+                <h5 class="font-bold">{{ sale.sale_date }}</h5>
+                <div class="flex gap-4 text-sm">
+                    <span>總數: {{ sale.daily_total_count|format_number }}</span>
+                    <span>公雞: {{ sale.daily_male_count|format_number }}</span>
+                    <span>母雞: {{ sale.daily_female_count|format_number }}</span>
+                    {% if sale.daily_avg_price %}
+                    <span>均價: {{ "%.1f"|format(sale.daily_avg_price) }}</span>
                     {% endif %}
+                </div>
+            </div>
 
-                    <!-- 客戶銷售詳情 -->
-                    <div class="p-2">
-                        <table class="responsive-table w-full border-collapse">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="border border-black p-1 text-left font-bold">客戶</th>
-                                    <th class="border border-black p-1 text-left font-bold">公雞</th>
-                                    <th class="border border-black p-1 text-left font-bold">母雞</th>
-                                    <th class="border border-black p-1 text-left font-bold">公重</th>
-                                    <th class="border border-black p-1 text-left font-bold">母重</th>
-                                    <th class="border border-black p-1 text-left font-bold">重量</th>
-                                    <th class="border border-black p-1 text-left font-bold">金額</th>
-                                    <th class="border border-black p-1 text-left font-bold">均價</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for detail in sale.sales_details %}
-                                <tr class="border-b border-black">
-                                    <td class="border-r border-black p-1" data-label="客戶">{{ detail.customer }}</td>
-                                    <td class="border-r border-black p-1" data-label="公雞">{{ detail.male_count or 0 }}</td>
-                                    <td class="border-r border-black p-1" data-label="母雞">{{ detail.female_count or 0 }}</td>
-                                    <td class="border-r border-black p-1" data-label="公重">{{ "%.2f"|format(detail.male_avg_weight or 0) }}</td>
-                                    <td class="border-r border-black p-1" data-label="母重">{{ "%.2f"|format(detail.female_avg_weight or 0) }}</td>
-                                    <td class="border-r border-black p-1" data-label="重量">
-                                        {% if detail.total_weight %}{{ "%.1f"|format(detail.total_weight) }}{% else %}-{% endif %}
-                                    </td>
-                                    <td class="border-r border-black p-1" data-label="金額">
-                                        {% if detail.total_price %}{{ "%.0f"|format(detail.total_price) }}{% else %}-{% endif %}
-                                    </td>
-                                    <td class="p-1" data-label="均價">
-                                        {% if detail.avg_price %}{{ "%.1f"|format(detail.avg_price) }}{% else %}-{% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- 日齡資訊 -->
+            {% if sale.dayage_details %}
+            <div class="p-2 bg-blue-50 mb-1">
+                <h6 class="font-bold mb-1">日齡資訊:</h6>
+                {% for dayage in sale.dayage_details %}
+                <div class="text-sm">
+                    {{ dayage.chicken_breed }} - {{ dayage.breed_date }} ({{ dayage.dayage }}日齡) - {{ dayage.supplier }}
                 </div>
                 {% endfor %}
-            {% else %}
-                <p class="p-4 text-center text-gray-600">此批次無銷售記錄</p>
+            </div>
             {% endif %}
+
+            <!-- 客戶銷售詳情 -->
+            <table class="table w-full ml-4">
+                <thead class="hidden sm:table-header-group">
+                    <tr class="bg-gray-100">
+                        <th class="p-2 text-left font-bold">客戶</th>
+                        <th class="p-2 text-left font-bold">公雞</th>
+                        <th class="p-2 text-left font-bold">母雞</th>
+                        <th class="p-2 text-left font-bold">公重</th>
+                        <th class="p-2 text-left font-bold">母重</th>
+                        <th class="p-2 text-left font-bold">重量</th>
+                        <th class="p-2 text-left font-bold">金額</th>
+                        <th class="p-2 text-left font-bold">均價</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detail in sale.sales_details %}
+                    <tr class="hidden sm:table-row">
+                        <td class="p-2">{{ detail.customer }}</td>
+                        <td class="p-2">{{ (detail.male_count or 0)|format_number }}</td>
+                        <td class="p-2">{{ (detail.female_count or 0)|format_number }}</td>
+                        <td class="p-2">{{ "%.2f"|format(detail.male_avg_weight or 0) }}</td>
+                        <td class="p-2">{{ "%.2f"|format(detail.female_avg_weight or 0) }}</td>
+                        <td class="p-2">
+                            {% if detail.total_weight %}{{ "%.1f"|format(detail.total_weight) }}{% else %}-{% endif %}
+                        </td>
+                        <td class="p-2">
+                            {% if detail.total_price %}{{ (detail.total_price or 0)|format_number }}{% else %}-{% endif %}
+                        </td>
+                        <td class="p-2">
+                            {% if detail.avg_price %}{{ "%.1f"|format(detail.avg_price) }}{% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    <!-- 手機版顯示 -->
+                    <tr class="border-b border-black sm:hidden">
+                        <td class="px-8 py-2 flex items-center justify-center border-b border-gray-200">
+                            <span class="font-bold">{{ detail.customer }}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">公雞</span><span>{{ (detail.male_count or 0)|format_number }}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">母雞</span><span>{{ (detail.female_count or 0)|format_number }}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">公重</span><span>{{ "%.2f"|format(detail.male_avg_weight or 0) }}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">母重</span><span>{{ "%.2f"|format(detail.female_avg_weight or 0) }}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">重量</span>
+                            <span>{% if detail.total_weight %}{{ "%.1f"|format(detail.total_weight) }}{% else %}-{% endif %}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">金額</span>
+                            <span>{% if detail.total_price %}{{ (detail.total_price or 0)|format_number }}{% else %}-{% endif %}</span>
+                        </td>
+                        <td class="px-8 py-2 flex items-center justify-between border-b border-gray-200">
+                            <span class="font-bold">均價</span>
+                            <span>{% if detail.avg_price %}{{ "%.1f"|format(detail.avg_price) }}{% else %}-{% endif %}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
-{% endblock %}
+        {% endfor %}
+    {% else %}
+        <p class="p-4 text-center text-gray-600">此批次無銷售記錄</p>
+    {% endif %}
+</section>

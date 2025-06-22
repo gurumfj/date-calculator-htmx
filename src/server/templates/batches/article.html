@@ -1,0 +1,256 @@
+<style>
+/* Markdown content styling */
+.markdown-content {
+    color: #374151;
+}
+
+.markdown-content h1, .markdown-content h2, .markdown-content h3, 
+.markdown-content h4, .markdown-content h5, .markdown-content h6 {
+    font-weight: 600;
+    margin: 0.5rem 0 0.25rem 0;
+    color: #1f2937;
+}
+
+.markdown-content h1 { font-size: 1.25rem; }
+.markdown-content h2 { font-size: 1.125rem; }
+.markdown-content h3 { font-size: 1rem; }
+.markdown-content h4, .markdown-content h5, .markdown-content h6 { font-size: 0.875rem; }
+
+.markdown-content p {
+    margin: 0.25rem 0;
+    line-height: 1.4;
+}
+
+.markdown-content strong {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.markdown-content em {
+    font-style: italic;
+}
+
+.markdown-content code {
+    background-color: #f3f4f6;
+    color: #dc2626;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-family: 'Courier New', monospace;
+}
+
+.markdown-content pre {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.markdown-content pre code {
+    background-color: transparent;
+    color: #374151;
+    padding: 0;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin: 0.5rem 0;
+    padding-left: 1.25rem;
+}
+
+.markdown-content li {
+    margin: 0.125rem 0;
+    line-height: 1.4;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #d1d5db;
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.markdown-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.5rem 0;
+}
+
+.markdown-content th, .markdown-content td {
+    border: 1px solid #e5e7eb;
+    padding: 0.375rem;
+    text-align: left;
+}
+
+.markdown-content th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+
+/* 確保在表格單元格內的markdown內容能正確顯示 */
+td .markdown-content {
+    display: block;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+td .markdown-content * {
+    max-width: 100%;
+}
+</style>
+
+<section>
+    <h4 class="font-bold text-black mb-2 pb-1">記事 - {{ batch_name }}</h4>
+    
+    {% if tasks %}
+    <div class="mb-6">
+        <div class="bg-blue-50 p-2 mb-1">
+            <h5 class="font-bold text-blue-800">任務列表 ({{ tasks|length }})</h5>
+        </div>
+        
+        <!-- 桌面版表格 -->
+        <table class="hidden sm:table w-full ml-4 mb-2">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="p-2 text-left font-bold">任務內容</th>
+                    <th class="p-2 text-left font-bold">描述</th>
+                    <th class="p-2 text-left font-bold">狀態</th>
+                    <th class="p-2 text-left font-bold">到期日</th>
+                    <th class="p-2 text-left font-bold">優先級</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td class="p-2">{{ task.content }}</td>
+                    <td class="p-2 max-w-xs">
+                        {% if task.description %}
+                            <div class="markdown-content text-sm">{{ task.description|markdown_to_html|safe }}</div>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="p-2">
+                        {% if task.is_completed %}
+                            <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">已完成</span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">進行中</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-2">
+                        {% if task.due and task.due.date %}
+                            {{ task.due.date }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="p-2">
+                        <span class="px-2 py-1 text-xs rounded
+                            {% if task.priority == 4 %}bg-red-100 text-red-800
+                            {% elif task.priority == 3 %}bg-yellow-100 text-yellow-800
+                            {% elif task.priority == 2 %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800
+                            {% endif %}">
+                            {% if task.priority == 4 %}緊急
+                            {% elif task.priority == 3 %}高
+                            {% elif task.priority == 2 %}中
+                            {% else %}低
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 手機版卡片式佈局 -->
+        <div class="sm:hidden ml-4 space-y-4">
+            {% for task in tasks %}
+            <div class="bg-gray-50 border border-gray-200 rounded p-4">
+                <div class="space-y-3">
+                    <!-- 任務標題 -->
+                    <div class="font-bold text-base
+                        {% if task.is_completed %}text-green-800 line-through
+                        {% else %}text-blue-800
+                        {% endif %}">
+                        {{ task.content }}
+                    </div>
+                    
+                    <!-- 任務屬性 -->
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                            <span class="font-bold">狀態</span>
+                            <span>
+                                {% if task.is_completed %}
+                                    <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">已完成</span>
+                                {% else %}
+                                    <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">進行中</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                            <span class="font-bold">到期日</span>
+                            <span>
+                                {% if task.due and task.due.date %}
+                                    {{ task.due.date }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                            <span class="font-bold">優先級</span>
+                            <span class="px-2 py-1 text-xs rounded
+                                {% if task.priority == 4 %}bg-red-100 text-red-800
+                                {% elif task.priority == 3 %}bg-yellow-100 text-yellow-800
+                                {% elif task.priority == 2 %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800
+                                {% endif %}">
+                                {% if task.priority == 4 %}緊急
+                                {% elif task.priority == 3 %}高
+                                {% elif task.priority == 2 %}中
+                                {% else %}低
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        {% if task.labels %}
+                        <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                            <span class="font-bold">標籤</span>
+                            <div>
+                                {% for label in task.labels %}
+                                    <span class="inline-block bg-gray-200 text-gray-700 px-2 py-1 text-xs rounded mr-1">{{ label }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- 任務描述 -->
+                    {% if task.description %}
+                    <div class="mt-3 pt-3 border-t border-gray-300">
+                        <div class="font-bold text-sm mb-2">描述</div>
+                        <div class="markdown-content text-sm">{{ task.description|markdown_to_html|safe }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-gray-600 bg-gray-50">
+        <div class="mb-2">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+        </div>
+        <p>此批次目前沒有記事任務</p>
+        <p class="text-sm text-gray-500 mt-1">在Todoist中建立任務並加上「{{ batch_name }}」標籤即可在此顯示</p>
+    </div>
+    {% endif %}
+</section>
