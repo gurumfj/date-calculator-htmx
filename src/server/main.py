@@ -76,6 +76,33 @@ async def legacy_redirect(request: Request):
 # Note: /api/upload now handled by api_router, no redirect needed
 
 
+# def init_todoist():
+#     if not get_settings().TODOIST_API_TOKEN:
+#         raise ValueError("TODOIST_API_TOKEN is not set")
+#     return TodoistAPI(token=get_settings().TODOIST_API_TOKEN)
+
+
+# @app.get("/todoist", response_class=HTMLResponse)
+# async def todoist(request: Request):
+#     """向後兼容 - 重定向到 uploader"""
+#     todoist = init_todoist()
+#     # tasks = todoist.get_tasks()
+#     # tasks = [task.to_dict() for task_list in tasks for task in task_list]
+#     params_lst: list[tuple[datetime, datetime]] = []
+#     # 以4週為單位, 創造近3年的時間區間
+#     since = datetime.now() - timedelta(years=3)
+#     for i in range(3):
+#         params_since = since + timedelta(weeks=i*4)
+#         params_lst.append((params_since, since + timedelta(weeks=(i+1)*4)))
+#     tasks: list[Task] = []
+#     for params in params_lst:
+#         completed_tasks = todoist.get_completed_tasks_by_due_date(since=params[0], until=params[1])
+#         tasks.extend([task.to_dict() for task_list in completed_tasks for task in task_list])
+#     tasks = [task.to_dict() for task_list in completed_tasks for task in task_list]
+
+#     return templates.TemplateResponse("todoist.html", {"request": request, "now": datetime.now(), "tasks": tasks})
+
+
 def main() -> None:
     import uvicorn
 

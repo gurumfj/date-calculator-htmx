@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    {# <meta http-equiv="refresh" content="5"> #}
+    {#
+    <meta http-equiv="refresh" content="5"> #}
     <title>{{ title }}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/output.css">
@@ -17,10 +18,58 @@
         htmx.config.historyCacheSize = 10;
         htmx.config.globalViewTransitions = true;
     </script>
+    <style>
+        .htmx-indicator {
+            display: none;
+        }
+
+        .htmx-request .htmx-indicator {
+            display: flex;
+        }
+
+        .htmx-request.htmx-indicator {
+            display: flex;
+        }
+
+        /* 載入動畫 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 </head>
+
+<!-- HTMX 載入指示器 -->
+
 <body class="m-4">
-    <h1 class="text-2xl font-bold mb-4">{{ title }}</h1>
+    <div class="flex items-center gap-3 mb-4">
+        <a href="./" class="text-gray-600 hover:text-gray-900 transition-colors" title="回到首頁">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15" />
+            </svg>
+        </a>
+        <h1 class="text-2xl font-bold">{{ title }}</h1>
+    </div>
     {% block header %}{% include "batches/batch_nav.html" %}{% endblock %}
+    <div id="loading-indicator"
+        class="htmx-indicator fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
+        <div class="loading-spinner"></div>
+        <span>載入中...</span>
+    </div>
     {% block content %}
     <div id="content-container">
         {{ content|safe }}
