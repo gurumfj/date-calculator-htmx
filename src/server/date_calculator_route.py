@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import date, datetime, timedelta
-from typing import List
+from typing import List, Union
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
@@ -34,7 +34,8 @@ class DateData:
             'amount': self.amount,
             'unit': self.unit,
             'result': self.result.strftime('%Y-%m-%d'),
-            'description': self.description
+            'description': self.description,
+            'type': 'calculation'  # 標記為日期推算類型
         }
 
     def to_json(self) -> str:
@@ -116,16 +117,82 @@ class DateData:
         )
 
 
-def get_session_store(request: Request) -> List[DateData]:
+class DateInterval:
+    def __init__(self, id: str, start_date: date, end_date: date, days_diff: int, description: str = ""):
+        self.id = id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.days_diff = days_diff
+        self.description = description
+        
+        # 計算週數和月數概算
+        self.weeks_approx = abs(days_diff) // 7
+        self.months_approx = abs(days_diff) // 30
+        
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'start_date': self.start_date.strftime('%Y-%m-%d'),
+            'end_date': self.end_date.strftime('%Y-%m-%d'),
+            'days_diff': self.days_diff,
+            'weeks_approx': self.weeks_approx,
+            'months_approx': self.months_approx,
+            'description': self.description,
+            'type': 'interval'  # 標記為間隔計算類型
+        }
+    
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "DateInterval":
+        return cls(
+            id=data['id'],
+            start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date(),
+            end_date=datetime.strptime(data['end_date'], '%Y-%m-%d').date(),
+            days_diff=data['days_diff'],
+            description=data.get('description', '')
+        )
+    
+    @classmethod
+    def from_json(cls, json_str: str) -> "DateInterval":
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+    
+    @classmethod
+    def calculate_interval(cls, start_date: date, end_date: date, description: str = "") -> "DateInterval":
+        """計算兩個日期之間的間隔"""
+        days_diff = (end_date - start_date).days
+        
+        return cls(
+            id=str(uuid.uuid4().hex),
+            start_date=start_date,
+            end_date=end_date,
+            days_diff=days_diff,
+            description=description
+        )
+
+
+def get_session_store(request: Request) -> List[Union[DateData, DateInterval]]:
     """Get date calculations from session"""
     if not hasattr(request, 'session'):
         return []
     
     store_json = request.session.get('date_store', [])
-    return [DateData.from_json(json_str) for json_str in store_json]
+    results = []
+    
+    for json_str in store_json:
+        data = json.loads(json_str)
+        # 根據類型標記決定使用哪個類別
+        if data.get('type') == 'interval':
+            results.append(DateInterval.from_dict(data))
+        else:
+            results.append(DateData.from_dict(data))
+    
+    return results
 
 
-def save_to_session(request: Request, store: List[DateData]):
+def save_to_session(request: Request, store: List[Union[DateData, DateInterval]]):
     """Save date calculations to session"""
     if not hasattr(request, 'session'):
         return
@@ -220,10 +287,39 @@ async def pickup_date(
             "data": data
         }
         
-        return templates.TemplateResponse("date_calculator/form.html", context)
+        return templates.TemplateResponse("date_calculator/form_content.html", context)
         
     except ValueError as e:
         return HTMLResponse(content=f'<div style="color: red;">格式錯誤: {str(e)}</div>', status_code=400)
+
+
+@router.post("/calculate_interval", response_class=HTMLResponse)
+async def calculate_interval(
+    request: Request,
+    start_date: str = Form(...),
+    end_date: str = Form(...)
+):
+    """計算兩個日期之間的間隔"""
+    try:
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        result = DateInterval.calculate_interval(start_date_obj, end_date_obj)
+        
+        # Add to session store
+        store = get_session_store(request)
+        store.append(result)
+        save_to_session(request, store)
+        
+        context = {
+            "request": request,
+            "interval_data": result
+        }
+        
+        return templates.TemplateResponse("date_calculator/interval_result_card.html", context)
+        
+    except ValueError as e:
+        return HTMLResponse(content=f'<div style="color: red;">計算錯誤: {str(e)}</div>', status_code=400)
 
 
 @router.delete("/delete/{id}", response_class=HTMLResponse)
@@ -258,16 +354,28 @@ async def save_description(request: Request, id: str, description: str = Form(""
     # 找到並更新描述
     for i, data in enumerate(store):
         if data.id == id:
-            # 創建新的 DateData 物件包含更新的描述
-            updated_data = DateData(
-                id=data.id,
-                base_date=data.base_date,
-                operation=data.operation,
-                amount=data.amount,
-                unit=data.unit,
-                result=data.result,
-                description=description.strip()
-            )
+            # 根據數據類型創建新物件
+            if isinstance(data, DateData):
+                updated_data = DateData(
+                    id=data.id,
+                    base_date=data.base_date,
+                    operation=data.operation,
+                    amount=data.amount,
+                    unit=data.unit,
+                    result=data.result,
+                    description=description.strip()
+                )
+            elif isinstance(data, DateInterval):
+                updated_data = DateInterval(
+                    id=data.id,
+                    start_date=data.start_date,
+                    end_date=data.end_date,
+                    days_diff=data.days_diff,
+                    description=description.strip()
+                )
+            else:
+                continue
+                
             store[i] = updated_data
             save_to_session(request, store)
             

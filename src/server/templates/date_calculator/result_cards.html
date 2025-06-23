@@ -1,7 +1,13 @@
 <div id="result-cards" class="space-y-4">
     <div id="result-cards-body" class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {% for date_data in store %}
-            {% include 'date_calculator/result_card.html' %}
+        {% for data in store %}
+            {% if data.__class__.__name__ == 'DateInterval' %}
+                {% set interval_data = data %}
+                {% include 'date_calculator/interval_result_card.html' %}
+            {% else %}
+                {% set date_data = data %}
+                {% include 'date_calculator/result_card.html' %}
+            {% endif %}
         {% endfor %}
     </div>
 </div>
