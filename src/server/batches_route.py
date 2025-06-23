@@ -5,7 +5,7 @@ from enum import Enum
 
 import bleach
 import markdown
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from todoist_api_python.api import TodoistAPI
@@ -430,30 +430,6 @@ async def article(request: Request):
             return html_templates.TemplateResponse(
                 "components/error.html", {"request": request, "error": "批次名稱為必填項目"}
             )
-
-        breed_query_stmt = """
-            SELECT
-                batch_name,
-                breed_date as since,
-                date(breed_date, "+140 days") as until
-            FROM
-                breed
-            WHERE
-                batch_name = :batch_name
-            order by breed_date
-        """
-
-        with get_db_connection_context() as conn:
-            breed_data = conn.execute(breed_query_stmt, {"batch_name": batch_name}).fetchone()
-
-        if not breed_data:
-            return html_templates.TemplateResponse(
-                "components/error.html", {"request": request, "error": "找不到指定的批次"}
-            )
-        breed_data = dict(breed_data)
-        since_datetime = datetime.strptime(breed_data["since"], "%Y-%m-%d")
-        until_datetime = datetime.strptime(breed_data["until"], "%Y-%m-%d")
-
         # 直接渲染基礎模板，任務將通過 HTMX 按需加載
         content = html_templates.get_template("batches/article.html").render(batch_name=batch_name)
 
@@ -589,10 +565,14 @@ async def article_completed_tasks(request: Request):
 
 
 @router.delete("/todo/delete/{task_id}")
-async def delete_task(task_id: str):
+async def delete_task(task_id: str, request: Request):
     try:
         success = todo_service.delete_task(task_id)
         if success:
+            # 對於 HTMX 請求，返回空內容以移除該行
+            if request.headers.get("HX-Request"):
+                response = HTMLResponse("")
+                return response
             return JSONResponse(status_code=200, content={"message": "Task deleted successfully"})
         else:
             return JSONResponse(status_code=500, content={"error": "Failed to delete task"})
@@ -606,10 +586,11 @@ async def complete_task(task_id: str, request: Request):
     try:
         success = todo_service.complete_task(task_id)
         if success:
-            # 對於 HTMX 請求，返回空內容以移除該行，並觸發事件刷新已完成任務區域
+            # 對於 HTMX 請求，觸發重新載入兩個區域
             if request.headers.get("HX-Request"):
                 response = HTMLResponse("")
-                response.headers["HX-Trigger"] = "taskCompleted"
+                # 觸發兩個事件：移除當前行 + 刷新兩個區域的計數
+                response.headers["HX-Trigger"] = "taskCompleted, refreshActiveTaskCount, refreshCompletedTaskCount"
                 return response
             return JSONResponse(status_code=200, content={"message": "Task completed successfully"})
         else:
@@ -624,10 +605,11 @@ async def uncomplete_task(task_id: str, request: Request):
     try:
         success = todo_service.uncomplete_task(task_id)
         if success:
-            # 對於 HTMX 請求，返回空內容以移除該行，並觸發事件刷新活動任務區域
+            # 對於 HTMX 請求，觸發重新載入兩個區域
             if request.headers.get("HX-Request"):
                 response = HTMLResponse("")
-                response.headers["HX-Trigger"] = "taskUncompleted"
+                # 觸發兩個事件：移除當前行 + 刷新兩個區域的計數  
+                response.headers["HX-Trigger"] = "taskUncompleted, refreshActiveTaskCount, refreshCompletedTaskCount"
                 return response
             return JSONResponse(status_code=200, content={"message": "Task uncompleted successfully"})
         else:
@@ -635,3 +617,44 @@ async def uncomplete_task(task_id: str, request: Request):
     except Exception as e:
         logger.error(f"取消完成任務錯誤: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/todo/create")
+async def create_task(
+    request: Request,
+    batch_name: str = Form(...),
+    content: str = Form(...),
+    description: str = Form(""),
+    due_date: str = Form(None),
+):
+    """創建新任務"""
+    try:
+        # 驗證批次名稱
+        if not batch_name.strip():
+            return JSONResponse(status_code=400, content={"error": "批次名稱不能為空"})
+
+        # 驗證任務內容
+        if not content.strip():
+            return JSONResponse(status_code=400, content={"error": "任務內容不能為空"})
+
+        # 調用 todo_service 創建任務
+        result = todo_service.add_task(
+            batch_name=batch_name.strip(),
+            content=content.strip(),
+            description=description.strip() if description else "",
+            due_date=due_date.strip() if due_date else None,
+        )
+
+        if result["success"]:
+            # 對於 HTMX 請求，觸發刷新活動任務區域
+            if request.headers.get("HX-Request"):
+                response = HTMLResponse("")
+                response.headers["HX-Trigger"] = "taskCreated, refreshActiveTaskCount"
+                return response
+            return JSONResponse(status_code=201, content={"message": "任務創建成功", "task": result["task"]})
+        else:
+            return JSONResponse(status_code=500, content={"error": result.get("error", "創建任務失敗")})
+
+    except Exception as e:
+        logger.error(f"創建任務錯誤: {e}")
+        return JSONResponse(status_code=500, content={"error": f"創建任務失敗: {str(e)}"})

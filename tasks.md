@@ -3,38 +3,44 @@
 ## 📊 專案概況
 
 ### 當前狀態總覽
-- **整體進度**: ~80% 核心功能完成
+- **整體進度**: ~85% 核心功能完成
 - **最後更新**: 2025-06-23
-- **當前版本**: 穩定的任務管理系統，支援 HTMX 互動
+- **當前版本**: 完整的任務管理系統，支援 Modal UI 和 HTMX 互動
 
 ### 進度統計
 | 優先級 | 類別 | 完成度 | 狀態 |
 |--------|------|--------|------|
 | Priority 1 | Critical Bugs | 100% | ✅ 完成 |
-| Priority 2 | Performance & Infrastructure | 85% | 🔄 進行中 |
-| Priority 3 | Core Functionality | 75% | 🔄 進行中 |
-| Priority 4 | Code Quality & Testing | 15% | ⏳ 待開始 |
+| Priority 2 | Performance & Infrastructure | 90% | 🔄 進行中 |
+| Priority 3 | Core Functionality | 90% | 🔄 進行中 |
+| Priority 4 | Code Quality & Testing | 20% | ⏳ 待開始 |
 
 ---
 
 ## 🎯 下次會話立即行動清單
 
 ### ⚡ 緊急任務 (立即執行)
-1. **🔧 完成數據庫連接整合**
-   - 文件: `src/server/upload_route.py`, `src/upload_handlers.py`
-   - 目標: 統一使用 `get_db_connection_context()`
-   - 預計時間: 30-60 分鐘
+1. **🚫 慢請求阻塞問題 (HTMX 請求隊列)**
+   - 問題: 已完成任務的慢請求會阻塞其他操作（切換 nav 分頁、瀏覽器返回操作）
+   - 位置: `src/server/templates/batches/article.html` - `completed-tasks-container`
+   - 期望: 其他請求應該能取消或中斷正在進行的慢請求
+   - 技術難點: HTMX 請求隊列管理、JavaScript 中斷機制
+   - 預計時間: 2-3 小時研究和實現
+   - 優先級: 🔴 高 (影響用戶體驗)
 
-2. **📝 實現任務創建功能**
-   - 新增: `POST /todo/create` endpoint
-   - UI: HTMX 驅動的任務創建表單
-   - 集成: 與現有 article 模板整合
-   - 預計時間: 1-2 小時
+### ✅ 已完成任務
+1. **🔧 數據庫連接整合** ✅
+   - 統一使用 `get_db_connection_context()`
+   - 所有文件已更新
 
-3. **🧪 任務刪除功能測試**
-   - 驗證: 現有刪除功能是否正常
-   - 修復: 發現的任何問題
-   - 預計時間: 30 分鐘
+2. **📝 任務創建功能** ✅  
+   - Modal UI 表單實現
+   - POST /todo/create endpoint
+   - 任務計數同步更新
+
+3. **🧪 任務管理功能** ✅
+   - 任務刪除、完成、取消完成
+   - HTMX 事件觸發機制
 
 ---
 

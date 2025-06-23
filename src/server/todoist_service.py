@@ -421,10 +421,10 @@ class TodoService:
             )
 
             # 2. 成功後更新快取
-            self.cache.save_tasks_to_cache_by_type(batch_name, [remote_task], "active")
+            self.cache.save_task_to_cache(batch_name, remote_task, "active")
 
             # 3. 返回快取任務
-            cached_task = self.cache.get_cached_task_by_id(remote_task.id)
+            cached_task = self.cache.get_task_from_cache(remote_task.id)
             if cached_task:
                 return {"success": True, "task": cached_task}
             return {"success": False, "error": "無法找到新增的任務"}

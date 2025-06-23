@@ -1,4 +1,5 @@
-from todoist_service import TodoService, TodoistCacheService, todoist
+from todoist_service import TodoistCacheService, TodoService, todoist
+
 
 def main():
     # 創建依賴注入

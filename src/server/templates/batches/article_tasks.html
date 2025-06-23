@@ -1,3 +1,18 @@
+<!-- 新增任務按鈕 (只在活動任務區顯示) -->
+{% if task_type == 'active' %}
+<div class="mb-4 flex justify-end">
+    <button onclick="openTaskModal(this.dataset.batchName)" 
+            data-batch-name="{{ batch_name }}"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 shadow-sm"
+            title="創建新任務">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+            <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/>
+        </svg>
+        新增任務
+    </button>
+</div>
+{% endif %}
+
 {% if tasks %}
 <div class="mb-6">
     <div class="bg-blue-50 p-2 mb-1">
@@ -63,6 +78,7 @@
                                     hx-target="closest tr"
                                     hx-swap="outerHTML"
                                     hx-indicator="#task-loading-{{ task.task_id }}"
+                                    hx-sync="this:abort"
                                     title="標記為完成">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                     <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
@@ -77,6 +93,7 @@
                                     hx-target="closest tr"
                                     hx-swap="outerHTML"
                                     hx-indicator="#task-loading-{{ task.task_id }}"
+                                    hx-sync="this:abort"
                                     title="標記為未完成">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                     <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" />
@@ -91,6 +108,7 @@
                                 hx-target="closest tr"
                                 hx-swap="outerHTML"
                                 hx-confirm="確定要刪除這個任務嗎？"
+                                hx-sync="this:abort"
                                 title="刪除任務">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="w-4 h-4 fill-current"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M135.2 17.7L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-7.2-14.3C307.4 6.8 296.3 0 284.2 0L163.8 0c-12.1 0-23.2 6.8-28.6 17.7zM416 128L32 128 53.2 467c1.6 25.3 22.6 45 47.9 45l245.8 0c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
                         </button>
@@ -182,6 +200,7 @@
                                 hx-target="closest div.bg-gray-50"
                                 hx-swap="outerHTML"
                                 hx-indicator="#mobile-task-loading-{{ task.task_id }}"
+                                hx-sync="this:abort"
                                 title="標記為完成">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                 <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
@@ -197,6 +216,7 @@
                                 hx-target="closest div.bg-gray-50"
                                 hx-swap="outerHTML"
                                 hx-indicator="#mobile-task-loading-{{ task.task_id }}"
+                                hx-sync="this:abort"
                                 title="標記為未完成">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                 <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" />
@@ -212,6 +232,7 @@
                             hx-target="closest div.bg-gray-50"
                             hx-swap="outerHTML"
                             hx-confirm="確定要刪除這個任務嗎？"
+                            hx-sync="this:abort"
                             title="刪除任務">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="w-4 h-4 fill-current"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M135.2 17.7L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-7.2-14.3C307.4 6.8 296.3 0 284.2 0L163.8 0c-12.1 0-23.2 6.8-28.6 17.7zM416 128L32 128 53.2 467c1.6 25.3 22.6 45 47.9 45l245.8 0c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
                         刪除

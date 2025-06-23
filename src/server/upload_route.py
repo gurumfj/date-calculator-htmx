@@ -1,6 +1,5 @@
 import logging
 import math
-import sqlite3
 
 import pandas as pd
 from fastapi import APIRouter, File, Form, Request, UploadFile
@@ -8,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from core_models import UploadFileCommand
-from db_init import init_db
+from db_init import get_db_connection_context, init_db
 from upload_handlers import UploadCommandHandler
 
 logger = logging.getLogger(__name__)
@@ -28,11 +27,6 @@ sql_templates = Jinja2Templates(directory="src/server/templates/sql")
 upload_handler = UploadCommandHandler(DB_PATH)
 
 
-def get_db_connection():
-    """取得資料庫連線"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 
 async def get_tab_content(request: Request, tab: str):
@@ -145,14 +139,11 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 @router.get("/events", response_class=HTMLResponse)
 async def view_upload_events(request: Request):
     """查看上傳事件歷史"""
-    conn = get_db_connection()
-    try:
+    with get_db_connection_context() as conn:
         sql = sql_templates.get_template("get_upload_events.sql").render()
         cursor = conn.execute(sql, {"limit": 100})
         results = cursor.fetchall()
         data = [dict(row) for row in results]
-    finally:
-        conn.close()
 
     if not data:
         return HTMLResponse(content="<p>目前沒有上傳記錄</p>")
@@ -249,8 +240,7 @@ async def query_table(
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
 
-    conn = get_db_connection()
-    try:
+    with get_db_connection_context() as conn:
         # 準備模板參數
         template_params = {
             "table_name": table,
@@ -279,8 +269,6 @@ async def query_table(
         cursor = conn.execute(base_sql, sql_params)
         results = cursor.fetchall()
         data = [dict(row) for row in results]
-    finally:
-        conn.close()
 
     df = pd.DataFrame(data)
     has_more = (page + 1) <= total_pages
@@ -303,8 +291,7 @@ async def query_table(
 async def view_event_records(request: Request, event_id: str):
     """查看特定事件的數據記錄"""
     try:
-        conn = get_db_connection()
-        try:
+        with get_db_connection_context() as conn:
             # 獲取事件信息
             event_sql = sql_templates.get_template("get_event_details.sql").render()
             cursor = conn.execute(event_sql, {"event_id": event_id})
@@ -347,8 +334,6 @@ async def view_event_records(request: Request, event_id: str):
             cursor = conn.execute(data_sql, sql_params)
             results = cursor.fetchall()
             data_records = [dict(row) for row in results]
-        finally:
-            conn.close()
 
         if not data_records:
             df = pd.DataFrame()
@@ -403,38 +388,36 @@ async def execute_sql(request: Request, sql: str = Form(...)):
     if "limit" not in sql_lower:
         sql = sql.rstrip(";") + " LIMIT 1000"
 
-    conn = get_db_connection()
-    try:
-        cursor = conn.execute(sql)
-        results = cursor.fetchall()
+    with get_db_connection_context() as conn:
+        try:
+            cursor = conn.execute(sql)
+            results = cursor.fetchall()
 
-        if not results:
-            return HTMLResponse(content="<div>查詢無結果</div>")
+            if not results:
+                return HTMLResponse(content="<div>查詢無結果</div>")
 
-        # 將結果轉換為DataFrame
-        data = [dict(row) for row in results]
-        df = pd.DataFrame(data)
+            # 將結果轉換為DataFrame
+            data = [dict(row) for row in results]
+            df = pd.DataFrame(data)
 
-        # 渲染表格
-        table_template = templates.get_template("components/table.html")
-        table_html = table_template.render(
-            df=df,
-            table="sql",
-            sort_by_column=None,
-            sort_order="DESC",
-            render_head=True,
-            render_load_more=False,
-            enable_event_links=False,
-            request=request,
-        )
-        result_html = f"<p>查詢成功，共 {len(results)} 筆結果</p>{table_html}"
+            # 渲染表格
+            table_template = templates.get_template("components/table.html")
+            table_html = table_template.render(
+                df=df,
+                table="sql",
+                sort_by_column=None,
+                sort_order="DESC",
+                render_head=True,
+                render_load_more=False,
+                enable_event_links=False,
+                request=request,
+            )
+            result_html = f"<p>查詢成功，共 {len(results)} 筆結果</p>{table_html}"
 
-        return HTMLResponse(content=result_html)
+            return HTMLResponse(content=result_html)
 
-    except Exception as e:
-        return HTMLResponse(content=f'<div style="color: red;">SQL執行錯誤: {str(e)}</div>')
-    finally:
-        conn.close()
+        except Exception as e:
+            return HTMLResponse(content=f'<div style="color: red;">SQL執行錯誤: {str(e)}</div>')
 
 
 # This router will be included in main.py

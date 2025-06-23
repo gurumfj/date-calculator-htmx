@@ -17,6 +17,48 @@
         htmx.config.scrollBehavior = "auto";
         htmx.config.historyCacheSize = 10;
         htmx.config.globalViewTransitions = true;
+        
+        // 全域請求管理 - 允許導航請求中斷慢請求
+        document.addEventListener('htmx:beforeRequest', function(evt) {
+            // 如果是導航請求（tab 切換或 browser back），中斷所有正在進行的慢請求
+            if (evt.detail.elt.hasAttribute('hx-push-url') || 
+                evt.detail.elt.closest('[role="tablist"]') ||
+                evt.detail.xhr.getResponseHeader('HX-Push-Url')) {
+                
+                // 中斷所有正在進行的任務操作請求
+                document.querySelectorAll('[hx-post*="/todo/"]').forEach(function(el) {
+                    if (el.classList.contains('htmx-request')) {
+                        htmx.trigger(el, 'htmx:abort');
+                    }
+                });
+                
+                // 中斷 completed-tasks-container 的載入請求
+                const completedContainer = document.querySelector('#completed-tasks-container');
+                if (completedContainer && completedContainer.classList.contains('htmx-request')) {
+                    htmx.trigger(completedContainer, 'htmx:abort');
+                }
+            }
+        });
+        
+        // 為慢請求添加超時處理
+        document.addEventListener('htmx:beforeRequest', function(evt) {
+            if (evt.detail.elt.id === 'completed-tasks-container' || 
+                evt.detail.elt.getAttribute('hx-post')?.includes('/todo/complete/')) {
+                
+                // 設置 5 秒超時
+                const timeoutId = setTimeout(function() {
+                    if (evt.detail.xhr.readyState !== 4) {
+                        evt.detail.xhr.abort();
+                        console.log('慢請求已超時中斷');
+                    }
+                }, 5000);
+                
+                // 請求完成時清除超時
+                evt.detail.elt.addEventListener('htmx:afterRequest', function() {
+                    clearTimeout(timeoutId);
+                }, { once: true });
+            }
+        });
     </script>
     <style>
         .htmx-indicator {

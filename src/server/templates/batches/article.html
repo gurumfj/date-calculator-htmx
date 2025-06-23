@@ -125,6 +125,7 @@ td .markdown-content * {
 }
 </style>
 
+
 <section>
     <h4 class="font-bold text-black mb-2 pb-1">記事 - {{ batch_name }}</h4>
     
@@ -138,7 +139,7 @@ td .markdown-content * {
         </div>
         <div id="active-tasks-container" 
              hx-get="article/active-tasks?batch_name={{ batch_name }}"
-             hx-trigger="load, taskUncompleted from:body"
+             hx-trigger="load, taskUncompleted from:body, taskCreated from:body, refreshActiveTaskCount from:body"
              hx-swap="innerHTML"
              hx-indicator="#active-tasks-loading">
             <div class="flex items-center justify-center p-8 bg-blue-50 rounded mb-4">
@@ -158,9 +159,10 @@ td .markdown-content * {
         </div>
         <div id="completed-tasks-container" 
              hx-get="article/completed-tasks?batch_name={{ batch_name }}"
-             hx-trigger="load delay:500ms, taskCompleted from:body"
+             hx-trigger="load delay:500ms, taskCompleted from:body, refreshCompletedTaskCount from:body"
              hx-swap="innerHTML"
-             hx-indicator="#completed-tasks-loading">
+             hx-indicator="#completed-tasks-loading"
+             hx-sync="this:drop">
             <div class="flex items-center justify-center p-8 bg-gray-50 rounded mb-4">
                 <div class="loading-spinner"></div>
                 <span class="ml-2 text-gray-600">正在載入已完成任務...</span>
@@ -180,3 +182,6 @@ td .markdown-content * {
         </div>
     </div>
 </section>
+
+<!-- 包含任務創建 Modal -->
+{% include "components/task_create_modal.html" %}

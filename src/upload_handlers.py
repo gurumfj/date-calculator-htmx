@@ -5,7 +5,6 @@ File upload handling and data processing functionality.
 import hashlib
 import json
 import logging
-import sqlite3
 import time
 import uuid
 from datetime import datetime
@@ -15,13 +14,14 @@ from typing import Any, Dict, List, Tuple
 import pandas as pd
 
 from core_models import (
+    BreedRecordValidator,
+    FarmProductionValidator,
+    FeedRecordValidator,
+    SaleRecordValidator,
     UploadFileCommand,
     UploadResult,
-    BreedRecordValidator,
-    SaleRecordValidator,
-    FeedRecordValidator,
-    FarmProductionValidator,
 )
+from db_init import get_db_connection_context
 
 logger = logging.getLogger(__name__)
 
@@ -55,11 +55,6 @@ class EventLogger:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    def get_db_connection(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
     def log_upload_event(
         self,
         event_id: str,
@@ -77,41 +72,38 @@ class EventLogger:
         error_message: str | None = None,
         metadata: dict | None = None,
     ) -> str:
-        conn = self.get_db_connection()
-        try:
-            conn.execute(
-                """
-                INSERT INTO upload_events (
-                    event_id, file_type, file_name, file_size, processing_status,
-                    valid_count, invalid_count, duplicates_removed, inserted_count,
-                    deleted_count, duplicate_count, error_message, processing_time_ms,
-                    metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    event_id,
-                    file_type,
-                    file_name,
-                    file_size,
-                    processing_status,
-                    valid_count,
-                    invalid_count,
-                    duplicates_removed,
-                    inserted_count,
-                    deleted_count,
-                    duplicate_count,
-                    error_message,
-                    processing_time_ms,
-                    json.dumps(metadata) if metadata else None,
-                ),
-            )
-            conn.commit()
-            return event_id
-        except Exception as e:
-            logger.error(f"記錄上傳事件失敗: {e}")
-            return ""
-        finally:
-            conn.close()
+        with get_db_connection_context() as conn:
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO upload_events (
+                        event_id, file_type, file_name, file_size, processing_status,
+                        valid_count, invalid_count, duplicates_removed, inserted_count,
+                        deleted_count, duplicate_count, error_message, processing_time_ms,
+                        metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        event_id,
+                        file_type,
+                        file_name,
+                        file_size,
+                        processing_status,
+                        valid_count,
+                        invalid_count,
+                        duplicates_removed,
+                        inserted_count,
+                        deleted_count,
+                        duplicate_count,
+                        error_message,
+                        processing_time_ms,
+                        json.dumps(metadata) if metadata else None,
+                    ),
+                )
+                return event_id
+            except Exception as e:
+                logger.error(f"記錄上傳事件失敗: {e}")
+                return ""
 
 
 class DataProcessor:
@@ -214,10 +206,6 @@ class DataProcessor:
             ),
         }
 
-    def get_db_connection(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
 
     def validate_and_process_data(
         self, df: pd.DataFrame, file_type: str, event_id: str
@@ -265,8 +253,7 @@ class DataProcessor:
         deduplicated_records = list(unique_records.values())
         duplicates_removed = len(records) - len(deduplicated_records)
 
-        conn = self.get_db_connection()
-        try:
+        with get_db_connection_context() as conn:
             cursor = conn.execute(f"SELECT unique_id FROM {table_name}")
             existing_ids = {row[0] for row in cursor.fetchall()}
             upload_ids = {record["unique_id"] for record in deduplicated_records}
@@ -300,11 +287,7 @@ class DataProcessor:
                     conn.execute(insert_sql, values)
                 inserted_count = len(records_to_insert)
 
-            conn.commit()
             return inserted_count, deleted_count, duplicate_count, duplicates_removed
-
-        finally:
-            conn.close()
     
     def get_data_by_event_id(self, file_type: str, event_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         """根據 event_id 從資料庫查詢實際儲存的資料"""
@@ -313,19 +296,17 @@ class DataProcessor:
         
         _, table_name, _ = self.validators[file_type]
         
-        conn = self.get_db_connection()
-        try:
-            cursor = conn.execute(
-                f"SELECT * FROM {table_name} WHERE event_id = ? LIMIT ?",
-                (event_id, limit)
-            )
-            rows = cursor.fetchall()
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"查詢 event_id {event_id} 資料失敗: {e}")
-            return []
-        finally:
-            conn.close()
+        with get_db_connection_context() as conn:
+            try:
+                cursor = conn.execute(
+                    f"SELECT * FROM {table_name} WHERE event_id = ? LIMIT ?",
+                    (event_id, limit)
+                )
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+            except Exception as e:
+                logger.error(f"查詢 event_id {event_id} 資料失敗: {e}")
+                return []
 
 
 class UploadCommandHandler:
