@@ -19,6 +19,7 @@
 - ✂️ **簡化優先**: 移除複雜度 > 優化性能
 - 📝 **編輯優先**: 編輯現有文件 > 創建新文件
 - 🤔 **質疑設計**: 避免過度設計（如不必要的單例模式）
+- 🎨 **樣式約束**: 使用本地 `/static/output.css`，禁止外部 CSS CDN
 
 ## ⚙️ 技術棧配置
 
@@ -36,9 +37,10 @@ uv run pytest tests/sql/ -v
 
 ### 架構組件
 - **後端**: FastAPI + SQLite + WAL
-- **前端**: HTMX + Alpine.js + TailwindCSS  
+- **前端**: HTMX + Alpine.js + TailwindCSS + BasecoatUI
 - **模板**: Jinja2
 - **測試**: pytest + 內存資料庫
+- **樣式**: 自動編譯至 `src/server/static/output.css`
 
 ## 📋 標準工作流
 
@@ -139,6 +141,7 @@ src/
 - `tests/sql/` - 🧪 SQL 測試套件
 - `tasks.md` - 📋 任務清單 (定期重新評估)
 - `pyproject.toml` - ⚙️ 項目配置
+- `src/server/static/output.css` - 🎨 自動編譯樣式檔 (TailwindCSS + BasecoatUI)
 
 ### 模板系統
 - `src/server/templates/macros/_icons.html` - 🎨 SVG 圖標庫

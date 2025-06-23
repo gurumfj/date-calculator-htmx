@@ -12,13 +12,14 @@ templates = Jinja2Templates(directory="src/server/templates")
 
 
 class DateData:
-    def __init__(self, id: str, base_date: date, operation: str, amount: int, unit: str, result: date):
+    def __init__(self, id: str, base_date: date, operation: str, amount: int, unit: str, result: date, description: str = ""):
         self.id = id
         self.base_date = base_date
         self.operation = operation
         self.amount = amount
         self.unit = unit
         self.result = result
+        self.description = description
         
         if self.operation not in ["before", "after"]:
             raise ValueError("wrong operation")
@@ -32,7 +33,8 @@ class DateData:
             'operation': self.operation,
             'amount': self.amount,
             'unit': self.unit,
-            'result': self.result.strftime('%Y-%m-%d')
+            'result': self.result.strftime('%Y-%m-%d'),
+            'description': self.description
         }
 
     def to_json(self) -> str:
@@ -46,7 +48,8 @@ class DateData:
             operation=data['operation'],
             amount=data['amount'],
             unit=data['unit'],
-            result=datetime.strptime(data['result'], '%Y-%m-%d').date()
+            result=datetime.strptime(data['result'], '%Y-%m-%d').date(),
+            description=data.get('description', '')
         )
 
     @classmethod
@@ -76,6 +79,7 @@ class DateData:
                     amount=data.amount,
                     unit=data.unit,
                     result=result_date,
+                    description=data.description
                 )
             else:
                 result_date = data.base_date
@@ -91,6 +95,7 @@ class DateData:
                     amount=data.amount,
                     unit=data.unit,
                     result=result_date,
+                    description=data.description
                 )
         else:
             delta = timedelta(days=data.amount * 30)
@@ -107,6 +112,7 @@ class DateData:
             amount=data.amount,
             unit=data.unit,
             result=result_date,
+            description=data.description
         )
 
 
@@ -164,7 +170,8 @@ async def calculate_date(
             operation=operation,
             amount=amount,
             unit=unit,
-            result=base_date_obj  # Will be calculated
+            result=base_date_obj,  # Will be calculated
+            description=""  # 新計算預設空白，可在卡片內編輯
         )
         
         result = DateData.calculate_date(data)
@@ -179,7 +186,7 @@ async def calculate_date(
             "date_data": result
         }
         
-        return templates.TemplateResponse("date_calculator/result_row.html", context)
+        return templates.TemplateResponse("date_calculator/result_card.html", context)
         
     except ValueError as e:
         return HTMLResponse(content=f'<div style="color: red;">計算錯誤: {str(e)}</div>', status_code=400)
@@ -204,7 +211,8 @@ async def pickup_date(
             operation=operation,
             amount=amount,
             unit=unit,
-            result=base_date_obj
+            result=base_date_obj,
+            description=""  # pickup 時不包含描述
         )
         
         context = {
@@ -239,4 +247,31 @@ async def delete_all_calculations(request: Request):
         "store": []
     }
     
-    return templates.TemplateResponse("date_calculator/result_table.html", context)
+    return templates.TemplateResponse("date_calculator/result_cards.html", context)
+
+
+@router.post("/save_description/{id}", response_class=HTMLResponse)
+async def save_description(request: Request, id: str, description: str = Form("")):
+    """儲存描述"""
+    store = get_session_store(request)
+    
+    # 找到並更新描述
+    for i, data in enumerate(store):
+        if data.id == id:
+            # 創建新的 DateData 物件包含更新的描述
+            updated_data = DateData(
+                id=data.id,
+                base_date=data.base_date,
+                operation=data.operation,
+                amount=data.amount,
+                unit=data.unit,
+                result=data.result,
+                description=description.strip()
+            )
+            store[i] = updated_data
+            save_to_session(request, store)
+            
+            # 返回簡單成功響應，前端 Alpine.js 處理 UI 更新
+            return HTMLResponse(content="success", status_code=200)
+    
+    return HTMLResponse(content="error", status_code=404)

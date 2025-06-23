@@ -1,32 +1,47 @@
 <tr id="id_{{ date_data.id }}">
-    <td>
+    <td class="font-medium">
         {{ date_data.base_date.strftime('%Y-%m-%d') }}
-        <span class="pickup-btn" 
-              hx-post="/date_calculator/pickup" 
-              hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
-              hx-target=".form-group" 
-              hx-swap="outerHTML">
-            ↩️
-        </span>
+        <button class="btn-icon-outline ml-2" 
+                hx-post="/date_calculator/pickup" 
+                hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
+                hx-target=".form" 
+                hx-swap="outerHTML"
+                title="使用此日期">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 12l2 2 4-4"/>
+                <path d="M21 12c.552 0 1-.448 1-1V5c0-.552-.448-1-1-1H3c-.552 0-1 .448-1 1v6c0 .552.448 1 1 1h9"/>
+                <path d="m12 19-2-2v-2"/>
+            </svg>
+        </button>
     </td>
     <td>{{ date_data.operation }}</td>
     <td>{{ date_data.amount }}</td>
     <td>{{ date_data.unit }}</td>
-    <td>
+    <td class="font-medium">
         {{ date_data.result.strftime('%Y-%m-%d') }}
-        <span class="pickup-btn" 
-              hx-post="/date_calculator/pickup" 
-              hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
-              hx-target=".form-group" 
-              hx-swap="outerHTML">
-            ↩️
-        </span>
+        <button class="btn-icon-outline ml-2" 
+                hx-post="/date_calculator/pickup" 
+                hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
+                hx-target=".form" 
+                hx-swap="outerHTML"
+                title="使用此結果日期">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 12l2 2 4-4"/>
+                <path d="M21 12c.552 0 1-.448 1-1V5c0-.552-.448-1-1-1H3c-.552 0-1 .448-1 1v6c0 .552.448 1 1 1h9"/>
+                <path d="m12 19-2-2v-2"/>
+            </svg>
+        </button>
     </td>
     <td>
-        <span class="delete-btn" 
-              hx-delete="/date_calculator/delete/{{ date_data.id }}" 
-              hx-target="closest tr">
-            ⌫
-        </span>
+        <button class="btn-sm-icon-destructive" 
+                hx-delete="/date_calculator/delete/{{ date_data.id }}" 
+                hx-target="closest tr"
+                title="刪除此記錄">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+        </button>
     </td>
 </tr>
