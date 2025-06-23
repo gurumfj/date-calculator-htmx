@@ -64,7 +64,9 @@ def get_db_connection_context(db_path: str = DEFAULT_DB_PATH):
     try:
         _setup_connection_pragmas(conn)
         yield conn
+        conn.commit()  # 確保事務被提交
     except Exception as e:
+        conn.rollback()  # 發生錯誤時回滾
         logger.error(f"數據庫操作失敗: {e}")
         raise
     finally:
@@ -201,6 +203,21 @@ def init_db(db_path: str = DEFAULT_DB_PATH):
             
             CREATE INDEX IF NOT EXISTS idx_todoist_cache_cached_at 
             ON todoist_cache(cached_at);
+            
+            CREATE INDEX IF NOT EXISTS idx_todoist_cache_batch_task_type 
+            ON todoist_cache(batch_name, task_type);
+            
+            CREATE TABLE IF NOT EXISTS todoist_cache_metadata (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_name TEXT NOT NULL,
+                task_type TEXT NOT NULL,
+                query_timestamp TEXT NOT NULL,
+                task_count INTEGER DEFAULT 0,
+                UNIQUE(batch_name, task_type)
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_cache_metadata_batch_type 
+            ON todoist_cache_metadata(batch_name, task_type);
         """)
         conn.commit()
     except Exception as e:

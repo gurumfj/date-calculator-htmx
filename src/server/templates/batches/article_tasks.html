@@ -1,0 +1,234 @@
+{% if tasks %}
+<div class="mb-6">
+    <div class="bg-blue-50 p-2 mb-1">
+        <h5 class="font-bold text-blue-800">{{ section_title }} ({{ tasks|length }})</h5>
+    </div>
+    
+    <!-- 桌面版表格 -->
+    <table class="hidden sm:table w-full ml-4 mb-2">
+        <thead>
+            <tr class="bg-gray-100">
+                <th class="p-2 text-left font-bold">任務內容</th>
+                <th class="p-2 text-left font-bold">描述</th>
+                <th class="p-2 text-left font-bold">狀態</th>
+                <th class="p-2 text-left font-bold">到期日</th>
+                <th class="p-2 text-left font-bold">優先級</th>
+                <th class="p-2 text-left font-bold">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td class="p-2">{{ task.content }}</td>
+                <td class="p-2 max-w-xs">
+                    {% if task.description %}
+                        <div class="markdown-content text-sm">{{ task.description|markdown_to_html|safe }}</div>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="p-2">
+                    {% if task.task_type == 'completed' %}
+                        <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">已完成</span>
+                    {% else %}
+                        <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">進行中</span>
+                    {% endif %}
+                </td>
+                <td class="p-2">
+                    {% if task.due_date %}
+                        {{ task.due_date }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="p-2">
+                    <span class="px-2 py-1 text-xs rounded
+                        {% if task.priority == 4 %}bg-red-100 text-red-800
+                        {% elif task.priority == 3 %}bg-yellow-100 text-yellow-800
+                        {% elif task.priority == 2 %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800
+                        {% endif %}">
+                        {% if task.priority == 4 %}緊急
+                        {% elif task.priority == 3 %}高
+                        {% elif task.priority == 2 %}中
+                        {% else %}低
+                        {% endif %}
+                    </span>
+                </td>
+                <td class="p-2">
+                    <div class="flex gap-1">
+                        {% if task.task_type == 'active' %}
+                            <button class="text-green-600 hover:text-green-800 p-1" 
+                                    hx-post="todo/complete/{{ task.task_id }}"
+                                    hx-target="closest tr"
+                                    hx-swap="outerHTML"
+                                    hx-indicator="#task-loading-{{ task.task_id }}"
+                                    title="標記為完成">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                </svg>
+                                <div id="task-loading-{{ task.task_id }}" class="htmx-indicator">
+                                    <div class="loading-spinner"></div>
+                                </div>
+                            </button>
+                        {% else %}
+                            <button class="text-blue-600 hover:text-blue-800 p-1" 
+                                    hx-post="todo/uncomplete/{{ task.task_id }}"
+                                    hx-target="closest tr"
+                                    hx-swap="outerHTML"
+                                    hx-indicator="#task-loading-{{ task.task_id }}"
+                                    title="標記為未完成">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                    <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" />
+                                </svg>
+                                <div id="task-loading-{{ task.task_id }}" class="htmx-indicator">
+                                    <div class="loading-spinner"></div>
+                                </div>
+                            </button>
+                        {% endif %}
+                        <button class="text-red-600 hover:text-red-800 p-1" 
+                                hx-delete="todo/delete/{{ task.task_id }}"
+                                hx-target="closest tr"
+                                hx-swap="outerHTML"
+                                hx-confirm="確定要刪除這個任務嗎？"
+                                title="刪除任務">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="w-4 h-4 fill-current"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M135.2 17.7L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-7.2-14.3C307.4 6.8 296.3 0 284.2 0L163.8 0c-12.1 0-23.2 6.8-28.6 17.7zM416 128L32 128 53.2 467c1.6 25.3 22.6 45 47.9 45l245.8 0c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 手機版卡片式佈局 -->
+    <div class="sm:hidden ml-4 space-y-4">
+        {% for task in tasks %}
+        <div class="bg-gray-50 border border-gray-200 rounded p-4">
+            <div class="space-y-3">
+                <!-- 任務標題 -->
+                <div class="font-bold text-base
+                    {% if task.task_type == 'completed' %}text-green-800 line-through
+                    {% else %}text-blue-800
+                    {% endif %}">
+                    {{ task.content }}
+                </div>
+                
+                <!-- 任務屬性 -->
+                <div class="space-y-2 text-sm">
+                    <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                        <span class="font-bold">狀態</span>
+                        <span>
+                            {% if task.task_type == 'completed' %}
+                                <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">已完成</span>
+                            {% else %}
+                                <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">進行中</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                        <span class="font-bold">到期日</span>
+                        <span>
+                            {% if task.due_date %}
+                                {{ task.due_date }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                        <span class="font-bold">優先級</span>
+                        <span class="px-2 py-1 text-xs rounded
+                            {% if task.priority == 4 %}bg-red-100 text-red-800
+                            {% elif task.priority == 3 %}bg-yellow-100 text-yellow-800
+                            {% elif task.priority == 2 %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800
+                            {% endif %}">
+                            {% if task.priority == 4 %}緊急
+                            {% elif task.priority == 3 %}高
+                            {% elif task.priority == 2 %}中
+                            {% else %}低
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    {% if task.labels %}
+                    <div class="flex items-center justify-between border-b border-gray-300 pb-1">
+                        <span class="font-bold">標籤</span>
+                        <div>
+                            {% for label in task.labels %}
+                                <span class="inline-block bg-gray-200 text-gray-700 px-2 py-1 text-xs rounded mr-1">{{ label }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- 任務描述 -->
+                {% if task.description %}
+                <div class="mt-3 pt-3 border-t border-gray-300">
+                    <div class="font-bold text-sm mb-2">描述</div>
+                    <div class="markdown-content text-sm">{{ task.description|markdown_to_html|safe }}</div>
+                </div>
+                {% endif %}
+                
+                <!-- 操作按鈕 -->
+                <div class="mt-3 pt-3 border-t border-gray-300 flex justify-end gap-2">
+                    {% if task.task_type == 'active' %}
+                        <button class="text-green-600 hover:text-green-800 px-3 py-2 text-sm flex items-center gap-2 relative" 
+                                hx-post="todo/complete/{{ task.task_id }}"
+                                hx-target="closest div.bg-gray-50"
+                                hx-swap="outerHTML"
+                                hx-indicator="#mobile-task-loading-{{ task.task_id }}"
+                                title="標記為完成">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                            </svg>
+                            完成
+                            <div id="mobile-task-loading-{{ task.task_id }}" class="htmx-indicator absolute -top-1 -right-1">
+                                <div class="loading-spinner w-3 h-3"></div>
+                            </div>
+                        </button>
+                    {% else %}
+                        <button class="text-blue-600 hover:text-blue-800 px-3 py-2 text-sm flex items-center gap-2 relative" 
+                                hx-post="todo/uncomplete/{{ task.task_id }}"
+                                hx-target="closest div.bg-gray-50"
+                                hx-swap="outerHTML"
+                                hx-indicator="#mobile-task-loading-{{ task.task_id }}"
+                                title="標記為未完成">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 010 10.75H10.75a.75.75 0 010-1.5h2.875a3.875 3.875 0 000-7.75H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" />
+                            </svg>
+                            取消完成
+                            <div id="mobile-task-loading-{{ task.task_id }}" class="htmx-indicator absolute -top-1 -right-1">
+                                <div class="loading-spinner w-3 h-3"></div>
+                            </div>
+                        </button>
+                    {% endif %}
+                    <button class="text-red-600 hover:text-red-800 px-3 py-2 text-sm flex items-center gap-2" 
+                            hx-delete="todo/delete/{{ task.task_id }}"
+                            hx-target="closest div.bg-gray-50"
+                            hx-swap="outerHTML"
+                            hx-confirm="確定要刪除這個任務嗎？"
+                            title="刪除任務">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="w-4 h-4 fill-current"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--><path d="M135.2 17.7L128 32 32 32C14.3 32 0 46.3 0 64S14.3 96 32 96l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0-7.2-14.3C307.4 6.8 296.3 0 284.2 0L163.8 0c-12.1 0-23.2 6.8-28.6 17.7zM416 128L32 128 53.2 467c1.6 25.3 22.6 45 47.9 45l245.8 0c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
+                        刪除
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="p-4 text-center text-gray-600 bg-gray-50 mb-6">
+    <div class="mb-2">
+        <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+        </svg>
+    </div>
+    <p class="text-sm">此批次目前沒有{{ section_title }}</p>
+</div>
+{% endif %}

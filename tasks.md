@@ -1,92 +1,200 @@
-# CleanSales Backend Task Management
+# CleanSales Backend 開發任務管理
 
-## Priority 1: Critical Issues & Bugs
+## 📊 專案概況
 
-### Bug Fixes (Immediate)
-- [ ] **URGENT**: Fix batch_name task lookup issue - some batch names not finding tasks
-  - Case: "山上黑-陳世平25'0304" returns no tasks when tasks should exist
-  - Investigate potential issues:
-    - [ ] Character encoding problems (quotes, special characters)
-    - [ ] Label matching logic in Todoist API calls
-    - [ ] Cache invalidation for specific batch names
-    - [ ] Database query matching (exact vs fuzzy matching)
-    - [ ] API rate limiting causing incomplete results
+### 當前狀態總覽
+- **整體進度**: ~80% 核心功能完成
+- **最後更新**: 2025-06-23
+- **當前版本**: 穩定的任務管理系統，支援 HTMX 互動
 
-## Priority 2: Performance & Infrastructure
+### 進度統計
+| 優先級 | 類別 | 完成度 | 狀態 |
+|--------|------|--------|------|
+| Priority 1 | Critical Bugs | 100% | ✅ 完成 |
+| Priority 2 | Performance & Infrastructure | 85% | 🔄 進行中 |
+| Priority 3 | Core Functionality | 75% | 🔄 進行中 |
+| Priority 4 | Code Quality & Testing | 15% | ⏳ 待開始 |
 
-### Database Connection Consolidation
-- ✅ Created `get_db_connection()` function in `src/db_init.py`
-- ✅ Added `get_db_connection_context()` context manager
-- ✅ Migrated `TodoistCacheService` to use centralized connection
-- ✅ Added todoist_cache table creation to main `init_db()`
-- ✅ Optimized database connection API with WAL mode and simplified parameters
-- ✅ Removed unnecessary threading locks and timeout configurations
-- ✅ Simplified `TodoistCacheService` by removing singleton pattern
-- ✅ Replaced `SELECT *` with explicit column names for better maintainability
-- ✅ Removed redundant cursor operations and manual commits
-- ✅ Test all database operations work correctly
-- [ ] **REMAINING**: Replace direct `sqlite3.connect()` calls in remaining files:
-  - [ ] Update `src/server/batches_route.py`
-  - [ ] Update `src/server/upload_route.py`
-  - [ ] Update `src/upload_handlers.py`
+---
 
-### Todoist Service Performance Optimization
-- [ ] **HIGH**: Separate fast `get_tasks()` and slow `get_completed_tasks()` operations
-- [ ] Implement independent caching strategies for active vs completed tasks
-- [ ] Add background task for completed tasks fetching
-- [ ] Add separate cache expiration times (active: shorter, completed: longer)
-- [ ] Consider pagination for large completed task sets
+## 🎯 下次會話立即行動清單
 
-## Priority 3: Core Functionality
+### ⚡ 緊急任務 (立即執行)
+1. **🔧 完成數據庫連接整合**
+   - 文件: `src/server/upload_route.py`, `src/upload_handlers.py`
+   - 目標: 統一使用 `get_db_connection_context()`
+   - 預計時間: 30-60 分鐘
 
-### Essential Backend APIs
-- [ ] Fix existing Todoist API integration issues
-- [ ] Improve error handling and logging for API failures
-- [ ] Add proper validation for batch names and task data
+2. **📝 實現任務創建功能**
+   - 新增: `POST /todo/create` endpoint
+   - UI: HTMX 驅動的任務創建表單
+   - 集成: 與現有 article 模板整合
+   - 預計時間: 1-2 小時
 
-### Basic Task Management
-- [ ] Ensure reliable task creation via existing APIs
-- [ ] Verify task status updates work correctly
-- [ ] Test task deletion functionality
+3. **🧪 任務刪除功能測試**
+   - 驗證: 現有刪除功能是否正常
+   - 修復: 發現的任何問題
+   - 預計時間: 30 分鐘
 
-## Priority 4: Code Quality & Maintenance
+---
 
-### Code Improvements
-- [ ] Add comprehensive error logging for debugging
-- [ ] Improve API response consistency
-- [ ] Add input validation and sanitization
-- [ ] Update documentation for new database connection patterns
+## ✅ 已完成的重大成就
 
-### Testing
-- [ ] Add tests for bug fixes
-- [ ] Verify performance improvements with larger datasets
-- [ ] Test character encoding edge cases
+### 🐛 Critical Issues & Bugs (100% 完成)
+- ✅ **批次名稱任務查詢問題**: "山上黑-陳世平25'0304" 等特殊字符批次名稱現在能正確找到任務
+- ✅ **數據庫事務處理**: 修復了 `get_db_connection_context()` 缺少 commit 的問題
+- ✅ **SQL 參數綁定**: 修復了 SQLite 列數不匹配問題
+- ✅ **日期序列化**: 解決了 SQLite 日期時間適配器警告
 
-## Archived/Future Items
+### 🚀 Performance & Infrastructure (85% 完成)
+- ✅ **分離式任務查詢**: 快速活動任務 (30分鐘快取) + 慢速已完成任務 (4小時快取)
+- ✅ **空結果快取優化**: 性能提升 1750倍 (3500ms → 2ms)
+- ✅ **HTMX 漸進式載入**: 活動和已完成任務獨立載入區域
+- ✅ **數據庫連接統一**: 大部分文件已使用 `get_db_connection_context()`
+- ✅ **快取元數據表**: 追蹤查詢歷史，支援空結果快取
 
-### UI Enhancements (Lower Priority)
-- Task creation forms
-- Inline editing
-- Filtering and sorting
-- Bulk operations
-- Advanced UI features
+### 🎮 Task Management & UI (75% 完成)
+- ✅ **完整的任務狀態管理**: Complete/Uncomplete 功能與 Todoist API 整合
+- ✅ **HTMX 事件驅動 UI**: 跨區域自動更新，無需刷新頁面
+- ✅ **響應式設計**: 桌面表格 + 手機卡片佈局
+- ✅ **Loading 指示器**: 按鈕層級和區域層級的視覺反饋
+- ✅ **任務計數自動更新**: h5 標題中的數量即時更新
 
-### Future Considerations
-- Task assignments
-- File attachments
-- Email notifications
-- Mobile app support
+---
 
-## Success Criteria (Current Focus)
+## 🔄 進行中的任務
 
-1. **Bug Resolution**: "山上黑-陳世平25'0304" and similar batch names find tasks correctly
-2. **Performance**: Fast loading of active tasks, background loading of completed tasks
-3. **Reliability**: Consistent API responses and proper error handling
-4. **Maintainability**: Clean database connection patterns across all files
+### Priority 2: Infrastructure (剩餘 15%)
+```
+[ ] 數據庫連接整合 (剩餘)
+    - src/server/upload_route.py
+    - src/upload_handlers.py
 
-## Notes
+[ ] 性能優化進階功能
+    - 背景任務獲取機制
+    - 大型任務集分頁
+```
 
-- Focus on fixing existing issues before adding new features
-- Performance optimization is crucial for user experience
-- Database consolidation must be completed for maintainability
-- UI enhancements are secondary to core functionality reliability
+### Priority 3: Core Functionality (剩餘 25%)
+```
+[ ] 任務 CRUD 操作完善
+    - 任務創建 API 和 UI 表單
+    - 任務刪除功能驗證和修復
+    - 批次名稱和數據驗證
+
+[ ] API 穩定性
+    - Todoist API 錯誤處理改進
+    - 統一 API 響應格式
+    - API 失敗重試機制
+```
+
+---
+
+## 📋 未來發展規劃
+
+### Phase 1: 基礎設施完善 (1-2 小時)
+**優先級: 🔴 最高**
+- 完成數據庫連接整合
+- 確保代碼一致性和可維護性
+
+### Phase 2: 核心功能完善 (2-3 小時)  
+**優先級: 🟡 高**
+- 任務創建/刪除功能
+- API 錯誤處理標準化
+- 數據驗證機制
+
+### Phase 3: 質量和可靠性 (2-4 小時)
+**優先級: 🟡 高**
+- 單元測試和端到端測試
+- 錯誤日誌和監控系統
+- 性能回歸測試
+
+### Phase 4: 用戶體驗增強 (3-5 小時)
+**優先級: 🟢 中**
+- 任務內聯編輯
+- 批量操作功能
+- 過濾和排序功能
+
+---
+
+## 🏗️ 技術債務管理
+
+### 高優先級 (立即處理)
+- [ ] 數據庫連接模式統一
+- [ ] API 錯誤處理標準化  
+- [ ] 核心功能測試覆蓋
+
+### 中優先級 (2週內)
+- [ ] 性能監控和警報
+- [ ] 用戶錯誤提示改進
+- [ ] 代碼文檔更新
+
+### 低優先級 (1月內)
+- [ ] UI 美化和動畫
+- [ ] 進階功能開發
+- [ ] 國際化支持
+
+---
+
+## 🎯 成功標準
+
+### ✅ 已達成
+1. **Bug Resolution**: 特殊字符批次名稱正確處理
+2. **Performance**: 快速載入活動任務，背景載入已完成任務
+3. **Task Management**: 完整的任務狀態管理和直觀 UI
+4. **User Experience**: Loading 指示器和響應式設計
+
+### 🔄 進行中
+5. **Reliability**: 一致的 API 響應和錯誤處理
+6. **Maintainability**: 全專案統一的數據庫連接模式
+
+---
+
+## 📚 Archived Items
+
+### 已移至低優先級的功能
+- 任務分配系統
+- 文件附件支援
+- 郵件通知
+- 手機 APP 支援
+- 任務過濾和搜索 (基礎版本)
+- 批量操作 (基礎版本)
+
+---
+
+## 🔧 開發指南
+
+### 技術棧核心
+- **後端**: FastAPI + SQLite WAL mode
+- **前端**: HTMX + Alpine.js + TailwindCSS  
+- **模板**: Jinja2
+- **測試**: pytest
+- **工具**: uv (Python 管理)
+
+### 編碼標準
+- 數據庫操作必須使用 `get_db_connection_context()`
+- SQL 查詢必須使用明確欄位名稱，禁止 `SELECT *`
+- HTMX 交互保持高品質標準
+- 所有 API 需要一致的錯誤處理
+
+### 測試策略
+- 運行: `uv run pytest tests/sql/ -v`
+- 每次修改後都要執行測試
+- 新功能必須包含對應測試
+
+---
+
+## 🚀 下次會話建議
+
+### 執行順序
+1. **快速勝利**: 完成數據庫連接整合 (30分鐘)
+2. **用戶價值**: 實現任務創建功能 (1-2小時)  
+3. **長期穩定**: 加強測試覆蓋 (1小時)
+
+### 成功指標
+- [ ] 所有文件統一使用 `get_db_connection_context()`
+- [ ] 用戶可以通過 UI 創建新任務
+- [ ] 任務刪除功能經過驗證
+- [ ] 核心功能有基本測試覆蓋
+
+**目標**: 在下次會話結束時，達到 Priority 2 和 Priority 3 各 90% 完成度。

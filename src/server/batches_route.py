@@ -1,6 +1,5 @@
 import json
 import logging
-import sqlite3
 from datetime import datetime
 from enum import Enum
 
@@ -11,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from todoist_api_python.api import TodoistAPI
 
+from db_init import get_db_connection_context
 from server.config import get_settings
 
 from .todoist_service import TodoistCacheService, TodoService
@@ -131,7 +131,6 @@ def markdown_to_html(value):
 
 html_templates.env.filters["format_number"] = format_number
 html_templates.env.filters["markdown_to_html"] = markdown_to_html
-DB_PATH = "./data/sqlite.db"
 
 
 class View(Enum):
@@ -150,165 +149,143 @@ DEFAULT_LIMIT_TABLE = 50
 DEFAULT_LIMIT_PLAIN = 30
 
 
-def get_db_connection():
-    """取得資料庫連線"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
 def get_batch_data(chicken_breed: str, limit: int = 50, offset: int = 0, batch_name: str | None = None):
     """共用的資料獲取邏輯"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_connection_context() as conn:
+        # 渲染SQL模板
+        sql_query = sql_templates.get_template("batch_summary.sql").render(batch_name=batch_name)
 
-    # 渲染SQL模板
-    sql_query = sql_templates.get_template("batch_summary.sql").render(batch_name=batch_name)
+        # 準備查詢參數
+        params = {"chicken_breed": chicken_breed, "limit": limit, "offset": offset}
 
-    # 準備查詢參數
-    params = {"chicken_breed": chicken_breed, "limit": limit, "offset": offset}
+        # 如果有批次名稱搜尋，加入LIKE參數
+        if batch_name:
+            params["batch_name"] = f"%{batch_name}%"
 
-    # 如果有批次名稱搜尋，加入LIKE參數
-    if batch_name:
-        params["batch_name"] = f"%{batch_name}%"
+        # 執行查詢
+        rows = conn.execute(sql_query, params).fetchall()
 
-    # 執行查詢
-    cursor.execute(sql_query, params)
+        batches = []
+        for row in rows:
+            batch = dict(row)
+            # 解析breed_details JSON
+            if batch.get("breed_details"):
+                try:
+                    batch["breed_details"] = json.loads(batch["breed_details"])
+                except (json.JSONDecodeError, TypeError):
+                    batch["breed_details"] = []
+            batches.append(batch)
 
-    batches = []
-    for row in cursor.fetchall():
-        batch = dict(row)
-        # 解析breed_details JSON
-        if batch.get("breed_details"):
-            try:
-                batch["breed_details"] = json.loads(batch["breed_details"])
-            except (json.JSONDecodeError, TypeError):
-                batch["breed_details"] = []
-        batches.append(batch)
-
-    conn.close()
-
-    return batches
+        return batches
 
 
 def get_chicken_breeds():
     """取得所有雞種"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT chicken_breed FROM breed ORDER BY chicken_breed")
-    chicken_breeds = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    return chicken_breeds
+    with get_db_connection_context() as conn:
+        rows = conn.execute("SELECT DISTINCT chicken_breed FROM breed ORDER BY chicken_breed").fetchall()
+        chicken_breeds = [row[0] for row in rows]
+        return chicken_breeds
 
 
 def get_sales_data(batch_name: str, sale_date: str | None = None):
     """獲取特定批次的銷售數據"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_connection_context() as conn:
+        # 渲染SQL模板
+        sql_query = sql_templates.get_template("sales.sql").render(sale_date=sale_date)
 
-    # 渲染SQL模板
-    sql_query = sql_templates.get_template("sales.sql").render(sale_date=sale_date)
+        # 準備查詢參數 - 總是包含所有必需的參數
+        params = {
+            "batch_name": batch_name,
+            "sale_date": sale_date,  # 即使是 None 也要提供
+        }
 
-    # 準備查詢參數 - 總是包含所有必需的參數
-    params = {
-        "batch_name": batch_name,
-        "sale_date": sale_date,  # 即使是 None 也要提供
-    }
+        # 執行查詢
+        rows = conn.execute(sql_query, params).fetchall()
 
-    # 執行查詢
-    cursor.execute(sql_query, params)
+        sales_data = []
+        for row in rows:
+            sale_record = dict(row)
+            # 解析 JSON 字段
+            if sale_record.get("dayage_details"):
+                try:
+                    sale_record["dayage_details"] = json.loads(sale_record["dayage_details"])
+                except (json.JSONDecodeError, TypeError):
+                    sale_record["dayage_details"] = []
 
-    sales_data = []
-    for row in cursor.fetchall():
-        sale_record = dict(row)
-        # 解析 JSON 字段
-        if sale_record.get("dayage_details"):
-            try:
-                sale_record["dayage_details"] = json.loads(sale_record["dayage_details"])
-            except (json.JSONDecodeError, TypeError):
-                sale_record["dayage_details"] = []
+            if sale_record.get("sales_details"):
+                try:
+                    sale_record["sales_details"] = json.loads(sale_record["sales_details"])
+                except (json.JSONDecodeError, TypeError):
+                    sale_record["sales_details"] = []
 
-        if sale_record.get("sales_details"):
-            try:
-                sale_record["sales_details"] = json.loads(sale_record["sales_details"])
-            except (json.JSONDecodeError, TypeError):
-                sale_record["sales_details"] = []
+            sales_data.append(sale_record)
 
-        sales_data.append(sale_record)
-
-    conn.close()
-    return sales_data
+        return sales_data
 
 
 def get_feed_data(batch_name: str | None = None, sub_location: str | None = None):
     """獲取飼料數據"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_connection_context() as conn:
+        # 渲染SQL模板
+        sql_query = sql_templates.get_template("feed.sql").render(batch_name=batch_name, sub_location=sub_location)
 
-    # 渲染SQL模板
-    sql_query = sql_templates.get_template("feed.sql").render(batch_name=batch_name, sub_location=sub_location)
+        # 準備查詢參數
+        params = {}
+        if batch_name:
+            params["batch_name"] = batch_name
+        if sub_location:
+            params["sub_location"] = sub_location
 
-    # 準備查詢參數
-    params = {}
-    if batch_name:
-        params["batch_name"] = batch_name
-    if sub_location:
-        params["sub_location"] = sub_location
+        # 執行查詢
+        rows = conn.execute(sql_query, params).fetchall()
 
-    # 執行查詢
-    cursor.execute(sql_query, params)
+        feed_data = []
+        for row in rows:
+            feed_record = dict(row)
+            # 解析 JSON 字段
+            if feed_record.get("feed_details"):
+                try:
+                    feed_details = json.loads(feed_record["feed_details"])
+                    # 處理每個飼料記錄的日期格式
+                    for feed_item in feed_details:
+                        if feed_item.get("feed_date"):
+                            # 如果日期格式需要調整，可以在這裡處理
+                            # 例如：從 YYYY-MM-DD 轉換為其他格式
+                            feed_item["feed_date"] = feed_item["feed_date"].split("T")[0]
+                    feed_record["feed_details"] = feed_details
+                except (json.JSONDecodeError, TypeError):
+                    feed_record["feed_details"] = []
 
-    feed_data = []
-    for row in cursor.fetchall():
-        feed_record = dict(row)
-        # 解析 JSON 字段
-        if feed_record.get("feed_details"):
-            try:
-                feed_details = json.loads(feed_record["feed_details"])
-                # 處理每個飼料記錄的日期格式
-                for feed_item in feed_details:
-                    if feed_item.get("feed_date"):
-                        # 如果日期格式需要調整，可以在這裡處理
-                        # 例如：從 YYYY-MM-DD 轉換為其他格式
-                        feed_item["feed_date"] = feed_item["feed_date"].split("T")[0]
-                feed_record["feed_details"] = feed_details
-            except (json.JSONDecodeError, TypeError):
-                feed_record["feed_details"] = []
+            feed_data.append(feed_record)
 
-        feed_data.append(feed_record)
-
-    conn.close()
-    return feed_data
+        return feed_data
 
 
 def get_farm_production_data(batch_name: str | None = None):
     """獲取農場生產結場數據"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_connection_context() as conn:
+        # 渲染SQL模板
+        sql_query = sql_templates.get_template("farm_production.sql").render(batch_name=batch_name)
 
-    # 渲染SQL模板
-    sql_query = sql_templates.get_template("farm_production.sql").render(batch_name=batch_name)
+        # 準備查詢參數
+        params = {}
+        if batch_name:
+            params["batch_name"] = batch_name
 
-    # 準備查詢參數
-    params = {}
-    if batch_name:
-        params["batch_name"] = batch_name
+        # 執行查詢
+        rows = conn.execute(sql_query, params).fetchall()
 
-    # 執行查詢
-    cursor.execute(sql_query, params)
+        production_data = []
+        for row in rows:
+            production_record = dict(row)
 
-    production_data = []
-    for row in cursor.fetchall():
-        production_record = dict(row)
+            # 處理日期格式
+            if production_record.get("created_at"):
+                production_record["created_at"] = production_record["created_at"].split("T")[0]
 
-        # 處理日期格式
-        if production_record.get("created_at"):
-            production_record["created_at"] = production_record["created_at"].split("T")[0]
+            production_data.append(production_record)
 
-        production_data.append(production_record)
-
-    conn.close()
-    return production_data
+        return production_data
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -465,12 +442,10 @@ async def article(request: Request):
                 batch_name = :batch_name
             order by breed_date
         """
-        conn = sqlite3.connect("data/sqlite.db")
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute(breed_query_stmt, {"batch_name": batch_name})
-        breed_data = cursor.fetchone()
-        conn.close()
+
+        with get_db_connection_context() as conn:
+            breed_data = conn.execute(breed_query_stmt, {"batch_name": batch_name}).fetchone()
+
         if not breed_data:
             return html_templates.TemplateResponse(
                 "components/error.html", {"request": request, "error": "找不到指定的批次"}
@@ -479,14 +454,8 @@ async def article(request: Request):
         since_datetime = datetime.strptime(breed_data["since"], "%Y-%m-%d")
         until_datetime = datetime.strptime(breed_data["until"], "%Y-%m-%d")
 
-        # 使用快取獲取該批次的Todoist任務
-        force_refresh = request.query_params.get("refresh", "false").lower() == "true"
-        tasks = todo_service.get_tasks_with_cache(
-            batch_name, since=since_datetime, until=until_datetime, force_refresh=force_refresh
-        )
-        sorted_tasks = sorted(tasks, key=lambda x: x["due_date"], reverse=True)
-
-        content = html_templates.get_template("batches/article.html").render(tasks=sorted_tasks, batch_name=batch_name)
+        # 直接渲染基礎模板，任務將通過 HTMX 按需加載
+        content = html_templates.get_template("batches/article.html").render(batch_name=batch_name)
 
         if request.headers.get("HX-Request"):
             return content
@@ -542,14 +511,127 @@ async def breed(request: Request):
         return html_templates.TemplateResponse("components/error.html", {"request": request, "error": str(e)})
 
 
-@router.delete("/todo/delete/{task_id}")
-async def delete_task(task_id: str, batch_name: str):
+@router.get("/article/active-tasks", response_class=HTMLResponse)
+async def article_active_tasks(request: Request):
+    """快速加載活動任務"""
     try:
-        success = todo_service.delete_task(batch_name, task_id)
+        batch_name = request.query_params.get("batch_name", "")
+        if not batch_name:
+            return html_templates.TemplateResponse(
+                "components/error.html", {"request": request, "error": "批次名稱為必填項目"}
+            )
+
+        # 獲取活動任務（快）
+        # force_refresh = request.query_params.get("refresh", "false").lower() == "false"
+        active_tasks = todo_service.get_active_tasks_with_cache(batch_name, force_refresh=False)
+
+        # 按到期日排序
+        sorted_tasks = sorted(active_tasks, key=lambda x: x.get("due_date") or "1970-01-01", reverse=True)
+
+        return html_templates.get_template("batches/article_tasks.html").render(
+            tasks=sorted_tasks, batch_name=batch_name, task_type="active", section_title="活動任務"
+        )
+    except Exception as e:
+        logger.error(f"獲取活動任務錯誤: {e}")
+        return html_templates.TemplateResponse("components/error.html", {"request": request, "error": str(e)})
+
+
+@router.get("/article/completed-tasks", response_class=HTMLResponse)
+async def article_completed_tasks(request: Request):
+    """加載已完成任務"""
+    try:
+        batch_name = request.query_params.get("batch_name", "")
+        if not batch_name:
+            return html_templates.TemplateResponse(
+                "components/error.html", {"request": request, "error": "批次名稱為必填項目"}
+            )
+
+        # 獲取批次時間範圍
+        breed_query_stmt = """
+            SELECT
+                batch_name,
+                breed_date as since,
+                date(breed_date, "+140 days") as until
+            FROM
+                breed
+            WHERE
+                batch_name = :batch_name
+            order by breed_date
+        """
+
+        with get_db_connection_context() as conn:
+            breed_data = conn.execute(breed_query_stmt, {"batch_name": batch_name}).fetchone()
+
+        if not breed_data:
+            return html_templates.TemplateResponse(
+                "components/error.html", {"request": request, "error": "找不到指定的批次"}
+            )
+
+        breed_data = dict(breed_data)
+        since_datetime = datetime.strptime(breed_data["since"], "%Y-%m-%d")
+        until_datetime = datetime.strptime(breed_data["until"], "%Y-%m-%d")
+
+        # 獲取已完成任務（慢）
+        # force_refresh = request.query_params.get("refresh", "false").lower() == "false"
+        completed_tasks = todo_service.get_completed_tasks_with_cache(
+            batch_name, since=since_datetime, until=until_datetime, force_refresh=False
+        )
+
+        # 按到期日排序
+        sorted_tasks = sorted(completed_tasks, key=lambda x: x.get("due_date") or "1970-01-01", reverse=True)
+
+        return html_templates.get_template("batches/article_tasks.html").render(
+            tasks=sorted_tasks, batch_name=batch_name, task_type="completed", section_title="已完成任務"
+        )
+    except Exception as e:
+        logger.error(f"獲取已完成任務錯誤: {e}")
+        return html_templates.TemplateResponse("components/error.html", {"request": request, "error": str(e)})
+
+
+@router.delete("/todo/delete/{task_id}")
+async def delete_task(task_id: str):
+    try:
+        success = todo_service.delete_task(task_id)
         if success:
             return JSONResponse(status_code=200, content={"message": "Task deleted successfully"})
         else:
             return JSONResponse(status_code=500, content={"error": "Failed to delete task"})
     except Exception as e:
         logger.error(f"刪除任務錯誤: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/todo/complete/{task_id}")
+async def complete_task(task_id: str, request: Request):
+    try:
+        success = todo_service.complete_task(task_id)
+        if success:
+            # 對於 HTMX 請求，返回空內容以移除該行，並觸發事件刷新已完成任務區域
+            if request.headers.get("HX-Request"):
+                response = HTMLResponse("")
+                response.headers["HX-Trigger"] = "taskCompleted"
+                return response
+            return JSONResponse(status_code=200, content={"message": "Task completed successfully"})
+        else:
+            return JSONResponse(status_code=500, content={"error": "Failed to complete task"})
+    except Exception as e:
+        logger.error(f"完成任務錯誤: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/todo/uncomplete/{task_id}")
+async def uncomplete_task(task_id: str, request: Request):
+    try:
+        success = todo_service.uncomplete_task(task_id)
+        if success:
+            # 對於 HTMX 請求，返回空內容以移除該行，並觸發事件刷新活動任務區域
+            if request.headers.get("HX-Request"):
+                response = HTMLResponse("")
+                response.headers["HX-Trigger"] = "taskUncompleted"
+                return response
+            return JSONResponse(status_code=200, content={"message": "Task uncompleted successfully"})
+        else:
+            return JSONResponse(status_code=500, content={"error": "Failed to uncomplete task"})
+    except Exception as e:
+        logger.error(f"取消完成任務錯誤: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
