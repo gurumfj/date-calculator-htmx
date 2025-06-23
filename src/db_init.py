@@ -4,13 +4,77 @@ Database initialization and management utilities.
 
 import logging
 import sqlite3
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_DB_PATH = "./data/sqlite.db"
 
-def init_db(db_path: str = "./data/sqlite.db"):
-    """初始化數據庫表"""
+
+def _setup_connection_pragmas(conn: sqlite3.Connection):
+    """
+    統一設置資料庫連接的 PRAGMA 參數
+    
+    Args:
+        conn: 資料庫連接對象
+    """
+    conn.row_factory = sqlite3.Row  # 啟用字典式訪問
+    
+    # 統一設置 WAL 模式和優化參數
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA temp_store=MEMORY")
+
+
+def get_db_connection(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
+    """
+    獲取數據庫連接，統一使用 WAL 模式
+    
+    Args:
+        db_path: 數據庫文件路徑，默認為 "./data/sqlite.db"
+        
+    Returns:
+        sqlite3.Connection: 數據庫連接對象，已設置 row_factory 和 WAL 模式
+        
+    Raises:
+        sqlite3.Error: 數據庫連接失敗時拋出異常
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        _setup_connection_pragmas(conn)
+        logger.debug(f"成功連接到數據庫: {db_path}")
+        return conn
+    except sqlite3.Error as e:
+        logger.error(f"數據庫連接失敗: {db_path}, 錯誤: {e}")
+        raise
+
+
+@contextmanager
+def get_db_connection_context(db_path: str = DEFAULT_DB_PATH):
+    """
+    安全的數據庫連接上下文管理器，統一使用 WAL 模式
+    
+    Args:
+        db_path: 數據庫文件路徑
+        
+    Yields:
+        sqlite3.Connection: 數據庫連接對象
+    """
     conn = sqlite3.connect(db_path)
+    try:
+        _setup_connection_pragmas(conn)
+        yield conn
+    except Exception as e:
+        logger.error(f"數據庫操作失敗: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+
+def init_db(db_path: str = DEFAULT_DB_PATH):
+    """初始化數據庫表"""
+    conn = get_db_connection(db_path)
     try:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS breed (
@@ -114,6 +178,29 @@ def init_db(db_path: str = "./data/sqlite.db"):
                 ip_address TEXT,
                 metadata TEXT
             );
+            
+            CREATE TABLE IF NOT EXISTS todoist_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                batch_name TEXT NOT NULL,
+                task_id TEXT NOT NULL,
+                task_type TEXT NOT NULL,
+                content TEXT,
+                description TEXT,
+                due_date TEXT,
+                completed_at TEXT,
+                labels TEXT,
+                priority INTEGER,
+                created_at TEXT,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                cached_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(batch_name, task_id, task_type)
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_todoist_cache_batch_name 
+            ON todoist_cache(batch_name);
+            
+            CREATE INDEX IF NOT EXISTS idx_todoist_cache_cached_at 
+            ON todoist_cache(cached_at);
         """)
         conn.commit()
     except Exception as e:

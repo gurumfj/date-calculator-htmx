@@ -1,14 +1,12 @@
 import json
 import logging
-import sqlite3
-import threading
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from todoist_api_python.api import TodoistAPI
 from todoist_api_python.models import Task
 
+from db_init import get_db_connection_context
 from server.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -22,108 +20,39 @@ todoist = TodoistAPI(todoist_token)
 class TodoistCacheService:
     """Todoist 快取服務，專注於本地 SQLite 快取操作"""
 
-    _instance = None
-    _lock = threading.Lock()
-
-    def __new__(cls, db_path: str = "./data/sqlite.db"):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(self, db_path: str = "./data/sqlite.db"):
-        if not hasattr(self, "_initialized"):
-            self.db_path = db_path
-            self._db_lock = threading.Lock()  # 線程鎖防止並發問題
-            self._init_cache_table()
-            self._initialized = True
-
-    @contextmanager
-    def _get_connection(self):
-        """安全的資料庫連線管理"""
-        with self._db_lock:
-            conn = sqlite3.connect(self.db_path, timeout=30.0)
-            try:
-                # 設定 WAL 模式提高並發性能
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("PRAGMA synchronous=NORMAL")
-                conn.execute("PRAGMA temp_store=MEMORY")
-                conn.execute("PRAGMA mmap_size=268435456")  # 256MB
-                yield conn
-            finally:
-                conn.close()
-
-    def _init_cache_table(self):
-        """初始化快取表"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS todoist_cache (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    batch_name TEXT NOT NULL,
-                    task_id TEXT NOT NULL,
-                    task_type TEXT NOT NULL,
-                    content TEXT,
-                    description TEXT,
-                    due_date TEXT,
-                    completed_at TEXT,
-                    labels TEXT,
-                    priority INTEGER,
-                    created_at TEXT,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    cached_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(batch_name, task_id, task_type)
-                )
-            """)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_todoist_cache_batch_name 
-                ON todoist_cache(batch_name)
-            """)
-
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_todoist_cache_cached_at 
-                ON todoist_cache(cached_at)
-            """)
-
-            conn.commit()
+    def __init__(self):
+        pass
 
     def is_cache_valid(self, batch_name: str, max_age_minutes: int = 60) -> bool:
         """檢查快取是否有效"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
+        with get_db_connection_context() as conn:
             cutoff_time = datetime.now() - timedelta(minutes=max_age_minutes)
-            cursor.execute(
+            count = conn.execute(
                 """
                 SELECT COUNT(*) FROM todoist_cache 
                 WHERE batch_name = ? AND cached_at > ?
             """,
                 (batch_name, cutoff_time.isoformat()),
-            )
-
-            count = cursor.fetchone()[0]
+            ).fetchone()[0]
             return count > 0
 
     def get_cached_tasks(self, batch_name: str) -> List[Dict[str, Any]]:
         """從快取取得任務"""
-        with self._get_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            cursor.execute(
+        with get_db_connection_context() as conn:
+            rows = conn.execute(
                 """
-                SELECT * FROM todoist_cache 
+                SELECT id, batch_name, task_id, task_type, content, description, 
+                       due_date, completed_at, labels, priority, created_at, 
+                       updated_at, cached_at
+                FROM todoist_cache 
                 WHERE batch_name = ? 
                 ORDER BY task_type, created_at DESC
             """,
                 (batch_name,),
-            )
+            ).fetchall()
 
             tasks = []
-            for row in cursor.fetchall():
+            for row in rows:
                 task = dict(row)
                 # 解析 JSON 欄位
                 if task["labels"]:
@@ -139,15 +68,13 @@ class TodoistCacheService:
 
     def save_tasks_to_cache(self, batch_name: str, active_tasks: List[Task], completed_tasks: List[Task]):
         """儲存任務到快取"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
+        with get_db_connection_context() as conn:
             # 清除舊快取
-            cursor.execute("DELETE FROM todoist_cache WHERE batch_name = ?", (batch_name,))
+            conn.execute("DELETE FROM todoist_cache WHERE batch_name = ?", (batch_name,))
 
             # 儲存活動任務
             for task in active_tasks:
-                cursor.execute(
+                conn.execute(
                     """
                     INSERT OR REPLACE INTO todoist_cache 
                     (batch_name, task_id, task_type, content, description, due_date, 
@@ -169,7 +96,7 @@ class TodoistCacheService:
 
             # 儲存已完成任務
             for task in completed_tasks:
-                cursor.execute(
+                conn.execute(
                     """
                     INSERT OR REPLACE INTO todoist_cache 
                     (batch_name, task_id, task_type, content, description, due_date,
@@ -190,31 +117,22 @@ class TodoistCacheService:
                     ),
                 )
 
-            conn.commit()
-
     def clear_expired_cache(self, max_age_hours: int = 24) -> int:
         """清理過期快取"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
+        with get_db_connection_context() as conn:
             cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
-            cursor.execute(
+            cursor = conn.execute(
                 """
                 DELETE FROM todoist_cache WHERE cached_at < ?
             """,
                 (cutoff_time.isoformat(),),
             )
-
-            deleted_count = cursor.rowcount
-            conn.commit()
-            return deleted_count
+            return cursor.rowcount
 
     def save_task_to_cache(self, batch_name: str, task: Task, task_type: str = "active"):
         """儲存單個任務到快取"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(
+        with get_db_connection_context() as conn:
+            conn.execute(
                 """
                 INSERT OR REPLACE INTO todoist_cache 
                 (batch_name, task_id, task_type, content, description, due_date, 
@@ -235,14 +153,10 @@ class TodoistCacheService:
                 ),
             )
 
-            conn.commit()
-
     def delete_task_from_cache(self, batch_name: str, task_id: str):
         """從快取刪除任務"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(
+        with get_db_connection_context() as conn:
+            conn.execute(
                 """
                 DELETE FROM todoist_cache 
                 WHERE batch_name = ? AND task_id = ?
@@ -250,14 +164,11 @@ class TodoistCacheService:
                 (batch_name, task_id),
             )
 
-            conn.commit()
-
     def mark_task_completed_in_cache(self, batch_name: str, task_id: str):
         """在快取中標記任務為完成"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(
+        with get_db_connection_context() as conn:
+            now = datetime.now().isoformat()
+            conn.execute(
                 """
                 UPDATE todoist_cache 
                 SET task_type = 'completed', 
@@ -265,18 +176,14 @@ class TodoistCacheService:
                     updated_at = ?
                 WHERE batch_name = ? AND task_id = ?
             """,
-                (datetime.now().isoformat(), datetime.now().isoformat(), batch_name, task_id),
+                (now, now, batch_name, task_id),
             )
-
-            conn.commit()
 
     def update_task_in_cache(
         self, batch_name: str, task_id: str, content: Optional[str] = None, description: Optional[str] = None
     ):
         """更新快取中的任務"""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
+        with get_db_connection_context() as conn:
             update_fields = []
             params = []
 
@@ -292,7 +199,7 @@ class TodoistCacheService:
                 update_fields.append("updated_at = ?")
                 params.extend([datetime.now().isoformat(), batch_name, task_id])
 
-                cursor.execute(
+                conn.execute(
                     f"""
                     UPDATE todoist_cache 
                     SET {", ".join(update_fields)}
@@ -301,23 +208,19 @@ class TodoistCacheService:
                     params,
                 )
 
-            conn.commit()
-
     def get_task_from_cache(self, batch_name: str, task_id: str) -> Optional[Dict[str, Any]]:
         """從快取獲取單個任務"""
-        with self._get_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            cursor.execute(
+        with get_db_connection_context() as conn:
+            row = conn.execute(
                 """
-                SELECT * FROM todoist_cache 
+                SELECT id, batch_name, task_id, task_type, content, description, 
+                       due_date, completed_at, labels, priority, created_at, 
+                       updated_at, cached_at
+                FROM todoist_cache 
                 WHERE batch_name = ? AND task_id = ?
             """,
                 (batch_name, task_id),
-            )
-
-            row = cursor.fetchone()
+            ).fetchone()
 
             if row:
                 task = dict(row)

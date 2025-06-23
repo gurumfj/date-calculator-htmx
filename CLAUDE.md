@@ -1,43 +1,46 @@
-# 專案開發指南
+# CleanSales Backend 開發指南
 
-## 環境與工具
-主動檢查專案裡的pyproject.toml了解環境部署方式
-python運行環境是uv run
-本專案的python管理器是uv, 測試運行使用uv run
+## 核心環境
+- Python 管理器：`uv`
+- 運行命令：`uv run`
+- 測試命令：`uv run pytest tests/sql/ -v`
 
-## 前端技術規範
-html元素選用需要依照html5的語義建議,例如details, summary, main, section, aside, form...以及更多，千萬別只使用div
-從base.html確認網頁載入的技術, 本專案基本載入htmx, alpine.js, taiwildcss or picocss
+## 資料庫連接（重要）
+- **必須**使用 `src/db_init.py` 的 API，禁止直接 `sqlite3.connect()`
+- **優先**使用 `get_db_connection_context()` 上下文管理器
+- 資料庫使用 WAL 模式，支援並發，無需手動鎖或 commit
+- SQL 查詢**必須**使用明確欄位名稱，禁止 `SELECT *`
 
-## 測試指引
-用pytest覆蓋sql測試
-運行測試: uv run pytest tests/sql/ -v
-所有測試必須使用SQLite內存資料庫,避免外部依賴
+## 專案結構
+```
+src/
+├── server/              # 新功能放這裡
+│   ├── templates/sql/   # SQL 查詢模板
+│   └── templates/       # HTML 模板
+└── cleansales_backend/  # 舊代碼，待重構移出
+```
 
-## 代碼架構
-src/cleansales_backend/* 是要被重構更新的代碼, 重構功能要移出這個資料夾
-新功能統一放在src/server/目錄下
-SQL查詢模板統一放在src/server/templates/sql/
-HTML模板統一放在src/server/templates/
+## 開發原則
+- **測試優先**：任何修改前後都要跑測試
+- **簡化優先**：移除複雜度比優化更重要
+- **編輯優先**：盡量編輯現有文件而非創建新文件
+- **質疑設計**：避免過度設計（如不必要的單例模式）
 
-## 重要約定
-- 絕不創建新文件除非必要,優先編輯現有文件
-- 提交代碼前必須運行測試確保通過
-- HTMX無限滾動使用revealed觸發器
-- 表單整合使用unified form結構
-- 數據庫查詢使用Jinja2模板渲染SQL
-- 分頁查詢統一使用LIMIT/OFFSET模式
+## 技術棧
+- 後端：FastAPI + SQLite + WAL
+- 前端：HTMX + Alpine.js + TailwindCSS
+- 模板：Jinja2
 
-## 模板架構原則
-- 使用Jinja2 macro實現模板組件化,避免重複代碼
-- 模板自主渲染: 條件判斷邏輯集中在模板內部而非控制器
-- 統一表單處理: 視圖切換和搜尋整合在同一form中
+## 重要文件
+- `data/sqlite.db` - 主資料庫
+- `tasks.md` - 任務清單，定期重新評估優先順序
+- `tests/sql/` - SQL 測試，使用內存資料庫
 
-## FastAPI控制器規範
-- 使用Enum定義視圖類型常數
-- 使用match case進行視圖路由(Python 3.10+)
-- 定義DEFAULT_*常數統一管理預設參數
-- 避免在控制器內定義TEMPLATE_*常數
+## 常用指令
+```bash
+# 運行測試
+uv run pytest tests/sql/ -v
 
-## 資料來源
-- data/sqlite.db 是專案的資料來源, 可以用sqlite tool讀取
+# 檢查專案配置
+cat pyproject.toml
+```
