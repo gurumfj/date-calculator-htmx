@@ -1,6 +1,6 @@
-# Date Calculator API
+# Date Calculator HTMX
 
-A simple and elegant date calculation API built with FastAPI that provides date arithmetic and interval calculations.
+A standalone FastAPI application for date calculations with interval computations, featuring an interactive HTMX-powered web interface.
 
 ## Features
 
@@ -30,66 +30,83 @@ A simple and elegant date calculation API built with FastAPI that provides date 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/date-calculator-api.git
-cd date-calculator-api
+git clone https://github.com/gurumfj/date-calculator-htmx.git
+cd date-calculator-htmx
 
 # Install dependencies
 uv sync
 
+# Set up environment variables (optional)
+cp .env.sample .env
+# Edit .env with your preferred settings
+
 # Run the development server
-uv run python -m app.main
+uv run dev
 ```
 
 The API will be available at `http://localhost:8000`
 
 ### Usage
 
-1. **Web Interface**: Visit `http://localhost:8000/date-calculator/` for the interactive calculator
+1. **Web Interface**: Visit `http://localhost:8000/` for the interactive calculator
 2. **API Documentation**: Visit `http://localhost:8000/docs` for the automatic API documentation
+
+## Configuration
+
+Environment variables can be set in `.env` file:
+
+- `SECRET_KEY`: Secret key for session management (change in production)
+- `HOST`: Server host (default: 0.0.0.0)
+- `PORT`: Server port (default: 8000)
+- `DEBUG`: Enable debug mode (default: false)
 
 ### API Endpoints
 
-- `GET /date-calculator/` - Main calculator interface
-- `POST /date-calculator/calculate` - Perform date calculations
-- `POST /date-calculator/calculate_interval` - Calculate date intervals
-- `POST /date-calculator/pickup` - Pick up calculation results to form
-- `DELETE /date-calculator/delete/{id}` - Delete specific calculation
-- `POST /date-calculator/delete/all` - Clear all calculations
-- `POST /date-calculator/save_description/{id}` - Save calculation description
+- `GET /` - Main calculator interface
+- `POST /calculate` - Perform date calculations
+- `POST /calculate_interval` - Calculate date intervals
+- `POST /pickup` - Pick up calculation results to form
+- `DELETE /delete/{id}` - Delete specific calculation
+- `POST /delete/all` - Clear all calculations
+- `POST /save_description/{id}` - Save calculation description
 
 ## Development
 
 ### Project Structure
 ```
 ├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI application
-│   ├── models.py        # Data models (DateData, DateInterval)
-│   ├── routes.py        # API routes
-│   └── session.py       # Session management
-├── templates/           # Jinja2 templates
-│   ├── date_calculator/ # Calculator templates
-│   └── macros/          # Reusable template macros
+│   ├── main.py          # FastAPI application and routes
+│   ├── models.py        # Pydantic models and business logic
+│   └── session.py       # Session management utilities
+├── templates/
+│   └── date_calculator/ # HTML templates
 ├── static/              # Static assets (CSS, JS)
-└── tests/               # Test suite
+├── .env.sample         # Environment variables template
+└── pyproject.toml      # Project configuration
 ```
 
 ### Running Tests
-
 ```bash
-uv run pytest tests/ -v
+uv run python -m pytest
 ```
 
 ### Code Quality
-
 ```bash
-# Type checking
-uv run mypy app/
-
-# Linting and formatting
-uv run ruff check app/
-uv run ruff format app/
+uv run ruff check .
+uv run ruff format .
 ```
+
+### Production Deployment
+```bash
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+## Technology Stack
+
+- **Backend**: FastAPI, Pydantic
+- **Frontend**: HTMX, Alpine.js, Tailwind CSS
+- **Templating**: Jinja2
+- **Session**: Starlette SessionMiddleware
 
 ## Examples
 
