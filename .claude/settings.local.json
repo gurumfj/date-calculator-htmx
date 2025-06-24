@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(sqlite3:*)",
+      "Bash(uv run:*)",
+      "Bash(pkill:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(timeout 5 uv run:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(rg:*)",
+      "Bash(ruff check:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(mv:*)",
+      "Bash(git mv:*)",
+      "Bash(uv sync:*)"
+    ],
+    "deny": []
+  }
+}
