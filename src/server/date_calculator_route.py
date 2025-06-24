@@ -12,39 +12,17 @@ router = APIRouter()
 templates = Jinja2Templates(directory="src/server/templates")
 
 
-# Validation models for input sanitization
-class DateCalculationRequest(BaseModel):
-    base_date: str = Field(..., description="Date in YYYY-MM-DD format")
+
+
+
+
+class DateData(BaseModel):
+    id: str = Field(..., max_length=100, description="Calculation ID")
+    base_date: date = Field(..., description="Base date for calculation")
     operation: str = Field(..., pattern="^(before|after)$", description="Must be 'before' or 'after'")
     amount: int = Field(..., ge=1, le=3650, description="Amount between 1 and 3650")
     unit: str = Field(..., pattern="^(days|weeks|months)$", description="Must be 'days', 'weeks', or 'months'")
-    id: str = Field(..., max_length=100, description="Calculation ID")
-
-    @field_validator('base_date')
-    @classmethod
-    def validate_date_format(cls, v):
-        try:
-            datetime.strptime(v, '%Y-%m-%d')
-            return v
-        except ValueError:
-            raise ValueError('Date must be in YYYY-MM-DD format')
-
-
-class IntervalCalculationRequest(BaseModel):
-    start_date: str = Field(..., description="Start date in YYYY-MM-DD format")
-    end_date: str = Field(..., description="End date in YYYY-MM-DD format")
-
-    @field_validator('start_date', 'end_date')
-    @classmethod
-    def validate_date_format(cls, v):
-        try:
-            datetime.strptime(v, '%Y-%m-%d')
-            return v
-        except ValueError:
-            raise ValueError('Date must be in YYYY-MM-DD format')
-
-
-class DescriptionRequest(BaseModel):
+    result: date = Field(..., description="Calculated result date")
     description: str = Field("", max_length=500, description="Description text, max 500 characters")
 
     @field_validator('description')
@@ -58,53 +36,54 @@ class DescriptionRequest(BaseModel):
             v = ''.join(char for char in v if char.isprintable() or char.isspace())
         return v
 
-
-class DateData:
-    def __init__(self, id: str, base_date: date, operation: str, amount: int, unit: str, result: date, description: str = ""):
-        self.id = id
-        self.base_date = base_date
-        self.operation = operation
-        self.amount = amount
-        self.unit = unit
-        self.result = result
-        self.description = description
-        
-        if self.operation not in ["before", "after"]:
-            raise ValueError("wrong operation")
-        elif self.unit not in ["days", "weeks", "months"]:
-            raise ValueError("wrong unit")
-
     def to_dict(self) -> dict:
-        return {
-            'id': self.id,
-            'base_date': self.base_date.strftime('%Y-%m-%d'),
-            'operation': self.operation,
-            'amount': self.amount,
-            'unit': self.unit,
-            'result': self.result.strftime('%Y-%m-%d'),
-            'description': self.description,
-            'type': 'calculation'  # 標記為日期推算類型
-        }
+        # 使用 Pydantic 的 model_dump，但自定義日期格式
+        data = self.model_dump()
+        data['base_date'] = self.base_date.strftime('%Y-%m-%d')
+        data['result'] = self.result.strftime('%Y-%m-%d')
+        data['type'] = 'calculation'  # 標記為日期推算類型
+        return data
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
 
     @classmethod
     def from_dict(cls, data: dict) -> "DateData":
-        return cls(
-            id=data['id'],
-            base_date=datetime.strptime(data['base_date'], '%Y-%m-%d').date(),
-            operation=data['operation'],
-            amount=data['amount'],
-            unit=data['unit'],
-            result=datetime.strptime(data['result'], '%Y-%m-%d').date(),
-            description=data.get('description', '')
-        )
+        # 解析日期字串
+        parsed_data = data.copy()
+        parsed_data['base_date'] = datetime.strptime(data['base_date'], '%Y-%m-%d').date()
+        parsed_data['result'] = datetime.strptime(data['result'], '%Y-%m-%d').date()
+        parsed_data.pop('type', None)  # 移除類型標記
+        return cls(**parsed_data)
 
     @classmethod
     def from_json(cls, json_str: str) -> "DateData":
         data = json.loads(json_str)
         return cls.from_dict(data)
+    
+    @classmethod
+    def from_form_input(cls, base_date: str, operation: str, amount: int, unit: str, id: str, description: str = "") -> "DateData":
+        """從表單輸入創建 DateData，包含日期字串驗證和轉換"""
+        # 驗證日期格式
+        try:
+            base_date_obj = datetime.strptime(base_date, '%Y-%m-%d').date()
+        except ValueError:
+            raise ValueError('Date must be in YYYY-MM-DD format')
+        
+        # 處理新計算的 ID
+        calc_id = id
+        if calc_id == "new_calc":
+            calc_id = str(uuid.uuid4().hex)
+            
+        return cls(
+            id=calc_id,
+            base_date=base_date_obj,
+            operation=operation,
+            amount=amount,
+            unit=unit,
+            result=base_date_obj,  # Will be calculated
+            description=description
+        )
 
     @classmethod
     def calculate_date(cls, data: "DateData") -> "DateData":
@@ -173,9 +152,43 @@ class DateInterval:
         self.days_diff = days_diff
         self.description = description
         
-        # 計算週數和月數概算
-        self.weeks_approx = abs(days_diff) // 7
-        self.months_approx = abs(days_diff) // 30
+        # 計算詳細的週數和月數
+        abs_days = abs(days_diff)
+        
+        # 週數計算：x週又y日
+        self.weeks_full = abs_days // 7
+        self.weeks_remainder_days = abs_days % 7
+        
+        # 月數計算：使用實際月份差異計算
+        if start_date <= end_date:
+            calc_start, calc_end = start_date, end_date
+        else:
+            calc_start, calc_end = end_date, start_date
+            
+        # 計算實際月份差異
+        self.months_full = 0
+        current_date = calc_start
+        
+        while True:
+            # 計算下個月的同一天
+            if current_date.month == 12:
+                next_month = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                next_month = current_date.replace(month=current_date.month + 1)
+            
+            # 如果下個月超過結束日期，停止計算
+            if next_month > calc_end:
+                break
+                
+            self.months_full += 1
+            current_date = next_month
+        
+        # 計算月數的餘數天數
+        self.months_remainder_days = (calc_end - current_date).days
+        
+        # 保留原有的概算值以便向後相容
+        self.weeks_approx = self.weeks_full
+        self.months_approx = self.months_full
         
     def to_dict(self) -> dict:
         return {
@@ -185,6 +198,10 @@ class DateInterval:
             'days_diff': self.days_diff,
             'weeks_approx': self.weeks_approx,
             'months_approx': self.months_approx,
+            'weeks_full': self.weeks_full,
+            'weeks_remainder_days': self.weeks_remainder_days,
+            'months_full': self.months_full,
+            'months_remainder_days': self.months_remainder_days,
             'description': self.description,
             'type': 'interval'  # 標記為間隔計算類型
         }
@@ -219,6 +236,18 @@ class DateInterval:
             days_diff=days_diff,
             description=description
         )
+    
+    @classmethod
+    def from_form_input(cls, start_date: str, end_date: str, description: str = "") -> "DateInterval":
+        """從表單輸入創建 DateInterval，包含日期字串驗證和轉換"""
+        # 驗證日期格式
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            raise ValueError('Date must be in YYYY-MM-DD format')
+        
+        return cls.calculate_interval(start_date_obj, end_date_obj, description)
 
 
 def get_session_store(request: Request) -> List[Union[DateData, DateInterval]]:
@@ -273,32 +302,17 @@ async def calculate_date(
 ):
     """執行日期計算"""
     try:
-        # Validate input using Pydantic model
-        calc_request = DateCalculationRequest(
+        # 直接從表單輸入創建 DateData
+        data = DateData.from_form_input(
             base_date=base_date,
             operation=operation,
             amount=amount,
             unit=unit,
-            id=id
+            id=id,
+            description=""  # 新計算預設空白
         )
         
-        base_date_obj = datetime.strptime(calc_request.base_date, '%Y-%m-%d').date()
-        
-        # Generate new ID if it's a new calculation
-        calc_id = calc_request.id
-        if calc_id == "new_calc":
-            calc_id = str(uuid.uuid4().hex)
-            
-        data = DateData(
-            id=calc_id,
-            base_date=base_date_obj,
-            operation=calc_request.operation,
-            amount=calc_request.amount,
-            unit=calc_request.unit,
-            result=base_date_obj,  # Will be calculated
-            description=""  # 新計算預設空白，可在卡片內編輯
-        )
-        
+        # Calculate the result
         result = DateData.calculate_date(data)
         
         # Add to session store (prepend for newest first)
@@ -328,15 +342,13 @@ async def pickup_date(
 ):
     """拾取日期到表單"""
     try:
-        base_date_obj = datetime.strptime(base_date, '%Y-%m-%d').date()
-        
-        data = DateData(
-            id=id,
-            base_date=base_date_obj,
+        # 直接從表單輸入創建 DateData
+        data = DateData.from_form_input(
+            base_date=base_date,
             operation=operation,
             amount=amount,
             unit=unit,
-            result=base_date_obj,
+            id=id,
             description=""  # pickup 時不包含描述
         )
         
@@ -359,16 +371,12 @@ async def calculate_interval(
 ):
     """計算兩個日期之間的間隔"""
     try:
-        # Validate input using Pydantic model
-        interval_request = IntervalCalculationRequest(
+        # 直接從表單輸入創建 DateInterval
+        result = DateInterval.from_form_input(
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            description=""  # 新計算預設空白
         )
-        
-        start_date_obj = datetime.strptime(interval_request.start_date, '%Y-%m-%d').date()
-        end_date_obj = datetime.strptime(interval_request.end_date, '%Y-%m-%d').date()
-        
-        result = DateInterval.calculate_interval(start_date_obj, end_date_obj)
         
         # Add to session store (prepend for newest first)
         store = get_session_store(request)
@@ -415,16 +423,12 @@ async def delete_all_calculations(request: Request):
 async def save_description(request: Request, id: str, description: str = Form("")):
     """儲存描述"""
     try:
-        # Validate description input
-        desc_request = DescriptionRequest(description=description)
-        sanitized_description = desc_request.description
-        
         store = get_session_store(request)
         
         # 找到並更新描述
         for i, data in enumerate(store):
             if data.id == id:
-                # 根據數據類型創建新物件
+                # 根據數據類型創建新物件，利用 BaseModel 的驗證
                 if isinstance(data, DateData):
                     updated_data = DateData(
                         id=data.id,
@@ -433,7 +437,7 @@ async def save_description(request: Request, id: str, description: str = Form(""
                         amount=data.amount,
                         unit=data.unit,
                         result=data.result,
-                        description=sanitized_description
+                        description=description  # 會被 DateData 的 sanitize_description 驗證
                     )
                 elif isinstance(data, DateInterval):
                     updated_data = DateInterval(
@@ -441,7 +445,7 @@ async def save_description(request: Request, id: str, description: str = Form(""
                         start_date=data.start_date,
                         end_date=data.end_date,
                         days_diff=data.days_diff,
-                        description=sanitized_description
+                        description=description
                     )
                 else:
                     continue

@@ -3,7 +3,7 @@
         {{ date_data.base_date.strftime('%Y-%m-%d') }}
         <button class="btn-icon-outline ml-2" 
                 hx-post="/date_calculator/pickup" 
-                hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation | e }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit | e }}", "id": "{{ date_data.id | e }}"}'
+                hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
                 hx-target=".form" 
                 hx-swap="outerHTML"
                 title="使用此日期">
@@ -21,7 +21,7 @@
         {{ date_data.result.strftime('%Y-%m-%d') }}
         <button class="btn-icon-outline ml-2" 
                 hx-post="/date_calculator/pickup" 
-                hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation | e }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit | e }}", "id": "{{ date_data.id | e }}"}'
+                hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
                 hx-target=".form" 
                 hx-swap="outerHTML"
                 title="使用此結果日期">

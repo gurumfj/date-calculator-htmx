@@ -97,7 +97,7 @@
                 <div class="flex justify-start">
                     <button class="btn-sm-outline text-xs" 
                             hx-post="/date_calculator/pickup" 
-                            hx-vals='{"base_date": "{{ interval_data.start_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id | e }}"}'
+                            hx-vals='{"base_date": "{{ interval_data.start_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id }}"}'
                             hx-target="#form-content-calculate" 
                             hx-swap="innerHTML"
                             @click="window.dispatchEvent(new CustomEvent('switch-to-calculate'))"
@@ -115,7 +115,7 @@
                 <div class="flex justify-start">
                     <button class="btn-sm text-xs" 
                             hx-post="/date_calculator/pickup" 
-                            hx-vals='{"base_date": "{{ interval_data.end_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id | e }}"}'
+                            hx-vals='{"base_date": "{{ interval_data.end_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id }}"}'
                             hx-target="#form-content-calculate" 
                             hx-swap="innerHTML"
                             @click="window.dispatchEvent(new CustomEvent('switch-to-calculate'))"
@@ -137,12 +137,20 @@
                     <div class="text-xs text-muted-foreground">天</div>
                 </div>
                 <div class="space-y-1">
-                    <div class="text-2xl font-bold text-blue-600">{{ interval_data.weeks_approx }}</div>
-                    <div class="text-xs text-muted-foreground">週 (約)</div>
+                    {% if interval_data.weeks_remainder_days > 0 %}
+                        <div class="text-lg font-bold text-blue-600">{{ interval_data.weeks_full }}週{{ interval_data.weeks_remainder_days }}日</div>
+                    {% else %}
+                        <div class="text-2xl font-bold text-blue-600">{{ interval_data.weeks_full }}</div>
+                    {% endif %}
+                    <div class="text-xs text-muted-foreground">週</div>
                 </div>
                 <div class="space-y-1">
-                    <div class="text-2xl font-bold text-green-600">{{ interval_data.months_approx }}</div>
-                    <div class="text-xs text-muted-foreground">月 (約)</div>
+                    {% if interval_data.months_remainder_days > 0 %}
+                        <div class="text-lg font-bold text-green-600">{{ interval_data.months_full }}月{{ interval_data.months_remainder_days }}日</div>
+                    {% else %}
+                        <div class="text-2xl font-bold text-green-600">{{ interval_data.months_full }}</div>
+                    {% endif %}
+                    <div class="text-xs text-muted-foreground">月</div>
                 </div>
             </div>
         </div>
