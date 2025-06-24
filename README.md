@@ -1,23 +1,140 @@
-# CleanSales Backend
+# Date Calculator API
 
-## 開發方式
+A simple and elegant date calculation API built with FastAPI that provides date arithmetic and interval calculations.
 
-本專案使用 Trunk-Based Development 進行版本控制：
+## Features
 
-1. **主分支**: `main` 是唯一的長期分支，所有開發工作最終都整合到這個分支
-2. **功能分支**: 所有新功能開發都從 `main` 分支創建短期功能分支（存活1-2天），命名格式 `feature/功能名稱`
-3. **合併流程**: 功能完成後立即透過 Pull Request 合併回 `main` 分支，然後刪除該分支
-4. **功能開關**: 使用功能開關（Feature Flags）包裝新功能，在合併到 `main` 後控制功能可見性
+### 📅 Date Calculation
+- Add or subtract days, weeks, or months from a base date
+- Accurate month calculations that handle month boundaries correctly
+- Session-based storage for calculation history
 
-## 分支命名規範
+### 📊 Date Interval Calculation
+- Calculate the exact difference between two dates
+- Results include days, weeks, and months with remainder days
+- Detailed breakdown showing full periods and remainders
 
-- 功能分支: `feature/功能描述`
-- 修復分支: `fix/問題描述`
-- 重構分支: `refactor/模組名稱`
-- 優化分支: `optimize/優化描述`
+### 🎨 Interactive Web Interface
+- Clean, modern UI built with HTMX and TailwindCSS
+- Real-time calculations without page reloads
+- Editable descriptions for each calculation
+- Calculation history with delete functionality
 
-## 合併要求
+## Quick Start
 
-- 所有合併到 `main` 的代碼必須通過所有測試
-- 大功能應使用功能開關控制，以便在合併後可以控制功能的可見性
-- 提交信息應清晰描述變更內容
+### Requirements
+- Python 3.11+
+- uv (recommended) or pip
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/date-calculator-api.git
+cd date-calculator-api
+
+# Install dependencies
+uv sync
+
+# Run the development server
+uv run python -m app.main
+```
+
+The API will be available at `http://localhost:8000`
+
+### Usage
+
+1. **Web Interface**: Visit `http://localhost:8000/date-calculator/` for the interactive calculator
+2. **API Documentation**: Visit `http://localhost:8000/docs` for the automatic API documentation
+
+### API Endpoints
+
+- `GET /date-calculator/` - Main calculator interface
+- `POST /date-calculator/calculate` - Perform date calculations
+- `POST /date-calculator/calculate_interval` - Calculate date intervals
+- `POST /date-calculator/pickup` - Pick up calculation results to form
+- `DELETE /date-calculator/delete/{id}` - Delete specific calculation
+- `POST /date-calculator/delete/all` - Clear all calculations
+- `POST /date-calculator/save_description/{id}` - Save calculation description
+
+## Development
+
+### Project Structure
+```
+├── app/
+│   ├── __init__.py
+│   ├── main.py          # FastAPI application
+│   ├── models.py        # Data models (DateData, DateInterval)
+│   ├── routes.py        # API routes
+│   └── session.py       # Session management
+├── templates/           # Jinja2 templates
+│   ├── date_calculator/ # Calculator templates
+│   └── macros/          # Reusable template macros
+├── static/              # Static assets (CSS, JS)
+└── tests/               # Test suite
+```
+
+### Running Tests
+
+```bash
+uv run pytest tests/ -v
+```
+
+### Code Quality
+
+```bash
+# Type checking
+uv run mypy app/
+
+# Linting and formatting
+uv run ruff check app/
+uv run ruff format app/
+```
+
+## Examples
+
+### Date Calculation
+```python
+from datetime import date
+from app.models import DateData
+
+# Calculate 3 months after today
+data = DateData.from_form_input(
+    base_date="2024-01-15",
+    operation="after",
+    amount=3,
+    unit="months",
+    id="new_calc"
+)
+result = DateData.calculate_date(data)
+print(result.result)  # 2024-04-15
+```
+
+### Date Interval
+```python
+from app.models import DateInterval
+
+# Calculate interval between two dates
+interval = DateInterval.from_form_input(
+    start_date="2024-01-01",
+    end_date="2024-12-31"
+)
+print(f"Days: {interval.days_diff}")
+print(f"Months: {interval.months_full} months, {interval.months_remainder_days} days")
+```
+
+## License
+
+MIT License - feel free to use this project for any purpose.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## Acknowledgments
+
+This project was extracted from a larger application and refactored into a standalone API for date calculations.

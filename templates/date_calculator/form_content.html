@@ -1,0 +1,68 @@
+        <input type="hidden" name="id" value="{% if data %}{{ data.id }}{% else %}new_calc{% endif %}">
+    
+    <fieldset class="space-y-4">
+        <div class="space-y-2">
+            <label for="base_date" class="text-sm font-medium">選擇日期</label>
+            <input type="date" id="base_date" name="base_date" 
+                   value="{% if data %}{{ data.base_date.strftime('%Y-%m-%d') }}{% else %}{{ current_date }}{% endif %}" 
+                   required>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label for="amount" class="text-sm font-medium">間隔數量</label>
+                <input type="number" id="amount" name="amount" min="1" 
+                       value="{% if data %}{{ data.amount }}{% else %}1{% endif %}" 
+                       required>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-sm font-medium">時間單位</label>
+                <fieldset class="flex gap-3">
+                    <label class="flex items-center gap-1.5 font-normal cursor-pointer">
+                        <input type="radio" name="unit" value="days" 
+                               {% if data and data.unit == "days" %}checked{% elif not data %}checked{% endif %}>
+                        <span>天</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 font-normal cursor-pointer">
+                        <input type="radio" name="unit" value="weeks" 
+                               {% if data and data.unit == "weeks" %}checked{% endif %}>
+                        <span>週</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 font-normal cursor-pointer">
+                        <input type="radio" name="unit" value="months" 
+                               {% if data and data.unit == "months" %}checked{% endif %}>
+                        <span>月</span>
+                    </label>
+                </fieldset>
+            </div>
+        </div>
+    </fieldset>
+    
+    <div class="flex flex-col sm:flex-row gap-2 pt-6">
+        <button type="submit" name="operation" value="before" class="btn-destructive flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+            </svg>
+            向前計算
+        </button>
+        
+        <button type="button" class="btn-outline" 
+                hx-post="/delete/all" 
+                hx-target="#result-cards" 
+                hx-swap="outerHTML">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+            清除記錄
+        </button>
+        
+        <button type="submit" name="operation" value="after" class="btn flex-1">
+            向後計算
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m9 18 6-6-6-6"/>
+            </svg>
+        </button>
+    </div>

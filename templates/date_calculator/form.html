@@ -1,0 +1,73 @@
+<div class="bg-muted/50 p-6 rounded-lg mb-6 space-y-6" x-data="{ 
+        mode: 'calculate',
+        switchMode(newMode) {
+            this.mode = newMode;
+        }
+     }" @switch-to-calculate.window="switchMode('calculate')" <!-- 模式選擇器 -->
+    <fieldset class="grid gap-3">
+        <legend class="text-sm font-medium">計算模式</legend>
+        <div class="grid grid-cols-2 gap-3">
+            <label for="mode_calculate" class="flex items-center gap-2 font-normal cursor-pointer">
+                <input type="radio" id="mode_calculate" value="calculate" x-model="mode" @change="switchMode('calculate')">
+                <span>日期推算</span>
+                <span class="text-xs text-muted-foreground">(從日期推算結果)</span>
+            </label>
+
+            <label for="mode_interval" class="flex items-center gap-2 font-normal cursor-pointer">
+                <input type="radio" id="mode_interval" value="interval" x-model="mode" @change="switchMode('interval')">
+                <span>間隔計算</span>
+                <span class="text-xs text-muted-foreground">(計算兩日期差距)</span>
+            </label>
+        </div>
+    </fieldset>
+
+    <!-- 日期推算表單 -->
+    <form id="date-picker" class="form grid gap-6" method="post" x-show="mode === 'calculate'"
+        hx-post="/calculate" hx-target="#result-cards-body" hx-swap="afterbegin">
+
+        <div id="form-content-calculate">
+            {% include 'date_calculator/form_content.html' %}
+        </div>
+    </form>
+
+    <!-- 間隔計算表單 -->
+    <form id="interval-calculator" class="form grid gap-6" method="post" x-show="mode === 'interval'"
+        hx-post="/calculate_interval" hx-target="#result-cards-body" hx-swap="afterbegin">
+
+        <fieldset class="grid gap-6">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="grid gap-2">
+                    <label for="start_date" class="text-sm font-medium">起始日期</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ current_date }}" required>
+                </div>
+
+                <div class="grid gap-2">
+                    <label for="end_date" class="text-sm font-medium">結束日期</label>
+                    <input type="date" id="end_date" name="end_date" required>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+            <button type="submit" class="btn flex-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12h18" />
+                    <path d="M12 3v18" />
+                </svg>
+                計算間隔
+            </button>
+
+            <button type="button" class="btn-outline" hx-post="/delete/all" hx-target="#result-cards"
+                hx-swap="outerHTML">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+                清除記錄
+            </button>
+        </div>
+    </form>
+</div>
