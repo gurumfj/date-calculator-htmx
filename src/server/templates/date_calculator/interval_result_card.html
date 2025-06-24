@@ -23,7 +23,7 @@
                  @click="startEdit()" 
                  class="cursor-pointer group">
                 <h3 class="font-semibold text-base group-hover:text-blue-600 transition-colors{% if not interval_data.description %} text-muted-foreground{% endif %}">
-                    {{ interval_data.description or '點擊添加說明...' }}
+                    {{ interval_data.description | e or '點擊添加說明...' }}
                 </h3>
             </div>
             
@@ -38,7 +38,7 @@
                     <div>
                         <input type="text" 
                                name="description" 
-                               value="{{ interval_data.description }}"
+                               value="{{ interval_data.description | e }}"
                                placeholder="輸入計算說明..."
                                class="w-full text-base font-semibold bg-transparent border border-input rounded px-3 py-2"
                                @keydown.escape="cancelEdit()"
@@ -97,7 +97,7 @@
                 <div class="flex justify-start">
                     <button class="btn-sm-outline text-xs" 
                             hx-post="/date_calculator/pickup" 
-                            hx-vals='{"base_date": "{{ interval_data.start_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id }}"}'
+                            hx-vals='{"base_date": "{{ interval_data.start_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id | e }}"}'
                             hx-target="#form-content-calculate" 
                             hx-swap="innerHTML"
                             @click="window.dispatchEvent(new CustomEvent('switch-to-calculate'))"
@@ -115,7 +115,7 @@
                 <div class="flex justify-start">
                     <button class="btn-sm text-xs" 
                             hx-post="/date_calculator/pickup" 
-                            hx-vals='{"base_date": "{{ interval_data.end_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id }}"}'
+                            hx-vals='{"base_date": "{{ interval_data.end_date.strftime('%Y-%m-%d') }}", "operation": "after", "amount": 1, "unit": "days", "id": "{{ interval_data.id | e }}"}'
                             hx-target="#form-content-calculate" 
                             hx-swap="innerHTML"
                             @click="window.dispatchEvent(new CustomEvent('switch-to-calculate'))"

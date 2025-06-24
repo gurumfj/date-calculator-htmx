@@ -24,7 +24,7 @@
                  @click="startEdit()" 
                  class="cursor-pointer group">
                 <h3 class="font-semibold text-base group-hover:text-blue-600 transition-colors{% if not date_data.description %} text-muted-foreground{% endif %}">
-                    {{ date_data.description or '點擊添加說明...' }}
+                    {{ date_data.description | e or '點擊添加說明...' }}
                 </h3>
             </div>
             
@@ -39,7 +39,7 @@
                     <div>
                         <input type="text" 
                                name="description" 
-                               value="{{ date_data.description }}"
+                               value="{{ date_data.description | e }}"
                                placeholder="輸入計算說明..."
                                class="w-full text-base font-semibold bg-transparent border border-input rounded px-3 py-2"
                                @keydown.escape="cancelEdit()"
@@ -100,7 +100,7 @@
                 <div class="flex justify-start">
                     <button class="btn-sm-outline text-xs" 
                             hx-post="/date_calculator/pickup" 
-                            hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
+                            hx-vals='{"base_date": "{{ date_data.base_date.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation | e }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit | e }}", "id": "{{ date_data.id | e }}"}'
                             hx-target="#form-content-calculate" 
                             hx-swap="innerHTML"
                             @click="window.dispatchEvent(new CustomEvent('switch-to-calculate'))"
@@ -118,7 +118,7 @@
                 <div class="flex justify-start">
                     <button class="btn-sm text-xs" 
                             hx-post="/date_calculator/pickup" 
-                            hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit }}", "id": "{{ date_data.id }}"}'
+                            hx-vals='{"base_date": "{{ date_data.result.strftime('%Y-%m-%d') }}", "operation": "{{ date_data.operation | e }}", "amount": {{ date_data.amount }}, "unit": "{{ date_data.unit | e }}", "id": "{{ date_data.id | e }}"}'
                             hx-target="#form-content-calculate" 
                             hx-swap="innerHTML"
                             @click="window.dispatchEvent(new CustomEvent('switch-to-calculate'))"

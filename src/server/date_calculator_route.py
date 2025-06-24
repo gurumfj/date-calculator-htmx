@@ -6,9 +6,57 @@ from typing import List, Union
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 router = APIRouter()
 templates = Jinja2Templates(directory="src/server/templates")
+
+
+# Validation models for input sanitization
+class DateCalculationRequest(BaseModel):
+    base_date: str = Field(..., description="Date in YYYY-MM-DD format")
+    operation: str = Field(..., pattern="^(before|after)$", description="Must be 'before' or 'after'")
+    amount: int = Field(..., ge=1, le=3650, description="Amount between 1 and 3650")
+    unit: str = Field(..., pattern="^(days|weeks|months)$", description="Must be 'days', 'weeks', or 'months'")
+    id: str = Field(..., max_length=100, description="Calculation ID")
+
+    @field_validator('base_date')
+    @classmethod
+    def validate_date_format(cls, v):
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+            return v
+        except ValueError:
+            raise ValueError('Date must be in YYYY-MM-DD format')
+
+
+class IntervalCalculationRequest(BaseModel):
+    start_date: str = Field(..., description="Start date in YYYY-MM-DD format")
+    end_date: str = Field(..., description="End date in YYYY-MM-DD format")
+
+    @field_validator('start_date', 'end_date')
+    @classmethod
+    def validate_date_format(cls, v):
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+            return v
+        except ValueError:
+            raise ValueError('Date must be in YYYY-MM-DD format')
+
+
+class DescriptionRequest(BaseModel):
+    description: str = Field("", max_length=500, description="Description text, max 500 characters")
+
+    @field_validator('description')
+    @classmethod
+    def sanitize_description(cls, v):
+        # Remove any potentially dangerous characters
+        if v:
+            # Strip whitespace and limit length
+            v = v.strip()[:500]
+            # Remove control characters but keep basic punctuation
+            v = ''.join(char for char in v if char.isprintable() or char.isspace())
+        return v
 
 
 class DateData:
@@ -225,18 +273,28 @@ async def calculate_date(
 ):
     """執行日期計算"""
     try:
-        base_date_obj = datetime.strptime(base_date, '%Y-%m-%d').date()
-        
-        # Generate new ID if it's a new calculation
-        if id == "new_calc":
-            id = str(uuid.uuid4().hex)
-            
-        data = DateData(
-            id=id,
-            base_date=base_date_obj,
+        # Validate input using Pydantic model
+        calc_request = DateCalculationRequest(
+            base_date=base_date,
             operation=operation,
             amount=amount,
             unit=unit,
+            id=id
+        )
+        
+        base_date_obj = datetime.strptime(calc_request.base_date, '%Y-%m-%d').date()
+        
+        # Generate new ID if it's a new calculation
+        calc_id = calc_request.id
+        if calc_id == "new_calc":
+            calc_id = str(uuid.uuid4().hex)
+            
+        data = DateData(
+            id=calc_id,
+            base_date=base_date_obj,
+            operation=calc_request.operation,
+            amount=calc_request.amount,
+            unit=calc_request.unit,
             result=base_date_obj,  # Will be calculated
             description=""  # 新計算預設空白，可在卡片內編輯
         )
@@ -255,8 +313,8 @@ async def calculate_date(
         
         return templates.TemplateResponse("date_calculator/result_card.html", context)
         
-    except ValueError as e:
-        return HTMLResponse(content=f'<div style="color: red;">計算錯誤: {str(e)}</div>', status_code=400)
+    except (ValueError, ValidationError):
+        return HTMLResponse(content='<div style="color: red;">計算錯誤: 輸入格式不正確</div>', status_code=400)
 
 
 @router.post("/pickup", response_class=HTMLResponse)
@@ -289,8 +347,8 @@ async def pickup_date(
         
         return templates.TemplateResponse("date_calculator/form_content.html", context)
         
-    except ValueError as e:
-        return HTMLResponse(content=f'<div style="color: red;">格式錯誤: {str(e)}</div>', status_code=400)
+    except (ValueError, ValidationError):
+        return HTMLResponse(content='<div style="color: red;">格式錯誤: 輸入格式不正確</div>', status_code=400)
 
 
 @router.post("/calculate_interval", response_class=HTMLResponse)
@@ -301,8 +359,14 @@ async def calculate_interval(
 ):
     """計算兩個日期之間的間隔"""
     try:
-        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        # Validate input using Pydantic model
+        interval_request = IntervalCalculationRequest(
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        start_date_obj = datetime.strptime(interval_request.start_date, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(interval_request.end_date, '%Y-%m-%d').date()
         
         result = DateInterval.calculate_interval(start_date_obj, end_date_obj)
         
@@ -318,8 +382,8 @@ async def calculate_interval(
         
         return templates.TemplateResponse("date_calculator/interval_result_card.html", context)
         
-    except ValueError as e:
-        return HTMLResponse(content=f'<div style="color: red;">計算錯誤: {str(e)}</div>', status_code=400)
+    except (ValueError, ValidationError):
+        return HTMLResponse(content='<div style="color: red;">計算錯誤: 輸入格式不正確</div>', status_code=400)
 
 
 @router.delete("/delete/{id}", response_class=HTMLResponse)
@@ -350,44 +414,52 @@ async def delete_all_calculations(request: Request):
 @router.post("/save_description/{id}", response_class=HTMLResponse)
 async def save_description(request: Request, id: str, description: str = Form("")):
     """儲存描述"""
-    store = get_session_store(request)
-    
-    # 找到並更新描述
-    for i, data in enumerate(store):
-        if data.id == id:
-            # 根據數據類型創建新物件
-            if isinstance(data, DateData):
-                updated_data = DateData(
-                    id=data.id,
-                    base_date=data.base_date,
-                    operation=data.operation,
-                    amount=data.amount,
-                    unit=data.unit,
-                    result=data.result,
-                    description=description.strip()
-                )
-            elif isinstance(data, DateInterval):
-                updated_data = DateInterval(
-                    id=data.id,
-                    start_date=data.start_date,
-                    end_date=data.end_date,
-                    days_diff=data.days_diff,
-                    description=description.strip()
-                )
-            else:
-                continue
+    try:
+        # Validate description input
+        desc_request = DescriptionRequest(description=description)
+        sanitized_description = desc_request.description
+        
+        store = get_session_store(request)
+        
+        # 找到並更新描述
+        for i, data in enumerate(store):
+            if data.id == id:
+                # 根據數據類型創建新物件
+                if isinstance(data, DateData):
+                    updated_data = DateData(
+                        id=data.id,
+                        base_date=data.base_date,
+                        operation=data.operation,
+                        amount=data.amount,
+                        unit=data.unit,
+                        result=data.result,
+                        description=sanitized_description
+                    )
+                elif isinstance(data, DateInterval):
+                    updated_data = DateInterval(
+                        id=data.id,
+                        start_date=data.start_date,
+                        end_date=data.end_date,
+                        days_diff=data.days_diff,
+                        description=sanitized_description
+                    )
+                else:
+                    continue
+                    
+                store[i] = updated_data
+                save_to_session(request, store)
                 
-            store[i] = updated_data
-            save_to_session(request, store)
-            
-            # 返回更新後的單個卡片
-            context = {
-                "request": request,
-                "date_data": updated_data if isinstance(updated_data, DateData) else None,
-                "interval_data": updated_data if isinstance(updated_data, DateInterval) else None
-            }
-            
-            template_name = "date_calculator/result_card.html" if isinstance(updated_data, DateData) else "date_calculator/interval_result_card.html"
-            return templates.TemplateResponse(template_name, context)
-    
-    return HTMLResponse(content="error", status_code=404)
+                # 返回更新後的單個卡片
+                context = {
+                    "request": request,
+                    "date_data": updated_data if isinstance(updated_data, DateData) else None,
+                    "interval_data": updated_data if isinstance(updated_data, DateInterval) else None
+                }
+                
+                template_name = "date_calculator/result_card.html" if isinstance(updated_data, DateData) else "date_calculator/interval_result_card.html"
+                return templates.TemplateResponse(template_name, context)
+        
+        return HTMLResponse(content="error", status_code=404)
+        
+    except ValidationError:
+        return HTMLResponse(content="error: invalid description", status_code=400)

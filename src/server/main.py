@@ -1,9 +1,12 @@
 import logging
+import os
+import secrets
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from db_init import init_db
@@ -21,11 +24,38 @@ init_db()
 # Create main application
 app = FastAPI(title="CleanSales Management System")
 
+
+# Security Headers Middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Add security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # CSP removed for local development - will be added for remote deployment
+        
+        return response
+
 # Add session middleware for date calculator
+# Use environment variable or generate secure random key
+session_secret = os.getenv("SESSION_SECRET_KEY")
+if not session_secret:
+    session_secret = secrets.token_urlsafe(32)
+    logger.warning("SESSION_SECRET_KEY not set, using randomly generated key. This will invalidate sessions on restart.")
+
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key="Keys dance in midnight code, sessions whisper soft and low, memories flow through digital streams, time calculates our dreams",
+    secret_key=session_secret,
 )
+
+# CSRF protection removed for local development - will be added with other tools for production
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory="src/server/templates")
