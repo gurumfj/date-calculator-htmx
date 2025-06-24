@@ -243,9 +243,9 @@ async def calculate_date(
         
         result = DateData.calculate_date(data)
         
-        # Add to session store
+        # Add to session store (prepend for newest first)
         store = get_session_store(request)
-        store.append(result)
+        store.insert(0, result)
         save_to_session(request, store)
         
         context = {
@@ -306,9 +306,9 @@ async def calculate_interval(
         
         result = DateInterval.calculate_interval(start_date_obj, end_date_obj)
         
-        # Add to session store
+        # Add to session store (prepend for newest first)
         store = get_session_store(request)
-        store.append(result)
+        store.insert(0, result)
         save_to_session(request, store)
         
         context = {
@@ -346,6 +346,7 @@ async def delete_all_calculations(request: Request):
     return templates.TemplateResponse("date_calculator/result_cards.html", context)
 
 
+
 @router.post("/save_description/{id}", response_class=HTMLResponse)
 async def save_description(request: Request, id: str, description: str = Form("")):
     """儲存描述"""
@@ -379,7 +380,14 @@ async def save_description(request: Request, id: str, description: str = Form(""
             store[i] = updated_data
             save_to_session(request, store)
             
-            # 返回簡單成功響應，前端 Alpine.js 處理 UI 更新
-            return HTMLResponse(content="success", status_code=200)
+            # 返回更新後的單個卡片
+            context = {
+                "request": request,
+                "date_data": updated_data if isinstance(updated_data, DateData) else None,
+                "interval_data": updated_data if isinstance(updated_data, DateInterval) else None
+            }
+            
+            template_name = "date_calculator/result_card.html" if isinstance(updated_data, DateData) else "date_calculator/interval_result_card.html"
+            return templates.TemplateResponse(template_name, context)
     
     return HTMLResponse(content="error", status_code=404)

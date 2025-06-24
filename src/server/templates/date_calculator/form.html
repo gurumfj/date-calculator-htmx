@@ -23,7 +23,7 @@
 
     <!-- 日期推算表單 -->
     <form id="date-picker" class="form grid gap-6" method="post" x-show="mode === 'calculate'"
-        hx-post="/date_calculator/calculate" hx-target="#result-cards-body" hx-swap="afterend">
+        hx-post="/date_calculator/calculate" hx-target="#result-cards-body" hx-swap="afterbegin">
 
         <div id="form-content-calculate">
             {% include 'date_calculator/form_content.html' %}
@@ -32,7 +32,7 @@
 
     <!-- 間隔計算表單 -->
     <form id="interval-calculator" class="form grid gap-6" method="post" x-show="mode === 'interval'"
-        hx-post="/date_calculator/calculate_interval" hx-target="#result-cards-body" hx-swap="afterend">
+        hx-post="/date_calculator/calculate_interval" hx-target="#result-cards-body" hx-swap="afterbegin">
 
         <fieldset class="grid gap-6">
             <div class="grid md:grid-cols-2 gap-6">
