@@ -1,7 +1,9 @@
+import logging
 import os
 from datetime import datetime
 
 from fastapi import FastAPI, Form, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,6 +12,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .models import DateData, DateInterval
 from .session import get_session_store, save_to_session
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Get configuration from environment variables
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
@@ -24,6 +30,9 @@ app = FastAPI(
     version="1.0.0",
     debug=DEBUG,
 )
+
+# Add compression middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add session middleware for storing calculations
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
@@ -134,25 +143,30 @@ async def calculate_interval(request: Request, start_date: str = Form(...), end_
         return HTMLResponse(content='<div style="color: red;">計算錯誤: 輸入格式不正確</div>', status_code=400)
 
 
+@app.delete("/delete/all", response_class=HTMLResponse)
+async def delete_all_calculations(request: Request):
+    """清除所有計算記錄"""
+    try:
+        save_to_session(request, [])
+
+        return HTMLResponse(content="")
+    except Exception as e:
+        logger.error(f"Error deleting all calculations: {e}")
+        return HTMLResponse(content="", status_code=500)
+
+
 @app.delete("/delete/{id}", response_class=HTMLResponse)
 async def delete_date_calculation(request: Request, id: str):
     """刪除單個計算記錄"""
-    store = get_session_store(request)
-    updated_store = [data for data in store if data.id != id]
-    save_to_session(request, updated_store)
+    try:
+        store = get_session_store(request)
+        updated_store = [data for data in store if data.id != id]
+        save_to_session(request, updated_store)
 
-    return HTMLResponse(content="")
-
-
-@app.post("/delete/all", response_class=HTMLResponse)
-async def delete_all_calculations(request: Request):
-    """清除所有計算記錄"""
-    if hasattr(request, "session"):
-        request.session.pop("date_store", None)
-
-    context = {"request": request, "store": []}
-
-    return templates.TemplateResponse("date_calculator/result_cards.html", context)
+        return HTMLResponse(content="")
+    except Exception as e:
+        logger.error(f"Error deleting calculation: {e}")
+        return HTMLResponse(content="", status_code=500)
 
 
 @app.post("/save_description/{id}", response_class=HTMLResponse)
@@ -213,13 +227,7 @@ def main():
     """Entry point for uvicorn development server"""
     import uvicorn
 
-    uvicorn.run(
-        "app.main:app",
-        host=HOST,
-        port=PORT,
-        reload=DEBUG,
-        log_level="info" if not DEBUG else "debug"
-    )
+    uvicorn.run("app.main:app", host=HOST, port=PORT, reload=DEBUG, log_level="info" if not DEBUG else "debug")
 
 
 if __name__ == "__main__":

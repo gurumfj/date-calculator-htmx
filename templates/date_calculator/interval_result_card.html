@@ -32,7 +32,7 @@
                 <form hx-post="/save_description/{{ interval_data.id }}"
                       hx-target="closest .card"
                       hx-swap="outerHTML"
-                      @htmx:after-request="saving = false;"
+                      hx-on::after-request="saving = false"
                       @submit="saveDescription()"
                       class="space-y-3">
                     <div>
@@ -80,6 +80,7 @@
                 hx-delete="/delete/{{ interval_data.id }}" 
                 hx-target="#card_{{ interval_data.id }}"
                 hx-swap="outerHTML"
+                hx-confirm="確定要刪除此記錄嗎？"
                 title="刪除此記錄">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 6h18"/>

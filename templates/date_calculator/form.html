@@ -3,7 +3,7 @@
         switchMode(newMode) {
             this.mode = newMode;
         }
-     }" @switch-to-calculate.window="switchMode('calculate')" <!-- 模式選擇器 -->
+     }" @switch-to-calculate.window="switchMode('calculate')"> <!-- 模式選擇器 -->
     <fieldset class="grid gap-3">
         <legend class="text-sm font-medium">計算模式</legend>
         <div class="grid grid-cols-2 gap-3">
@@ -23,7 +23,9 @@
 
     <!-- 日期推算表單 -->
     <form id="date-picker" class="form grid gap-6" method="post" x-show="mode === 'calculate'"
-        hx-post="/calculate" hx-target="#result-cards-body" hx-swap="afterbegin">
+        hx-post="/calculate" hx-target="#result-cards-body" hx-swap="afterbegin"
+        hx-on::after-request="this.reset()"
+        hx-indicator="#loading-indicator">
 
         <div id="form-content-calculate">
             {% include 'date_calculator/form_content.html' %}
@@ -32,7 +34,9 @@
 
     <!-- 間隔計算表單 -->
     <form id="interval-calculator" class="form grid gap-6" method="post" x-show="mode === 'interval'"
-        hx-post="/calculate_interval" hx-target="#result-cards-body" hx-swap="afterbegin">
+        hx-post="/calculate_interval" hx-target="#result-cards-body" hx-swap="afterbegin"
+        hx-on::after-request="this.reset()"
+        hx-indicator="#loading-indicator">
 
         <fieldset class="grid gap-6">
             <div class="grid md:grid-cols-2 gap-6">
@@ -58,8 +62,11 @@
                 計算間隔
             </button>
 
-            <button type="button" class="btn-outline" hx-post="/delete/all" hx-target="#result-cards"
-                hx-swap="outerHTML">
+            <button type="button" class="btn-outline" 
+                hx-delete="/delete/all" 
+                hx-target="#result-cards-body"
+                hx-swap="innerHTML"
+                hx-confirm="確定要清除所有記錄嗎？">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 6h18" />

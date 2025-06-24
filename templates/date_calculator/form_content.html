@@ -48,9 +48,10 @@
         </button>
         
         <button type="button" class="btn-outline" 
-                hx-post="/delete/all" 
-                hx-target="#result-cards" 
-                hx-swap="outerHTML">
+                hx-delete="/delete/all" 
+                hx-target="#result-cards-body" 
+                hx-swap="innerHTML"
+                hx-confirm="確定要清除所有記錄嗎？">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 6h18"/>
                 <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
